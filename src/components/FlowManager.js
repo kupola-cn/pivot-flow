@@ -1,6 +1,8 @@
-import { createFlow } from '../flow-schema.js';
+import { createFlow, createFlowNode } from '../flow-schema.js';
 import { flowToPlan } from '../flow-to-plan.js';
 import { createMemoryFlowStore } from '../flow-store.js';
+import { validateFlow } from '../flow-validation.js';
+import { getDefaultCapabilityForNodeType } from '../node-types.js';
 import { escapeHTML, on, resolveTarget, setHTML } from './dom.js';
 import { renderFlowAuditPanelToHTML } from './FlowAuditPanel.js';
 import { renderFlowDesignerToHTML } from './FlowDesigner.js';
@@ -47,6 +49,7 @@ export function FlowManager(options = {}) {
       '</div>',
       '<div class="flow-manager__actions">',
       '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-action="refresh">Refresh</button>',
+      '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-action="create-flow">New flow</button>',
       '<button type="button" class="ds-btn ds-btn--brand ds-btn--sm" data-flow-action="create-sample">Sample flow</button>',
       '</div>',
       '</header>',
@@ -107,6 +110,164 @@ export function FlowManager(options = {}) {
     render();
   };
 
+  const saveSelected = async () => {
+    const flow = getSelectedFlow(state);
+    if (!flow) {
+      return null;
+    }
+
+    if (flow.status === 'published') {
+      const validation = validateFlow(flow);
+      if (!validation.valid) {
+        state.error = `Cannot save as published: ${validation.errors.join('; ')}`;
+        render();
+        return null;
+      }
+    }
+
+    try {
+      const saved = await flowStore.update(flow.id, flow);
+      state.selectedFlowId = saved.id;
+      state.error = '';
+      await refresh();
+      return saved;
+    } catch (error) {
+      state.error = error?.message || 'Failed to save flow.';
+      render();
+      return null;
+    }
+  };
+
+  const publishSelected = async () => {
+    const flow = getSelectedFlow(state);
+    if (!flow) {
+      return;
+    }
+
+    const validation = validateFlow(flow);
+    if (!validation.valid) {
+      state.error = `Cannot publish invalid flow: ${validation.errors.join('; ')}`;
+      render();
+      return;
+    }
+
+    const saved = await saveSelected();
+    if (!saved) {
+      return;
+    }
+
+    try {
+      await flowStore.publish(saved.id);
+      state.error = '';
+      await refresh();
+    } catch (error) {
+      state.error = error?.message || 'Failed to publish flow.';
+      render();
+    }
+  };
+
+  const disableSelected = async () => {
+    const flow = getSelectedFlow(state);
+    if (!flow) {
+      return;
+    }
+
+    try {
+      await flowStore.disable(flow.id);
+      state.error = '';
+      await refresh();
+    } catch (error) {
+      state.error = error?.message || 'Failed to disable flow.';
+      render();
+    }
+  };
+
+  const removeSelected = async () => {
+    const flow = getSelectedFlow(state);
+    if (!flow) {
+      return;
+    }
+
+    if (typeof globalThis.confirm === 'function' && !globalThis.confirm(`Delete flow "${flow.name || flow.id}"?`)) {
+      return;
+    }
+
+    try {
+      await flowStore.remove(flow.id);
+      state.selectedFlowId = '';
+      state.selectedNodeId = '';
+      state.preview = null;
+      state.result = null;
+      state.error = '';
+      await refresh();
+    } catch (error) {
+      state.error = error?.message || 'Failed to delete flow.';
+      render();
+    }
+  };
+
+  const createBlankFlow = async () => {
+    try {
+      const flow = await flowStore.create(createFlow({
+        name: 'Untitled flow',
+        description: 'Describe when this flow should be used.',
+        status: 'draft',
+        intent: {
+          examples: [],
+          keywords: [],
+          patterns: []
+        },
+        nodes: []
+      }));
+      state.selectedFlowId = flow.id;
+      state.selectedNodeId = '';
+      state.preview = null;
+      state.result = null;
+      state.error = '';
+      await refresh();
+    } catch (error) {
+      state.error = error?.message || 'Failed to create flow.';
+      render();
+    }
+  };
+
+  const addNodeToSelected = (nodeType) => {
+    const flow = getSelectedFlow(state);
+    if (!flow || !nodeType) {
+      return;
+    }
+
+    const node = createFlowNode({
+      type: nodeType,
+      label: nodeType,
+      capability: getDefaultCapabilityForNodeType(nodeType),
+      risk: 'low'
+    });
+    flow.nodes = [...(flow.nodes ?? []), node];
+    state.selectedNodeId = node.id;
+    state.preview = null;
+    state.result = null;
+    render();
+  };
+
+  const updateSelectedField = (field, value) => {
+    const flow = getSelectedFlow(state);
+    if (!flow || !field) {
+      return;
+    }
+
+    if (field === 'intent.examples' || field === 'intent.keywords' || field === 'intent.patterns') {
+      const key = field.split('.')[1];
+      flow.intent = {
+        ...(flow.intent ?? {}),
+        [key]: parseListInput(value)
+      };
+      return;
+    }
+
+    flow[field] = value;
+  };
+
   const cleanups = [
     on(target, 'click', '[data-flow-action="select"]', (e, el) => {
       state.selectedFlowId = el.dataset.flowId;
@@ -128,6 +289,36 @@ export function FlowManager(options = {}) {
     on(target, 'click', '[data-flow-action="execute"]', () => {
       executeSelected();
     }),
+    on(target, 'click', '[data-flow-action="save-flow"]', () => {
+      saveSelected();
+    }),
+    on(target, 'click', '[data-flow-action="publish-flow"]', () => {
+      publishSelected();
+    }),
+    on(target, 'click', '[data-flow-action="disable-flow"]', () => {
+      disableSelected();
+    }),
+    on(target, 'click', '[data-flow-action="remove-flow"]', () => {
+      removeSelected();
+    }),
+    on(target, 'click', '[data-flow-action="create-flow"]', () => {
+      createBlankFlow();
+    }),
+    on(target, 'click', '[data-flow-action="add-node"]', (e, el) => {
+      addNodeToSelected(el.dataset.nodeType);
+    }),
+    on(target, 'input', '[data-flow-field]', (e, el) => {
+      updateSelectedField(el.dataset.flowField, e.target.value);
+      state.preview = null;
+      state.result = null;
+      state.error = '';
+    }),
+    on(target, 'change', '[data-flow-field]', (e, el) => {
+      updateSelectedField(el.dataset.flowField, e.target.value);
+      state.preview = null;
+      state.result = null;
+      state.error = '';
+    }),
     on(target, 'click', '[data-flow-action="create-sample"]', async () => {
       const sample = await flowStore.create(createSampleFlow());
       state.selectedFlowId = sample.id;
@@ -145,6 +336,13 @@ export function FlowManager(options = {}) {
       target.innerHTML = '';
     }
   };
+}
+
+function parseListInput(value) {
+  return String(value ?? '')
+    .split(/[\n,，]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
 function getSelectedFlow(state) {

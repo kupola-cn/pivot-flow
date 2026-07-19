@@ -157,6 +157,14 @@ FlowAssistantDrawer({
 });
 ```
 
+`FlowManager` provides the first configurable management surface:
+
+- create blank or sample flows
+- edit flow name, description, status, risk, examples, keywords, and patterns
+- add built-in nodes from the palette
+- save, publish, disable, or delete flows through the configured `FlowStore`
+- preview and execute the selected flow through the configured PIVOT runtime
+
 ## Security Boundary
 
 Frontend PIVOT Flow permissions are only interaction hints and client-side safeguards. They do not replace backend authorization.

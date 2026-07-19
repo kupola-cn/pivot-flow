@@ -223,9 +223,34 @@
 
 .flow-inspector,
 .flow-variable-mapper,
-.flow-intent-editor {
+.flow-intent-editor,
+.flow-settings {
   display: grid;
   gap: var(--spacer-10);
+}
+
+.flow-settings {
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  background: var(--bg-overlay-l1);
+  padding: var(--spacer-12);
+}
+
+.flow-settings__grid {
+  display: grid;
+  gap: var(--spacer-10);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.flow-settings__actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacer-8);
+}
+
+.flow-field--wide {
+  grid-column: span 3;
 }
 
 .flow-inspector__field {
@@ -353,7 +378,9 @@
   gap: var(--spacer-6);
 }
 
-.flow-field .ds-input {
+.flow-field .ds-input,
+.flow-field .ds-select,
+.flow-field .ds-textarea {
   width: 100%;
 }
 
@@ -394,8 +421,13 @@
 @media (max-width: 1180px) {
   .flow-manager__grid,
   .flow-designer,
-  .flow-manager__runtime {
+  .flow-manager__runtime,
+  .flow-settings__grid {
     grid-template-columns: 1fr;
+  }
+
+  .flow-field--wide {
+    grid-column: auto;
   }
 }
 

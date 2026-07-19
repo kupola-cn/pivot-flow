@@ -213,6 +213,7 @@ export function registerFlowFrontendCapabilities(runtime: PivotRuntime, adapter?
 
 export function renderFlowListToHTML(flows?: FlowDefinition[], options?: Record<string, unknown>): string;
 export function renderFlowDesignerToHTML(flow?: FlowDefinition | null, state?: Record<string, unknown>): string;
+export function renderFlowSettingsToHTML(flow: FlowDefinition): string;
 export function renderFlowCanvasToHTML(flow?: FlowDefinition | null, options?: Record<string, unknown>): string;
 export function renderNodeInspectorToHTML(node?: FlowNode | null): string;
 export function renderNodePaletteToHTML(nodes?: unknown[]): string;
