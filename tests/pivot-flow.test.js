@@ -11,6 +11,7 @@ import {
   flowToPlan,
   listFlowTemplates,
   renderEditableNodeInspectorToHTML,
+  renderFlowEdgeEditorToHTML,
   renderFlowSettingsToHTML,
   renderFlowTemplateListToHTML,
   registerFlowFrontendCapabilities,
@@ -209,6 +210,28 @@ test('renders editable flow settings with slot configuration', () => {
 
   assert.match(html, /data-flow-field="intent\.slots"/);
   assert.match(html, /organizationName/);
+});
+
+test('renders edge editor controls', () => {
+  const flow = createFlow({
+    id: 'edge-flow',
+    name: 'Edge flow',
+    status: 'draft',
+    nodes: [
+      { id: 'first', type: 'message.show', label: 'First' },
+      { id: 'second', type: 'message.show', label: 'Second' }
+    ],
+    edges: [
+      { id: 'edge-1', from: 'first', to: 'second', condition: 'success' }
+    ]
+  });
+  const html = renderFlowEdgeEditorToHTML(flow, { selectedEdgeId: 'edge-1' });
+
+  assert.match(html, /data-flow-action="add-edge"/);
+  assert.match(html, /data-flow-action="select-edge"/);
+  assert.match(html, /data-flow-edge-field="from"/);
+  assert.match(html, /data-flow-edge-field="to"/);
+  assert.match(html, /data-flow-edge-field="condition"/);
 });
 
 test('registers built-in frontend capabilities', async () => {

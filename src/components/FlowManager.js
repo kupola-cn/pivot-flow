@@ -1,4 +1,4 @@
-import { createFlow, createFlowNode } from '../flow-schema.js';
+import { createFlow, createFlowEdge, createFlowNode } from '../flow-schema.js';
 import { createFlowFromTemplate, listFlowTemplates } from '../flow-templates.js';
 import { flowToPlan } from '../flow-to-plan.js';
 import { createMemoryFlowStore } from '../flow-store.js';
@@ -21,6 +21,7 @@ export function FlowManager(options = {}) {
     templates,
     selectedFlowId: '',
     selectedNodeId: '',
+    selectedEdgeId: '',
     preview: null,
     result: null,
     loading: false,
@@ -33,6 +34,7 @@ export function FlowManager(options = {}) {
     try {
       state.flows = await flowStore.list();
       state.selectedFlowId = state.selectedFlowId || state.flows[0]?.id || '';
+      state.selectedEdgeId = state.selectedEdgeId || getSelectedFlow(state)?.edges?.[0]?.id || '';
       state.error = '';
     } catch (error) {
       state.error = error?.message || 'Failed to load flows.';
@@ -201,6 +203,7 @@ export function FlowManager(options = {}) {
       await flowStore.remove(flow.id);
       state.selectedFlowId = '';
       state.selectedNodeId = '';
+      state.selectedEdgeId = '';
       state.preview = null;
       state.result = null;
       state.error = '';
@@ -248,6 +251,7 @@ export function FlowManager(options = {}) {
       const flow = await flowStore.create(createFlowFromTemplate(template));
       state.selectedFlowId = flow.id;
       state.selectedNodeId = flow.nodes?.[0]?.id ?? '';
+      state.selectedEdgeId = flow.edges?.[0]?.id ?? '';
       state.preview = null;
       state.result = null;
       state.error = '';
@@ -272,6 +276,7 @@ export function FlowManager(options = {}) {
     });
     flow.nodes = [...(flow.nodes ?? []), node];
     state.selectedNodeId = node.id;
+    state.selectedEdgeId = '';
     state.preview = null;
     state.result = null;
     render();
@@ -286,6 +291,7 @@ export function FlowManager(options = {}) {
     flow.nodes = (flow.nodes ?? []).filter((node) => node.id !== state.selectedNodeId);
     flow.edges = (flow.edges ?? []).filter((edge) => edge.from !== state.selectedNodeId && edge.to !== state.selectedNodeId);
     state.selectedNodeId = flow.nodes?.[0]?.id ?? '';
+    state.selectedEdgeId = flow.edges?.[0]?.id ?? '';
     state.preview = null;
     state.result = null;
     state.error = '';
@@ -310,6 +316,55 @@ export function FlowManager(options = {}) {
     state.result = null;
     state.error = '';
     render();
+  };
+
+  const addEdgeToSelected = () => {
+    const flow = getSelectedFlow(state);
+    const nodes = flow?.nodes ?? [];
+    if (!flow || nodes.length < 2) {
+      state.error = 'At least two nodes are required to add an edge.';
+      render();
+      return;
+    }
+
+    const from = state.selectedNodeId && nodes.some((node) => node.id === state.selectedNodeId)
+      ? state.selectedNodeId
+      : nodes[0].id;
+    const to = nodes.find((node) => node.id !== from)?.id ?? nodes[1].id;
+    const edge = createFlowEdge({ from, to, condition: 'success' });
+    flow.edges = [...(flow.edges ?? []), edge];
+    state.selectedEdgeId = edge.id;
+    state.preview = null;
+    state.result = null;
+    state.error = '';
+    render();
+  };
+
+  const removeSelectedEdge = () => {
+    const flow = getSelectedFlow(state);
+    if (!flow || !state.selectedEdgeId) {
+      return;
+    }
+
+    flow.edges = (flow.edges ?? []).filter((edge) => edge.id !== state.selectedEdgeId);
+    state.selectedEdgeId = flow.edges?.[0]?.id ?? '';
+    state.preview = null;
+    state.result = null;
+    state.error = '';
+    render();
+  };
+
+  const updateSelectedEdgeField = (field, value) => {
+    const flow = getSelectedFlow(state);
+    const edge = flow?.edges?.find((item) => item.id === state.selectedEdgeId);
+    if (!edge || !field) {
+      return;
+    }
+
+    edge[field] = value;
+    state.preview = null;
+    state.result = null;
+    state.error = '';
   };
 
   const updateSelectedField = (field, value) => {
@@ -380,12 +435,17 @@ export function FlowManager(options = {}) {
     on(target, 'click', '[data-flow-action="select"]', (e, el) => {
       state.selectedFlowId = el.dataset.flowId;
       state.selectedNodeId = '';
+      state.selectedEdgeId = '';
       state.preview = null;
       state.result = null;
       render();
     }),
     on(target, 'click', '[data-flow-action="select-node"]', (e, el) => {
       state.selectedNodeId = el.dataset.nodeId;
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="select-edge"]', (e, el) => {
+      state.selectedEdgeId = el.dataset.edgeId;
       render();
     }),
     on(target, 'click', '[data-flow-action="refresh"]', () => {
@@ -427,17 +487,21 @@ export function FlowManager(options = {}) {
     on(target, 'click', '[data-flow-action="move-node-down"]', () => {
       moveSelectedNode('down');
     }),
+    on(target, 'click', '[data-flow-action="add-edge"]', () => {
+      addEdgeToSelected();
+    }),
+    on(target, 'click', '[data-flow-action="remove-edge"]', () => {
+      removeSelectedEdge();
+    }),
     on(target, 'input', '[data-flow-field]', (e, el) => {
       updateSelectedField(el.dataset.flowField, e.target.value);
       state.preview = null;
       state.result = null;
-      state.error = '';
     }),
     on(target, 'change', '[data-flow-field]', (e, el) => {
       updateSelectedField(el.dataset.flowField, e.target.value);
       state.preview = null;
       state.result = null;
-      state.error = '';
     }),
     on(target, 'input', '[data-flow-node-field]', (e, el) => {
       updateSelectedNodeField(el.dataset.flowNodeField, e.target.value, e.target.type);
@@ -452,6 +516,10 @@ export function FlowManager(options = {}) {
       );
       state.preview = null;
       state.result = null;
+      render();
+    }),
+    on(target, 'change', '[data-flow-edge-field]', (e, el) => {
+      updateSelectedEdgeField(el.dataset.flowEdgeField, e.target.value);
       render();
     }),
     on(target, 'click', '[data-flow-action="create-sample"]', async () => {

@@ -110,6 +110,7 @@
 
 .flow-list,
 .flow-template-list,
+.flow-edge-list,
 .flow-palette__list,
 .flow-canvas__nodes,
 .flow-token-list {
@@ -122,6 +123,7 @@
 
 .flow-list__button,
 .flow-template-card,
+.flow-edge-card,
 .flow-node__button,
 .flow-node-type {
   border: 1px solid var(--border-neutral-l1);
@@ -136,9 +138,11 @@
 
 .flow-list__button:hover,
 .flow-template-card:hover,
+.flow-edge-card:hover,
 .flow-node__button:hover,
 .flow-node-type:hover,
 .flow-list__item.is-active .flow-list__button,
+.flow-edge-list__item.is-selected .flow-edge-card,
 .flow-node.is-selected .flow-node__button {
   border-color: var(--border-brand);
   background: var(--bg-brand-overlay);
@@ -146,6 +150,7 @@
 
 .flow-list__main,
 .flow-template-card__main,
+.flow-edge-card__main,
 .flow-node__body,
 .flow-node-type {
   display: grid;
@@ -155,6 +160,7 @@
 
 .flow-list__main strong,
 .flow-template-card__main strong,
+.flow-edge-card__main strong,
 .flow-node__body strong {
   color: var(--text-default);
   overflow: hidden;
@@ -164,6 +170,7 @@
 
 .flow-list__main small,
 .flow-template-card__main small,
+.flow-edge-card__main small,
 .flow-node__body small,
 .flow-node-type small {
   color: var(--text-secondary);
@@ -232,6 +239,7 @@
 .flow-variable-mapper,
 .flow-intent-editor,
 .flow-template-panel,
+.flow-edge-editor,
 .flow-settings {
   display: grid;
   gap: var(--spacer-10);
@@ -242,6 +250,26 @@
   border-radius: var(--radius-4);
   background: var(--bg-overlay-l1);
   padding: var(--spacer-12);
+}
+
+.flow-edge-editor {
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  background: var(--bg-overlay-l1);
+  padding: var(--spacer-12);
+}
+
+.flow-edge-editor__header {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-8);
+  justify-content: space-between;
+}
+
+.flow-edge-form {
+  display: grid;
+  gap: var(--spacer-10);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .flow-settings__grid {
@@ -446,6 +474,7 @@
   .flow-manager__grid,
   .flow-designer,
   .flow-manager__runtime,
+  .flow-edge-form,
   .flow-settings__grid {
     grid-template-columns: 1fr;
   }

@@ -36,12 +36,32 @@ export function renderFlowDesignerToHTML(flow, state = {}) {
     validation.valid ? '' : `<div class="flow-alert flow-alert--error">${escapeHTML(validation.errors.join('; '))}</div>`,
     renderFlowSettingsToHTML(flow),
     renderFlowCanvasToHTML(flow, state),
+    renderFlowEdgeEditorToHTML(flow, state),
     '</main>',
     '<aside class="flow-designer__inspector">',
     renderNodeInspectorToHTML(selectedNode, { editable: true }),
     renderVariableMapperToHTML(),
     renderIntentPatternEditorToHTML(flow),
     '</aside>',
+    '</section>'
+  ].join('');
+}
+
+export function renderFlowEdgeEditorToHTML(flow, state = {}) {
+  const nodes = Array.isArray(flow?.nodes) ? flow.nodes : [];
+  const edges = Array.isArray(flow?.edges) ? flow.edges : [];
+  const selectedEdge = edges.find((edge) => edge.id === state.selectedEdgeId) ?? edges[0] ?? null;
+
+  return [
+    '<section class="flow-edge-editor">',
+    '<div class="flow-edge-editor__header">',
+    '<div class="flow-panel-title">Edges</div>',
+    '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-action="add-edge">Add edge</button>',
+    '</div>',
+    edges.length === 0
+      ? '<div class="flow-empty flow-empty--compact">No edges configured.</div>'
+      : renderEdgeList(edges, state),
+    selectedEdge ? renderEdgeForm(selectedEdge, nodes) : '',
     '</section>'
   ].join('');
 }
@@ -95,6 +115,61 @@ function renderTextarea(label, field, value, rows = 3) {
     `<textarea class="ds-textarea" rows="${escapeAttr(rows)}" data-flow-field="${escapeAttr(field)}">${escapeHTML(value)}</textarea>`,
     '</label>'
   ].join('');
+}
+
+function renderEdgeList(edges, state) {
+  return [
+    '<ol class="flow-edge-list">',
+    ...edges.map((edge) => [
+      `<li class="flow-edge-list__item${edge.id === state.selectedEdgeId ? ' is-selected' : ''}">`,
+      `<button type="button" class="flow-edge-card" data-flow-action="select-edge" data-edge-id="${escapeAttr(edge.id)}">`,
+      '<span class="flow-edge-card__main">',
+      `<strong>${escapeHTML(edge.from || '-')} -> ${escapeHTML(edge.to || '-')}</strong>`,
+      `<small>${escapeHTML(edge.condition || 'success')}</small>`,
+      '</span>',
+      '</button>',
+      '</li>'
+    ].join('')),
+    '</ol>'
+  ].join('');
+}
+
+function renderEdgeForm(edge, nodes) {
+  return [
+    '<div class="flow-edge-form">',
+    '<div class="flow-inspector__actions">',
+    '<button type="button" class="ds-btn ds-btn--ghost ds-btn--sm" data-flow-action="remove-edge">Delete edge</button>',
+    '</div>',
+    '<label class="flow-field">',
+    '<span>From</span>',
+    `<select class="ds-select" data-flow-edge-field="from">${renderNodeOptions(nodes, edge.from)}</select>`,
+    '</label>',
+    '<label class="flow-field">',
+    '<span>To</span>',
+    `<select class="ds-select" data-flow-edge-field="to">${renderNodeOptions(nodes, edge.to)}</select>`,
+    '</label>',
+    '<label class="flow-field">',
+    '<span>Condition</span>',
+    `<select class="ds-select" data-flow-edge-field="condition">${renderConditionOptions(edge.condition)}</select>`,
+    '</label>',
+    '</div>'
+  ].join('');
+}
+
+function renderNodeOptions(nodes, value) {
+  return nodes.map((node) => [
+    `<option value="${escapeAttr(node.id)}"${node.id === value ? ' selected' : ''}>`,
+    escapeHTML(node.label || node.id),
+    '</option>'
+  ].join('')).join('');
+}
+
+function renderConditionOptions(value) {
+  return ['success', 'failure', 'always', 'skipped'].map((condition) => [
+    `<option value="${escapeAttr(condition)}"${condition === value ? ' selected' : ''}>`,
+    escapeHTML(condition),
+    '</option>'
+  ].join('')).join('');
 }
 
 export function FlowDesigner(options = {}) {
