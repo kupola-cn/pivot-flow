@@ -179,6 +179,23 @@ await flowStore.create(draftFlow);
 
 `FlowManager` renders built-in templates by default. Pass `templates` to replace them with project-specific templates.
 
+## Conditions And Transforms
+
+`evaluateFlowCondition()` and `applyFlowTransform()` provide a small controlled DSL for custom runners, tests, and preview tooling. They do not evaluate arbitrary JavaScript.
+
+```js
+const ok = evaluateFlowCondition({
+  left: '{{intent.quantity}}',
+  operator: 'gt',
+  right: 0
+}, { slots: { quantity: 3 } });
+
+const payload = applyFlowTransform({
+  name: '{{intent.name}}',
+  actorId: '{{context.actor.id}}'
+}, { slots: { name: '张三' } }, { actor: { id: 'admin' } });
+```
+
 ## UI Example
 
 ```js

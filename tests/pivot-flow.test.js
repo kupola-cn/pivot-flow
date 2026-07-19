@@ -8,6 +8,8 @@ import {
   createLocalIntentMapper,
   createMemoryFlowStore,
   createFlowRunner,
+  applyFlowTransform,
+  evaluateFlowCondition,
   flowToPlan,
   listFlowTemplates,
   renderEditableNodeInspectorToHTML,
@@ -270,6 +272,49 @@ test('validates condition and transform node configuration', () => {
   assert.equal(validation.valid, false);
   assert.match(validation.errors.join('\n'), /Condition node requires a condition object: condition/);
   assert.match(validation.errors.join('\n'), /Transform node params must be an object: transform/);
+});
+
+test('evaluates controlled flow condition DSL', () => {
+  const input = {
+    slots: {
+      quantity: 3,
+      status: 'enabled'
+    }
+  };
+  const condition = {
+    all: [
+      { left: '{{intent.quantity}}', operator: 'gt', right: 0 },
+      {
+        any: [
+          { left: '{{intent.status}}', operator: 'eq', right: 'enabled' },
+          { left: '{{intent.status}}', operator: 'eq', right: 'pending' }
+        ]
+      },
+      {
+        not: { left: '{{intent.quantity}}', operator: 'lt', right: 1 }
+      }
+    ]
+  };
+
+  assert.equal(evaluateFlowCondition(condition, input), true);
+});
+
+test('applies flow transform mappings without arbitrary code execution', () => {
+  const payload = applyFlowTransform({
+    name: '{{intent.name}}',
+    actorId: '{{context.actor.id}}',
+    staticValue: 'ok'
+  }, {
+    slots: { name: '张三' }
+  }, {
+    actor: { id: 'admin' }
+  });
+
+  assert.deepEqual(payload, {
+    name: '张三',
+    actorId: 'admin',
+    staticValue: 'ok'
+  });
 });
 
 test('renders editable flow settings with slot configuration', () => {
