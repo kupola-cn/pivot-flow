@@ -1766,6 +1766,88 @@
   padding: var(--spacer-12);
 }
 
+.flow-ai-builder {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-12);
+  min-width: 0;
+  padding: var(--spacer-12);
+}
+
+.flow-ai-builder__header,
+.flow-ai-builder__actions,
+.flow-ai-builder__recommendations li {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-10);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.flow-ai-builder__header > div,
+.flow-ai-builder__recommendations li span {
+  display: grid;
+  gap: var(--spacer-4);
+  min-width: 0;
+}
+
+.flow-ai-builder__header strong,
+.flow-ai-builder__recommendations > strong,
+.flow-ai-builder__recommendations li strong {
+  color: var(--text-default);
+  font-size: var(--body-sm-font-size);
+}
+
+.flow-ai-builder__header span,
+.flow-ai-builder__message,
+.flow-ai-builder__recommendations li small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  overflow-wrap: anywhere;
+}
+
+.flow-ai-builder__actions {
+  flex-wrap: wrap;
+  justify-content: flex-start;
+}
+
+.flow-ai-builder__recommendations {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-8);
+  padding: var(--spacer-10);
+}
+
+.flow-ai-builder__recommendations ol {
+  display: grid;
+  gap: var(--spacer-6);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.flow-ai-builder__recommendations li {
+  background: var(--bg-base);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  padding: var(--spacer-8);
+}
+
+.flow-ai-builder__recommendations li em {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: 999px;
+  color: var(--text-tertiary);
+  font-size: var(--body-xs-font-size);
+  font-style: normal;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
 .flow-ai-draft-preview__header,
 .flow-ai-draft-preview__node {
   align-items: center;

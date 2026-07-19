@@ -378,8 +378,10 @@ import {
   parseAIFlowProviderOutput,
   recommendFlowCapabilities,
   renderAIFlowDraftReviewToHTML,
+  renderAIFlowBuilderPanelToHTML,
   renderAIFlowDraftPreviewToHTML,
   AIFlowDraftReviewer,
+  AIFlowBuilderPanel,
   validateAIFlowDraft
 } from '@kupola/pivot-flow';
 
@@ -419,6 +421,13 @@ AIFlowDraftReviewer({
   draftResult: generated,
   onSaveDraft: (flow) => flowStore.create(flow)
 });
+
+AIFlowBuilderPanel({
+  target: '#builder',
+  runtime,
+  provider,
+  onSaveDraft: (flow) => flowStore.create(flow)
+});
 ```
 
 - `createAIFlowBuilderContext()` returns model-facing instructions, safety rules, expected Flow shape, and a sanitized capability summary.
@@ -435,6 +444,7 @@ AIFlowDraftReviewer({
 - `recommendFlowCapabilities()` ranks registered capabilities for a natural-language prompt.
 - `renderAIFlowDraftPreviewToHTML()` renders a safe draft preview with validation errors, nodes, risk, and confirmation state.
 - `renderAIFlowDraftReviewToHTML()` and `AIFlowDraftReviewer()` add a human review step before a draft is saved.
+- `renderAIFlowBuilderPanelToHTML()` and `AIFlowBuilderPanel()` provide a default prompt-to-draft UI that recommends capabilities, generates a draft, renders review output, and saves only through the project-provided `onSaveDraft`.
 - `validateAIFlowDraft()` checks that AI output stays as a draft, only references registered capabilities, and requires confirmation for high-risk or delete operations.
 
 The provider layer is intentionally generic. `pivot-flow` does not include OpenAI, Tongyi, Claude, or any other model SDK. Applications should call AI APIs through their own backend when secrets, tenant data, or audit requirements are involved. The backend should redact sensitive context, apply rate limits, and return only structured Flow JSON to the browser.

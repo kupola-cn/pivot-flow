@@ -668,6 +668,40 @@ export function renderAIFlowDraftReviewToHTML(draftResult?: FlowDefinition | Ret
   title?: string;
   description?: string;
 }): string;
+export function renderAIFlowBuilderPanelToHTML(state?: {
+  prompt?: string;
+  recommendations?: ReturnType<typeof recommendFlowCapabilities>;
+  draftResult?: ReturnType<typeof createAIFlowDraft>;
+  loading?: boolean;
+  message?: string;
+  error?: string;
+}, options?: {
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+  showDiff?: boolean;
+  showRepairPlan?: boolean;
+}): string;
+export function AIFlowBuilderPanel(options: {
+  target: string | Element;
+  provider?: AIFlowProviderLike;
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+  prompt?: string;
+  draftResult?: ReturnType<typeof createAIFlowDraft>;
+  showDiff?: boolean;
+  showRepairPlan?: boolean;
+  savedMessage?: string;
+  recommendationOptions?: Record<string, unknown>;
+  onGenerated?: (draftResult: Awaited<ReturnType<typeof generateAIFlowDraft>>) => void | Promise<void>;
+  onSaveDraft?: (flow: FlowDefinition, draftResult: ReturnType<typeof createAIFlowDraft>) => unknown | Promise<unknown>;
+  onSaved?: (saved: unknown, draftResult: ReturnType<typeof createAIFlowDraft>) => void | Promise<void>;
+  onCancel?: () => void | Promise<void>;
+}): {
+  element: Element;
+  generate(prompt?: string): Promise<Awaited<ReturnType<typeof generateAIFlowDraft>> | null>;
+  update(nextState?: Record<string, unknown>): void;
+  destroy(): void;
+};
 export function AIFlowDraftReviewer(options: {
   target: string | Element;
   draftResult?: ReturnType<typeof createAIFlowDraft>;

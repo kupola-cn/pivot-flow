@@ -62,6 +62,7 @@ import {
   renderVariableMapperToHTML,
   recommendFlowCapabilities,
   renderAIFlowDraftPreviewToHTML,
+  renderAIFlowBuilderPanelToHTML,
   renderAIFlowDraftReviewToHTML,
   parseFlowTestSlots,
   registerFlowFrontendCapabilities,
@@ -1527,6 +1528,44 @@ test('renders AI flow draft review actions only for valid drafts', () => {
   assert.match(validHTML, /Draft changes/);
   assert.match(blockedHTML, /data-flow-ai-action="save-draft" disabled/);
   assert.match(blockedHTML, /Missing capabilities/);
+});
+
+test('renders AI flow builder panel with draft review and recommendations', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'material.delete',
+    resource: 'material',
+    action: ActionType.DELETE,
+    risk: RiskLevel.HIGH,
+    description: '删除耗材',
+    execute: () => ({ deleted: true })
+  });
+  const draft = createAIFlowDraft({
+    prompt: '删除耗材 TEST-001',
+    flow: {
+      id: 'ai-builder-delete',
+      name: 'AI builder delete',
+      nodes: [
+        {
+          id: 'delete',
+          type: 'capability.run',
+          capability: 'material.delete'
+        }
+      ]
+    }
+  }, { runtime });
+  const recommendations = recommendFlowCapabilities('删除耗材 TEST-001', runtime);
+  const html = renderAIFlowBuilderPanelToHTML({
+    prompt: '删除耗材 TEST-001',
+    draftResult: draft,
+    recommendations
+  });
+
+  assert.match(html, /AI Flow Builder/);
+  assert.match(html, /data-flow-ai-action="generate-draft"/);
+  assert.match(html, /Recommended capabilities/);
+  assert.match(html, /Review AI Flow draft/);
+  assert.match(html, /Save draft/);
 });
 
 function jsonResponse(payload, init = {}) {

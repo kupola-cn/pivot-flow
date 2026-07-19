@@ -392,6 +392,201 @@ export function renderAIFlowDraftReviewToHTML(draftResult, options = {}) {
   ].join('');
 }
 
+export function renderAIFlowBuilderPanelToHTML(state = {}, options = {}) {
+  const prompt = state.prompt ?? options.prompt ?? '';
+  const recommendations = Array.isArray(state.recommendations) ? state.recommendations : [];
+  const loading = Boolean(state.loading);
+
+  return [
+    '<section class="flow-ai-builder">',
+    '<div class="flow-ai-builder__header">',
+    '<div>',
+    '<strong>AI Flow Builder</strong>',
+    '<span>Generate draft flows from intent. Drafts must still be reviewed, saved, and published manually.</span>',
+    '</div>',
+    `<span class="flow-badge flow-badge--${state.draftResult?.ok ? 'low' : state.error ? 'high' : 'medium'}">${escapeHTML(state.draftResult ? 'draft' : loading ? 'generating' : 'ready')}</span>`,
+    '</div>',
+    '<label class="flow-field">',
+    '<span>Intent</span>',
+    `<textarea class="ds-textarea" rows="4" data-flow-ai-field="prompt" placeholder="Describe the business flow to create">${escapeHTML(prompt)}</textarea>`,
+    '</label>',
+    '<div class="flow-ai-builder__actions">',
+    `<button type="button" class="ds-btn ds-btn--brand ds-btn--sm" data-flow-ai-action="generate-draft"${loading ? ' disabled' : ''}>${loading ? 'Generating...' : 'Generate draft'}</button>`,
+    '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-ai-action="recommend-capabilities">Recommend capabilities</button>',
+    '<button type="button" class="ds-btn ds-btn--ghost ds-btn--sm" data-flow-ai-action="clear-builder">Clear</button>',
+    '</div>',
+    state.error ? `<div class="flow-alert flow-alert--error">${escapeHTML(state.error)}</div>` : '',
+    state.message ? `<div class="flow-ai-builder__message">${escapeHTML(state.message)}</div>` : '',
+    recommendations.length > 0 ? renderAIBuilderRecommendations(recommendations) : '',
+    state.draftResult ? renderAIFlowDraftReviewToHTML(state.draftResult, {
+      ...options,
+      canSave: !loading,
+      showDiff: options.showDiff ?? true,
+      showRepairPlan: options.showRepairPlan ?? true
+    }) : '<div class="flow-empty flow-empty--compact">Generate a draft to review its nodes, risks, missing capabilities, and safety changes.</div>',
+    '</section>'
+  ].join('');
+}
+
+export function AIFlowBuilderPanel(options = {}) {
+  const target = resolveTarget(options.target);
+  const state = {
+    prompt: options.prompt ?? '',
+    recommendations: [],
+    draftResult: options.draftResult ?? null,
+    loading: false,
+    message: '',
+    error: ''
+  };
+
+  const render = () => {
+    setHTML(target, renderAIFlowBuilderPanelToHTML(state, options));
+  };
+
+  const generateDraft = async () => {
+    if (!state.prompt.trim()) {
+      state.error = 'Enter an intent before generating a draft.';
+      render();
+      return null;
+    }
+    if (!options.provider) {
+      state.error = 'AI Flow provider is required.';
+      render();
+      return null;
+    }
+
+    state.loading = true;
+    state.error = '';
+    state.message = 'Generating draft...';
+    render();
+
+    try {
+      const generated = await generateAIFlowDraft(state.prompt, {
+        ...options,
+        provider: options.provider,
+        runtime: options.runtime,
+        capabilities: options.capabilities
+      });
+      state.draftResult = generated;
+      state.recommendations = recommendFlowCapabilities(state.prompt, options.capabilities ?? options.runtime, options.recommendationOptions ?? {});
+      state.message = generated.ok ? 'Draft generated. Review it before saving.' : 'Draft generated but requires repair before saving.';
+      if (typeof options.onGenerated === 'function') {
+        await options.onGenerated(generated);
+      }
+      return generated;
+    } catch (error) {
+      state.error = error?.message || 'Failed to generate AI Flow draft.';
+      state.message = '';
+      return null;
+    } finally {
+      state.loading = false;
+      render();
+    }
+  };
+
+  const saveDraft = async () => {
+    if (!state.draftResult || typeof options.onSaveDraft !== 'function') {
+      return;
+    }
+
+    state.loading = true;
+    state.message = 'Saving draft...';
+    state.error = '';
+    render();
+
+    try {
+      const saved = await options.onSaveDraft(state.draftResult.flow, state.draftResult);
+      state.message = options.savedMessage ?? 'Draft saved.';
+      if (typeof options.onSaved === 'function') {
+        await options.onSaved(saved, state.draftResult);
+      }
+    } catch (error) {
+      state.error = error?.message || 'Failed to save draft.';
+    } finally {
+      state.loading = false;
+      render();
+    }
+  };
+
+  const cleanups = [
+    on(target, 'input', '[data-flow-ai-field="prompt"]', (e) => {
+      state.prompt = e.target.value;
+      state.error = '';
+      state.message = '';
+    }),
+    on(target, 'click', '[data-flow-ai-action="generate-draft"]', () => {
+      generateDraft();
+    }),
+    on(target, 'click', '[data-flow-ai-action="recommend-capabilities"]', () => {
+      state.recommendations = recommendFlowCapabilities(state.prompt, options.capabilities ?? options.runtime, options.recommendationOptions ?? {});
+      state.message = state.recommendations.length > 0 ? 'Capability recommendations updated.' : 'No capability recommendations matched this intent.';
+      state.error = '';
+      render();
+    }),
+    on(target, 'click', '[data-flow-ai-action="clear-builder"]', () => {
+      state.prompt = '';
+      state.recommendations = [];
+      state.draftResult = null;
+      state.message = '';
+      state.error = '';
+      render();
+    }),
+    on(target, 'click', '[data-flow-ai-action="save-draft"]', () => {
+      saveDraft();
+    }),
+    on(target, 'click', '[data-flow-ai-action="cancel-draft"]', async () => {
+      state.draftResult = null;
+      state.message = '';
+      if (typeof options.onCancel === 'function') {
+        await options.onCancel();
+      }
+      render();
+    })
+  ];
+
+  render();
+
+  return {
+    element: target,
+    async generate(prompt = state.prompt) {
+      state.prompt = prompt;
+      return await generateDraft();
+    },
+    update(nextState = {}) {
+      Object.assign(state, nextState);
+      render();
+    },
+    destroy() {
+      cleanups.forEach((cleanup) => cleanup());
+      target.innerHTML = '';
+    }
+  };
+}
+
+function renderAIBuilderRecommendations(recommendations) {
+  return [
+    '<div class="flow-ai-builder__recommendations">',
+    '<strong>Recommended capabilities</strong>',
+    '<ol>',
+    ...recommendations.map((item) => [
+      '<li>',
+      '<span>',
+      `<strong>${escapeHTML(item.capability?.name || '')}</strong>`,
+      `<small>${escapeHTML([
+        item.capability?.resource,
+        item.capability?.action,
+        item.capability?.risk,
+        item.reasons?.join(', ')
+      ].filter(Boolean).join(' · '))}</small>`,
+      '</span>',
+      `<em>${escapeHTML(item.score ?? 0)}</em>`,
+      '</li>'
+    ].join('')),
+    '</ol>',
+    '</div>'
+  ].join('');
+}
+
 export function AIFlowDraftReviewer(options = {}) {
   const target = resolveTarget(options.target);
   const state = {
