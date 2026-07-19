@@ -18,6 +18,8 @@ import {
   createFlowRunHistorySummary,
   createFlowRunRecord,
   createFlowAccessReport,
+  createFlowExportPayload,
+  createFlowImportReport,
   applyAIFlowDraftRepairPlan,
   createFlowBatchSafetyReport,
   createFlowSafetyReport,
@@ -52,7 +54,12 @@ import {
   filterFlowRuns,
   hasPermission,
   normalizeFlowCanvasViewport,
+  exportFlowToJSON,
+  exportFlowsToJSON,
+  importFlowsToStore,
   parseAIFlowProviderOutput,
+  parseFlowImportJSON,
+  prepareImportedFlow,
   renderEditableNodeInspectorToHTML,
   renderFlowCapabilityMatrixToHTML,
   renderFlowCanvasToHTML,
@@ -62,6 +69,7 @@ import {
   renderFlowRunHistoryToHTML,
   renderFlowRunSummaryToHTML,
   renderFlowAccessReportToHTML,
+  renderFlowImportReportToHTML,
   renderFlowNodeNeighborhoodToHTML,
   renderFlowSafetyReportToHTML,
   renderFlowDataDependenciesToHTML,
@@ -145,6 +153,91 @@ test('duplicates flows as draft copies', () => {
   assert.equal(copy.metadata.owner, 'admin');
   assert.equal(copy.metadata.duplicatedFrom, 'published-flow');
   assert.deepEqual(copy.nodes, source.nodes);
+});
+
+test('exports and imports flows as draft definitions', () => {
+  const source = createOrganizationFlow();
+  const payload = createFlowExportPayload([source], {
+    exportedAt: '2026-07-19T08:00:00.000Z',
+    metadata: { owner: 'flow-admin' }
+  });
+  const json = exportFlowToJSON(source, { exportedAt: '2026-07-19T08:00:00.000Z' });
+  const parsed = parseFlowImportJSON(json);
+  const report = createFlowImportReport(json, {
+    importedAt: '2026-07-19T09:00:00.000Z',
+    importedFrom: 'backup.json'
+  });
+
+  assert.equal(payload.schema, 'kupola.pivot-flow.export.v1');
+  assert.equal(payload.flows.length, 1);
+  assert.equal(parsed.flows.length, 1);
+  assert.equal(report.ok, true);
+  assert.equal(report.status, 'review');
+  assert.equal(report.total, 1);
+  assert.equal(report.flows[0].id, 'org-create');
+  assert.equal(report.flows[0].status, 'draft');
+  assert.equal(report.flows[0].publishedAt, null);
+  assert.equal(report.flows[0].metadata.importedFrom, 'backup.json');
+  assert.equal(report.warnings.some((item) => item.includes('reset from published to draft')), true);
+});
+
+test('regenerates imported flow ids when they already exist', () => {
+  const source = createOrganizationFlow();
+  const report = createFlowImportReport(exportFlowsToJSON([source]), {
+    existingFlows: [source],
+    importedAt: '2026-07-19T09:00:00.000Z'
+  });
+
+  assert.equal(report.status, 'review');
+  assert.equal(report.items[0].action, 'create-with-new-id');
+  assert.notEqual(report.flows[0].id, source.id);
+  assert.equal(report.flows[0].metadata.originalId, source.id);
+});
+
+test('blocks invalid flow import packages', () => {
+  const invalidJson = createFlowImportReport('{broken json');
+  const missingCapability = createFlowImportReport(exportFlowToJSON(createOrganizationFlow()), {
+    capabilities: ['user.create']
+  });
+  const html = renderFlowImportReportToHTML(invalidJson);
+
+  assert.equal(invalidJson.ok, false);
+  assert.equal(invalidJson.status, 'blocked');
+  assert.equal(invalidJson.blockingIssues[0].includes('invalid'), true);
+  assert.equal(missingCapability.status, 'blocked');
+  assert.equal(missingCapability.blockingIssues.some((item) => item.includes('org.create')), true);
+  assert.equal(html.includes('flow-import-report--blocked'), true);
+});
+
+test('imports prepared flows into a flow store without publishing them', async () => {
+  const flowStore = createMemoryFlowStore();
+  const report = createFlowImportReport(exportFlowToJSON(createOrganizationFlow()), {
+    importedAt: '2026-07-19T09:00:00.000Z'
+  });
+  const result = await importFlowsToStore(report, flowStore);
+  const saved = await flowStore.get('org-create');
+  const prepared = prepareImportedFlow(createOrganizationFlow(), {
+    importedAt: '2026-07-19T10:00:00.000Z',
+    preserveIds: false
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.createdCount, 1);
+  assert.equal(saved.status, 'draft');
+  assert.equal(saved.publishedAt, null);
+  assert.notEqual(prepared.id, 'org-create');
+});
+
+test('direct store imports detect existing ids before saving', async () => {
+  const source = createOrganizationFlow();
+  const flowStore = createMemoryFlowStore([source]);
+  const result = await importFlowsToStore(exportFlowToJSON(source), flowStore);
+  const flows = await flowStore.list();
+
+  assert.equal(result.ok, true);
+  assert.equal(result.createdCount, 1);
+  assert.equal(flows.length, 2);
+  assert.equal(flows.some((flow) => flow.id !== source.id && flow.metadata.originalId === source.id), true);
 });
 
 test('matches natural language intent to a published flow', () => {

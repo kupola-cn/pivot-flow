@@ -11,6 +11,7 @@
 .flow-dependency-report,
 .flow-node-neighborhood,
 .flow-access-report,
+.flow-import-report,
 .flow-safety-report {
   color: var(--text-default);
   font-family: var(--font-family-base, inherit);
@@ -1984,6 +1985,131 @@
   min-width: 0;
 }
 
+.flow-import-report {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-10);
+  min-width: 0;
+  padding: var(--spacer-10);
+}
+
+.flow-import-report--blocked {
+  border-color: var(--status-error-default);
+}
+
+.flow-import-report--review {
+  border-color: var(--status-warning-default);
+}
+
+.flow-import-report__header {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.flow-import-report__header > div {
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+}
+
+.flow-import-report__header strong,
+.flow-import-report__flows > strong,
+.flow-import-report__issues > strong {
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-import-report__header span,
+.flow-import-report small,
+.flow-import-report__issues li {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.flow-import-report__summary {
+  display: grid;
+  gap: var(--spacer-8);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.flow-import-report__summary span,
+.flow-import-report__flows,
+.flow-import-report__issues {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-8);
+  min-width: 0;
+  padding: var(--spacer-8);
+}
+
+.flow-import-report__summary strong {
+  color: var(--text-default);
+  font-size: var(--body-sm-font-size);
+}
+
+.flow-import-report__flows ol,
+.flow-import-report__issues ul {
+  display: grid;
+  gap: var(--spacer-6);
+  margin: 0;
+  padding-left: var(--spacer-16);
+}
+
+.flow-import-report__item {
+  display: grid;
+  gap: var(--spacer-4);
+  min-width: 0;
+}
+
+.flow-import-report__item > span:first-child {
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+}
+
+.flow-import-report__item strong {
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-import-report__item em {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: 999px;
+  color: var(--text-tertiary);
+  font-size: var(--body-xs-font-size);
+  font-style: normal;
+  justify-self: start;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.flow-import-report__item--ready em {
+  background: var(--status-success-surface-l1);
+  border-color: var(--status-success-default);
+  color: var(--status-success-default);
+}
+
+.flow-import-report__item--review em,
+.flow-import-report__issues--warning > strong {
+  color: var(--status-warning-default);
+}
+
+.flow-import-report__item--blocked em,
+.flow-import-report__issues--error > strong,
+.flow-import-report__error {
+  color: var(--status-error-default);
+}
+
 .flow-safety-report,
 .flow-batch-safety-report {
   background: var(--bg-overlay-l1);
@@ -2470,7 +2596,9 @@
   .flow-manager__runtime,
   .flow-canvas-controls,
   .flow-edge-form,
+  .flow-import-report__summary,
   .flow-run-history__filters,
+  .flow-safety-report__summary,
   .flow-test-panel__grid,
   .flow-settings__grid {
     grid-template-columns: 1fr;

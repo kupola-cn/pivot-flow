@@ -255,6 +255,37 @@ Expected HTTP endpoints:
 - `GET /api/pivot-flow-runs`
 - `POST /api/pivot-flow-runs`
 
+## Import And Export
+
+Use the import/export helpers when a project needs Flow backup, migration between environments, or administrator-reviewed configuration uploads.
+
+```js
+import {
+  createFlowImportReport,
+  exportFlowsToJSON,
+  importFlowsToStore,
+  renderFlowImportReportToHTML
+} from '@kupola/pivot-flow';
+
+const json = exportFlowsToJSON(await flowStore.list());
+
+const report = createFlowImportReport(json, {
+  importedFrom: 'production-backup.json',
+  existingFlows: await flowStore.list(),
+  runtime
+});
+
+document.querySelector('#importReport').innerHTML = renderFlowImportReportToHTML(report);
+
+if (report.ok) {
+  await importFlowsToStore(report, flowStore);
+}
+```
+
+Imported flows are prepared as `draft` by default and `publishedAt` is cleared. If an imported ID already exists, the default behavior is to generate a new Flow ID and keep the original ID in `metadata.originalId`. The report surfaces schema errors, missing registered capabilities, status downgrades, and ID conflicts before anything is saved.
+
+Importing a Flow never publishes, executes, or registers backend capabilities. It is only a configuration preparation step. Server APIs must still enforce authentication, authorization, schema validation, data permissions, and conflict checks when the imported configuration is saved or later published.
+
 ## Flow Templates
 
 Built-in templates provide common starting points for application flows. Templates create draft flows and still require project-specific capability registration, preview, publish checks, and backend authorization.

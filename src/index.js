@@ -15,6 +15,7 @@ export * from './flow-run-summary.js';
 export * from './flow-run-record.js';
 export * from './flow-dependencies.js';
 export * from './flow-graph-analysis.js';
+export * from './flow-import-export.js';
 
 export * from './components/FlowAssistantDrawer.js';
 export * from './components/FlowAuditPanel.js';

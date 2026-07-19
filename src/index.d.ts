@@ -190,6 +190,117 @@ export function canConnectFlowNodes(flow: FlowDefinition, from?: string, to?: st
   valid: boolean;
   message: string;
 };
+export const FLOW_EXPORT_SCHEMA: 'kupola.pivot-flow.export.v1';
+export interface FlowExportPayload {
+  schema: typeof FLOW_EXPORT_SCHEMA;
+  version: 1;
+  exportedAt: string;
+  metadata: Record<string, unknown>;
+  flows: FlowDefinition[];
+}
+export interface FlowImportItem {
+  index: number;
+  ok: boolean;
+  status: 'ready' | 'review' | 'blocked';
+  action: 'create' | 'create-with-new-id' | 'replace-candidate' | 'skip' | string;
+  originalId: string;
+  flowId: string;
+  flowName: string;
+  flow: FlowDefinition | null;
+  validation: FlowValidationResult;
+  errors: string[];
+  warnings: string[];
+}
+export interface FlowImportReport {
+  ok: boolean;
+  status: 'ready' | 'review' | 'blocked';
+  schema: string;
+  importedAt: string;
+  importedFrom: string;
+  total: number;
+  readyCount: number;
+  reviewCount: number;
+  blockedCount: number;
+  flows: FlowDefinition[];
+  items: FlowImportItem[];
+  blockingIssues: string[];
+  warnings: string[];
+  summary: string;
+}
+export function createFlowExportPayload(flows?: FlowDefinition | FlowDefinition[], options?: {
+  exportedAt?: string;
+  metadata?: Record<string, unknown>;
+}): FlowExportPayload;
+export function exportFlowToJSON(flow: FlowDefinition, options?: {
+  exportedAt?: string;
+  metadata?: Record<string, unknown>;
+  compact?: boolean;
+  space?: number;
+}): string;
+export function exportFlowsToJSON(flows?: FlowDefinition[], options?: {
+  exportedAt?: string;
+  metadata?: Record<string, unknown>;
+  compact?: boolean;
+  space?: number;
+}): string;
+export function parseFlowImportJSON(value: string | object): {
+  schema: string;
+  version: number | null;
+  importedAt: string;
+  metadata: Record<string, unknown>;
+  flows: unknown[];
+};
+export function prepareImportedFlow(flow?: Partial<FlowDefinition>, options?: {
+  importedAt?: string;
+  importedFrom?: string;
+  existingIds?: string[] | Set<string>;
+  existingFlows?: FlowDefinition[];
+  preserveIds?: boolean;
+  preserveStatus?: boolean;
+  conflictStrategy?: 'regenerate' | 'keep';
+  createdAt?: string;
+  updatedAt?: string;
+}): FlowDefinition;
+export function createFlowImportReport(input: string | object, options?: {
+  importedAt?: string;
+  importedFrom?: string;
+  existingIds?: string[] | Set<string>;
+  existingFlows?: FlowDefinition[];
+  preserveIds?: boolean;
+  preserveStatus?: boolean;
+  conflictStrategy?: 'regenerate' | 'keep';
+  capabilities?: unknown;
+  runtime?: PivotRuntime;
+}): FlowImportReport;
+export function importFlowsToStore(inputOrReport: string | object | FlowImportReport, flowStore: FlowStore, options?: {
+  importedAt?: string;
+  importedFrom?: string;
+  existingIds?: string[] | Set<string>;
+  existingFlows?: FlowDefinition[];
+  preserveIds?: boolean;
+  preserveStatus?: boolean;
+  conflictStrategy?: 'regenerate' | 'keep';
+  capabilities?: unknown;
+  runtime?: PivotRuntime;
+}): Promise<{
+  ok: boolean;
+  createdCount: number;
+  skippedCount: number;
+  flows: FlowDefinition[];
+  errors: string[];
+  report: FlowImportReport;
+}>;
+export function renderFlowImportReportToHTML(reportOrInput: FlowImportReport | string | object, options?: {
+  importedAt?: string;
+  importedFrom?: string;
+  existingIds?: string[] | Set<string>;
+  existingFlows?: FlowDefinition[];
+  preserveIds?: boolean;
+  preserveStatus?: boolean;
+  conflictStrategy?: 'regenerate' | 'keep';
+  capabilities?: unknown;
+  runtime?: PivotRuntime;
+}): string;
 export interface FlowDataReference {
   source: 'node' | 'intent' | 'context';
   raw: string;
