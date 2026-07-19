@@ -4,7 +4,7 @@ import { flowToPlan } from '../flow-to-plan.js';
 import { createFlowRunner } from '../flow-runner.js';
 import { createMemoryFlowStore } from '../flow-store.js';
 import { createLocalIntentMapper } from '../intent-mapper.js';
-import { validateFlow } from '../flow-validation.js';
+import { createFlowSafetyReport, renderFlowSafetyReportToHTML } from '../flow-safety-report.js';
 import { getDefaultCapabilityForNodeType } from '../node-types.js';
 import { escapeAttr, escapeHTML, on, resolveTarget, setHTML } from './dom.js';
 import { renderFlowAuditPanelToHTML } from './FlowAuditPanel.js';
@@ -121,6 +121,10 @@ export function FlowManager(options = {}) {
       '<div>',
       '<div class="flow-panel-title">Capabilities</div>',
       renderFlowCapabilityMatrixToHTML(flow, options.runtime),
+      '</div>',
+      '<div>',
+      '<div class="flow-panel-title">Publish safety</div>',
+      renderFlowSafetyReportToHTML(flow, options.runtime),
       '</div>',
       '</section>',
       '</section>'
@@ -260,9 +264,9 @@ export function FlowManager(options = {}) {
     }
 
     if (flow.status === 'published') {
-      const validation = validateFlow(flow);
-      if (!validation.valid) {
-        state.error = `Cannot save as published: ${validation.errors.join('; ')}`;
+      const safety = createFlowSafetyReport(flow, options.runtime);
+      if (!safety.ok) {
+        state.error = `Cannot save as published: ${safety.blockingIssues.join('; ')}`;
         render();
         return null;
       }
@@ -287,9 +291,9 @@ export function FlowManager(options = {}) {
       return;
     }
 
-    const validation = validateFlow(flow);
-    if (!validation.valid) {
-      state.error = `Cannot publish invalid flow: ${validation.errors.join('; ')}`;
+    const safety = createFlowSafetyReport(flow, options.runtime);
+    if (!safety.ok) {
+      state.error = `Cannot publish unsafe flow: ${safety.blockingIssues.join('; ')}`;
       render();
       return;
     }
@@ -332,9 +336,9 @@ export function FlowManager(options = {}) {
     }
 
     for (const flow of flows) {
-      const validation = validateFlow(flow);
-      if (!validation.valid) {
-        state.error = `Cannot publish filtered flows: ${flow.name || flow.id} is invalid (${validation.errors.join('; ')})`;
+      const safety = createFlowSafetyReport(flow, options.runtime);
+      if (!safety.ok) {
+        state.error = `Cannot publish filtered flows: ${flow.name || flow.id} has safety issues (${safety.blockingIssues.join('; ')})`;
         render();
         return;
       }

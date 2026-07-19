@@ -3,7 +3,8 @@
 .flow-assistant,
 .flow-preview,
 .flow-run-panel,
-.flow-test-panel {
+.flow-test-panel,
+.flow-safety-report {
   color: var(--text-default);
   font-family: var(--font-family-base, inherit);
 }
@@ -88,7 +89,7 @@
 .flow-manager__runtime {
   display: grid;
   gap: var(--spacer-16);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .flow-designer {
@@ -857,6 +858,158 @@
 }
 
 .flow-capability-matrix code {
+  background: var(--bg-base);
+  border-radius: var(--radius-4);
+  color: var(--text-default);
+  display: inline-block;
+  font-size: var(--body-xs-font-size);
+  margin: 0 var(--spacer-4) var(--spacer-4) 0;
+  overflow-wrap: anywhere;
+  padding: 2px var(--spacer-4);
+}
+
+.flow-safety-report {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-10);
+  min-width: 0;
+  padding: var(--spacer-10);
+}
+
+.flow-safety-report--blocked {
+  border-color: var(--status-error-default);
+}
+
+.flow-safety-report--review {
+  border-color: var(--status-warning-default);
+}
+
+.flow-safety-report__header {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.flow-safety-report__header > div {
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+}
+
+.flow-safety-report__header strong,
+.flow-safety-report__capabilities > strong,
+.flow-safety-report__sensitive > strong,
+.flow-safety-report__issues > strong {
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-safety-report__header span,
+.flow-safety-report small,
+.flow-safety-report__backend,
+.flow-safety-report__issues li {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.flow-safety-report__summary {
+  display: grid;
+  gap: var(--spacer-8);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.flow-safety-report__summary span {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+  padding: var(--spacer-8);
+}
+
+.flow-safety-report__summary strong {
+  color: var(--text-default);
+  font-size: var(--body-sm-font-size);
+  overflow-wrap: anywhere;
+}
+
+.flow-safety-report__checks,
+.flow-safety-report__capabilities,
+.flow-safety-report__sensitive,
+.flow-safety-report__issues,
+.flow-safety-report__backend {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-8);
+  min-width: 0;
+  padding: var(--spacer-8);
+}
+
+.flow-safety-report__check {
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+}
+
+.flow-safety-report__check span {
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-safety-report__check strong {
+  font-size: var(--body-xs-font-size);
+  text-transform: uppercase;
+}
+
+.flow-safety-report__check--pass strong {
+  color: var(--status-success-default);
+}
+
+.flow-safety-report__check--warn strong {
+  color: var(--status-warning-default);
+}
+
+.flow-safety-report__check--fail strong,
+.flow-safety-report__issues--error > strong {
+  color: var(--status-error-default);
+}
+
+.flow-safety-report__issues--warning > strong {
+  color: var(--status-warning-default);
+}
+
+.flow-safety-report__issues ul,
+.flow-safety-report__backend ul,
+.flow-safety-report__capabilities ol,
+.flow-safety-report__sensitive ol {
+  display: grid;
+  gap: var(--spacer-6);
+  margin: 0;
+  padding-left: var(--spacer-16);
+}
+
+.flow-safety-report__capabilities li {
+  display: grid;
+  gap: var(--spacer-4);
+  min-width: 0;
+}
+
+.flow-safety-report__capabilities li > span:first-child {
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+}
+
+.flow-safety-report code {
   background: var(--bg-base);
   border-radius: var(--radius-4);
   color: var(--text-default);

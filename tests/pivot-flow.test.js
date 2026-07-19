@@ -14,6 +14,7 @@ import {
   createLocalIntentMapper,
   createMemoryFlowStore,
   createFlowRunner,
+  createFlowSafetyReport,
   createFlowCanvasLayout,
   filterFlows,
   applyFlowTransform,
@@ -37,6 +38,7 @@ import {
   renderFlowCanvasToHTML,
   renderFlowDesignerToHTML,
   renderFlowEdgeEditorToHTML,
+  renderFlowSafetyReportToHTML,
   renderFlowSettingsToHTML,
   renderFlowTestPanelToHTML,
   renderFlowTemplateListToHTML,
@@ -311,6 +313,108 @@ test('renders flow capability dependency matrix', () => {
   assert.equal(rows[0].permissions[0], 'system:org:create');
   assert.match(html, /flow-capability-matrix/);
   assert.match(html, /system:org:create/);
+});
+
+test('creates and renders flow publish safety reports', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'material.delete',
+    resource: 'material',
+    action: ActionType.DELETE,
+    risk: RiskLevel.HIGH,
+    permissions: ['material:catalog:delete'],
+    requiresConfirmation: true,
+    execute: () => ({})
+  });
+  const flow = createFlow({
+    id: 'material-delete-safety',
+    name: 'Material delete safety',
+    status: 'draft',
+    intent: {
+      slots: [
+        {
+          name: 'operatorPassword',
+          label: 'Password',
+          type: 'string',
+          required: true,
+          source: 'manual',
+          inputType: 'password'
+        }
+      ]
+    },
+    nodes: [
+      {
+        id: 'delete',
+        type: 'capability.run',
+        capability: 'material.delete',
+        label: 'Delete material',
+        requiresConfirmation: true
+      }
+    ]
+  });
+  const report = createFlowSafetyReport(flow, runtime);
+  const html = renderFlowSafetyReportToHTML(report);
+
+  assert.equal(report.ok, true);
+  assert.equal(report.status, 'review');
+  assert.equal(report.capabilities[0].registrationStatus, 'registered');
+  assert.equal(report.capabilities[0].confirmationStatus, 'required');
+  assert.equal(report.sensitiveSlots[0].safe, true);
+  assert.match(report.backendRequirements.join('\n'), /Backend|Authorize|401|403/i);
+  assert.match(html, /flow-safety-report/);
+  assert.match(html, /Publish safety/);
+  assert.match(html, /material:catalog:delete/);
+});
+
+test('blocks publish safety report for missing capabilities and confirmations', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'material.delete',
+    resource: 'material',
+    action: ActionType.DELETE,
+    risk: RiskLevel.HIGH,
+    permissions: ['material:catalog:delete'],
+    execute: () => ({})
+  });
+  const flow = createFlow({
+    id: 'unsafe-flow',
+    name: 'Unsafe flow',
+    status: 'draft',
+    intent: {
+      slots: [
+        {
+          name: 'phone',
+          label: '手机号',
+          type: 'string',
+          source: 'intent'
+        }
+      ]
+    },
+    nodes: [
+      {
+        id: 'delete',
+        type: 'capability.run',
+        capability: 'material.delete',
+        label: 'Delete material'
+      },
+      {
+        id: 'missing',
+        type: 'capability.run',
+        capability: 'role.remove',
+        label: 'Remove role'
+      }
+    ]
+  });
+  const report = createFlowSafetyReport(flow, runtime);
+  const html = renderFlowSafetyReportToHTML(report);
+
+  assert.equal(report.ok, false);
+  assert.equal(report.status, 'blocked');
+  assert.match(report.blockingIssues.join('\n'), /High-risk node must require confirmation/);
+  assert.match(report.blockingIssues.join('\n'), /Capability is not registered: role\.remove/);
+  assert.match(report.warnings.join('\n'), /Sensitive slot should use manual source: phone/);
+  assert.match(html, /Blocking issues/);
+  assert.match(html, /Sensitive slots/);
 });
 
 test('lays out flow canvas by edge dependencies', () => {

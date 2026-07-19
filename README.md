@@ -211,6 +211,26 @@ const payload = applyFlowTransform({
 }, { slots: { name: '张三' } }, { actor: { id: 'admin' } });
 ```
 
+## Publish Safety Report
+
+`createFlowSafetyReport()` reviews a Flow before publish. It checks structure, registered capabilities, high-risk confirmation, permission hints, sensitive slots, and backend authorization reminders.
+
+```js
+import {
+  createFlowSafetyReport,
+  renderFlowSafetyReportToHTML
+} from '@kupola/pivot-flow';
+
+const report = createFlowSafetyReport(flow, runtime);
+document.querySelector('#safety').innerHTML = renderFlowSafetyReportToHTML(report);
+
+if (!report.ok) {
+  throw new Error(report.blockingIssues.join('; '));
+}
+```
+
+`FlowManager` renders this report by default and blocks publish when the report has blocking issues. A `review` report can still be published from the frontend, but backend publish APIs must continue to enforce authorization and business rules.
+
 ## UI Example
 
 ```js

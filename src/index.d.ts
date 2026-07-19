@@ -135,6 +135,59 @@ export function createFlowEdge(input?: Partial<FlowEdge>): FlowEdge;
 export function normalizeFlow(flow: Partial<FlowDefinition>): FlowDefinition;
 export function cloneFlow<T = unknown>(flow: T): T;
 export function validateFlow(flow: FlowDefinition, options?: { capabilities?: unknown }): FlowValidationResult;
+export interface FlowSafetyCapabilityRow {
+  nodeId: string;
+  nodeLabel: string;
+  capability: string;
+  registered: boolean | null;
+  registrationStatus: 'registered' | 'missing' | 'unknown';
+  resource: string;
+  action: string;
+  risk: FlowRisk | string;
+  confirmationRequired: boolean;
+  requiresConfirmation: boolean;
+  confirmationStatus: 'required' | 'missing' | 'not-required';
+  permissions: string[];
+  permissionStatus: 'declared' | 'missing';
+  backendRequired: boolean;
+}
+export interface FlowSafetyCheck {
+  id: string;
+  label: string;
+  status: 'pass' | 'warn' | 'fail';
+  message: string;
+}
+export interface FlowSafetySensitiveSlot {
+  name: string;
+  label: string;
+  source: string;
+  inputType: string;
+  required: boolean;
+  safe: boolean;
+}
+export interface FlowSafetyReport {
+  ok: boolean;
+  status: 'ready' | 'review' | 'blocked';
+  flowId: string;
+  flowName: string;
+  flowStatus: string;
+  risk: FlowRisk | string;
+  summary: string;
+  checks: FlowSafetyCheck[];
+  capabilities: FlowSafetyCapabilityRow[];
+  sensitiveSlots: FlowSafetySensitiveSlot[];
+  backendRequirements: string[];
+  blockingIssues: string[];
+  warnings: string[];
+}
+export function createFlowSafetyReport(flow?: FlowDefinition | null, source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+}): FlowSafetyReport;
+export function renderFlowSafetyReportToHTML(reportOrFlow?: FlowSafetyReport | FlowDefinition | null, source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+}): string;
 export function flowToPlan(flow: FlowDefinition, input?: { prompt?: string; slots?: Record<string, unknown>; planId?: string }, context?: Record<string, unknown>): PivotPlan;
 export function resolveFlowParams(value: unknown, input?: Record<string, unknown>, context?: Record<string, unknown>): unknown;
 export function evaluateFlowCondition(condition: unknown, input?: Record<string, unknown>, context?: Record<string, unknown>): boolean;
