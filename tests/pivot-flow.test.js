@@ -17,8 +17,10 @@ import {
   evaluateFlowCondition,
   flowToPlan,
   listFlowTemplates,
+  diffAIFlowDraft,
   getFlowCapabilityRows,
   getFlowExecutionTrace,
+  getMissingFlowCapabilities,
   getFlowNodeAdjacency,
   getFlowNodeMatches,
   getFlowRisk,
@@ -776,6 +778,44 @@ test('recommends capabilities and renders AI flow draft preview safely', () => {
   assert.match(html, /flow-ai-draft-preview/);
   assert.match(html, /material\.delete/);
   assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
+});
+
+test('reports missing AI draft capabilities and normalization diff', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'material.delete',
+    resource: 'material',
+    action: ActionType.DELETE,
+    risk: RiskLevel.HIGH,
+    description: '删除耗材',
+    execute: () => ({ deleted: true })
+  });
+  const draft = createAIFlowDraft({
+    flow: {
+      id: 'ai-missing-capability',
+      name: 'Missing capability flow',
+      status: 'published',
+      nodes: [
+        {
+          id: 'delete',
+          type: 'capability.run',
+          capability: 'material.remove',
+          label: 'Delete material'
+        }
+      ]
+    }
+  }, { runtime });
+  const missing = getMissingFlowCapabilities(draft.flow, runtime);
+  const diff = diffAIFlowDraft({ status: 'published' }, draft.flow);
+  const html = renderAIFlowDraftPreviewToHTML(draft, { runtime, showDiff: true });
+
+  assert.equal(draft.ok, false);
+  assert.equal(missing[0].capability, 'material.remove');
+  assert.equal(draft.missingCapabilities[0].capability, 'material.remove');
+  assert.equal(diff.some((item) => item.path === 'status' && item.after === 'draft'), true);
+  assert.equal(draft.diff.some((item) => item.path === 'status' && item.after === 'draft'), true);
+  assert.match(html, /Missing capabilities/);
+  assert.match(html, /Draft changes/);
 });
 
 function jsonResponse(payload, init = {}) {

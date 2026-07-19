@@ -253,8 +253,30 @@ export function createAIFlowDraft(input?: Partial<FlowDefinition> | { prompt?: s
   ok: boolean;
   flow: FlowDefinition;
   validation: ReturnType<typeof validateAIFlowDraft>;
+  diff: ReturnType<typeof diffAIFlowDraft>;
+  missingCapabilities: ReturnType<typeof getMissingFlowCapabilities>;
   capabilitySummary: ReturnType<typeof createCapabilityManifestSummary>;
 };
+export function getMissingFlowCapabilities(flow?: FlowDefinition, source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+  recommendationLimit?: number;
+  limit?: number;
+}): Array<{
+  nodeId: string;
+  capability: string;
+  label: string;
+  recommendations: ReturnType<typeof recommendFlowCapabilities>;
+}>;
+export function diffAIFlowDraft(before?: unknown, after?: unknown, options?: {
+  ignorePaths?: string[];
+  limit?: number;
+}): Array<{
+  path: string;
+  type: 'added' | 'removed' | 'changed';
+  before: unknown;
+  after: unknown;
+}>;
 export function recommendFlowCapabilities(prompt?: string, source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
   filter?: Record<string, unknown>;
   includeSchemas?: boolean;
@@ -270,6 +292,7 @@ export function renderAIFlowDraftPreviewToHTML(draftResult?: FlowDefinition | Re
   capabilities?: PivotCapability[];
   allowPublished?: boolean;
   showJSON?: boolean;
+  showDiff?: boolean;
 }): string;
 export function createCapabilityManifestSummary(source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
   filter?: Record<string, unknown>;

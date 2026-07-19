@@ -78,13 +78,58 @@ export function createAIFlowDraft(input = {}, options = {}) {
     ...options,
     capabilities
   });
+  const diff = diffAIFlowDraft(source, flow);
+  const missingCapabilities = getMissingFlowCapabilities(flow, capabilities, options);
 
   return {
     ok: validation.valid,
     flow,
     validation,
+    diff,
+    missingCapabilities,
     capabilitySummary: validation.capabilitySummary
   };
+}
+
+export function getMissingFlowCapabilities(flow, source, options = {}) {
+  const capabilities = normalizeCapabilities(source ?? options.capabilities ?? options.runtime);
+  const capabilityNames = new Set(capabilities.map((capability) => capability.name).filter(Boolean));
+  if (capabilityNames.size === 0) {
+    return [];
+  }
+
+  return (Array.isArray(flow?.nodes) ? flow.nodes : [])
+    .map((node) => {
+      const capability = getFlowNodeCapability(node);
+      if (!capability || capabilityNames.has(capability)) {
+        return null;
+      }
+
+      const prompt = [
+        capability,
+        node?.label,
+        node?.type,
+        node?.risk
+      ].filter(Boolean).join(' ');
+
+      return {
+        nodeId: node?.id || '',
+        capability,
+        label: node?.label || '',
+        recommendations: recommendFlowCapabilities(prompt, capabilities, {
+          ...options,
+          limit: options.recommendationLimit || 3
+        })
+      };
+    })
+    .filter(Boolean);
+}
+
+export function diffAIFlowDraft(before = {}, after = {}, options = {}) {
+  const changes = [];
+  const ignorePaths = new Set(options.ignorePaths ?? ['createdAt', 'updatedAt', 'publishedAt']);
+  compareValues('', before ?? null, after ?? null, changes, ignorePaths, Number(options.limit || 60));
+  return changes;
 }
 
 export function recommendFlowCapabilities(prompt = '', source, options = {}) {
@@ -107,6 +152,8 @@ export function recommendFlowCapabilities(prompt = '', source, options = {}) {
 export function renderAIFlowDraftPreviewToHTML(draftResult, options = {}) {
   const flow = draftResult?.flow ?? draftResult;
   const validation = draftResult?.validation ?? validateAIFlowDraft(flow, options);
+  const missingCapabilities = draftResult?.missingCapabilities ?? getMissingFlowCapabilities(flow, options.capabilities ?? options.runtime, options);
+  const diff = Array.isArray(draftResult?.diff) ? draftResult.diff : [];
   const nodes = Array.isArray(flow?.nodes) ? flow.nodes : [];
   const status = validation.valid ? 'valid draft' : 'blocked';
 
@@ -122,9 +169,15 @@ export function renderAIFlowDraftPreviewToHTML(draftResult, options = {}) {
     validation.errors.length > 0
       ? `<div class="flow-alert flow-alert--error">${escapeHTML(validation.errors.join('; '))}</div>`
       : '',
+    missingCapabilities.length > 0
+      ? renderMissingCapabilities(missingCapabilities)
+      : '',
     '<ol class="flow-ai-draft-preview__nodes">',
     ...nodes.map((node, index) => renderDraftNode(node, index)),
     '</ol>',
+    options.showDiff && diff.length > 0
+      ? renderDraftDiff(diff)
+      : '',
     options.showJSON
       ? `<pre>${escapeHTML(JSON.stringify(flow, null, 2))}</pre>`
       : '',
@@ -188,6 +241,40 @@ export function validateAIFlowDraft(flow, options = {}) {
   };
 }
 
+function renderMissingCapabilities(items) {
+  return [
+    '<div class="flow-ai-draft-preview__missing">',
+    '<strong>Missing capabilities</strong>',
+    '<ol>',
+    ...items.map((item) => [
+      '<li>',
+      `<span>${escapeHTML(item.capability)}</span>`,
+      item.recommendations.length > 0
+        ? `<small>Closest: ${escapeHTML(item.recommendations.map((entry) => entry.capability.name).join(', '))}</small>`
+        : '<small>No close registered capability was found.</small>',
+      '</li>'
+    ].join('')),
+    '</ol>',
+    '</div>'
+  ].join('');
+}
+
+function renderDraftDiff(diff) {
+  return [
+    '<div class="flow-ai-draft-preview__diff">',
+    '<strong>Draft changes</strong>',
+    '<ol>',
+    ...diff.slice(0, 12).map((item) => [
+      '<li>',
+      `<span>${escapeHTML(item.path || '(root)')}</span>`,
+      `<small>${escapeHTML(item.type)}: ${escapeHTML(formatDiffValue(item.before))} -> ${escapeHTML(formatDiffValue(item.after))}</small>`,
+      '</li>'
+    ].join('')),
+    '</ol>',
+    '</div>'
+  ].join('');
+}
+
 function renderDraftNode(node, index) {
   return [
     '<li class="flow-ai-draft-preview__node">',
@@ -202,6 +289,69 @@ function renderDraftNode(node, index) {
     node?.requiresConfirmation ? '<em>confirm</em>' : '',
     '</li>'
   ].join('');
+}
+
+function compareValues(path, before, after, changes, ignorePaths, limit) {
+  if (changes.length >= limit || ignorePaths.has(path)) {
+    return;
+  }
+
+  if (isPlainObject(before) && isPlainObject(after)) {
+    const keys = new Set([...Object.keys(before), ...Object.keys(after)]);
+    for (const key of keys) {
+      const nextPath = path ? `${path}.${key}` : key;
+      compareValues(nextPath, before[key], after[key], changes, ignorePaths, limit);
+      if (changes.length >= limit) {
+        break;
+      }
+    }
+    return;
+  }
+
+  if (Array.isArray(before) && Array.isArray(after)) {
+    const length = Math.max(before.length, after.length);
+    for (let index = 0; index < length; index += 1) {
+      compareValues(`${path}[${index}]`, before[index], after[index], changes, ignorePaths, limit);
+      if (changes.length >= limit) {
+        break;
+      }
+    }
+    return;
+  }
+
+  if (JSON.stringify(before) === JSON.stringify(after)) {
+    return;
+  }
+
+  changes.push({
+    path,
+    type: before === undefined ? 'added' : after === undefined ? 'removed' : 'changed',
+    before: simplifyDiffValue(before),
+    after: simplifyDiffValue(after)
+  });
+}
+
+function simplifyDiffValue(value) {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (Array.isArray(value)) {
+    return `[${value.length} items]`;
+  }
+  if (isPlainObject(value)) {
+    return '{...}';
+  }
+  return value;
+}
+
+function formatDiffValue(value) {
+  if (value === undefined) {
+    return 'undefined';
+  }
+  if (value === null) {
+    return 'null';
+  }
+  return String(value);
 }
 
 function normalizeAIFlowNode(node, index, capabilityByName) {

@@ -266,6 +266,8 @@ import {
   createAIFlowBuilderContext,
   createAIFlowDraft,
   createCapabilityManifestSummary,
+  diffAIFlowDraft,
+  getMissingFlowCapabilities,
   recommendFlowCapabilities,
   renderAIFlowDraftPreviewToHTML,
   validateAIFlowDraft
@@ -276,12 +278,16 @@ const manifest = createCapabilityManifestSummary(runtime);
 const recommendations = recommendFlowCapabilities('删除耗材 TEST-001', runtime);
 const draft = createAIFlowDraft(aiStructuredOutput, { runtime });
 const validation = validateAIFlowDraft(draft.flow, { runtime });
-const previewHTML = renderAIFlowDraftPreviewToHTML(draft);
+const missing = getMissingFlowCapabilities(draft.flow, runtime);
+const diff = diffAIFlowDraft(aiStructuredOutput.flow, draft.flow);
+const previewHTML = renderAIFlowDraftPreviewToHTML(draft, { showDiff: true });
 ```
 
 - `createAIFlowBuilderContext()` returns model-facing instructions, safety rules, expected Flow shape, and a sanitized capability summary.
 - `createAIFlowDraft()` converts structured AI output into a normalized draft Flow and validates it immediately.
 - `createCapabilityManifestSummary()` returns a capability summary without `execute` functions.
+- `getMissingFlowCapabilities()` reports draft nodes that reference unavailable capabilities and suggests close registered capabilities.
+- `diffAIFlowDraft()` shows how the raw AI output changed during normalization, such as `published` becoming `draft` or high-risk confirmation being added.
 - `recommendFlowCapabilities()` ranks registered capabilities for a natural-language prompt.
 - `renderAIFlowDraftPreviewToHTML()` renders a safe draft preview with validation errors, nodes, risk, and confirmation state.
 - `validateAIFlowDraft()` checks that AI output stays as a draft, only references registered capabilities, and requires confirmation for high-risk or delete operations.
