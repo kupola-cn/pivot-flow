@@ -10,6 +10,7 @@ export * from './flow-runner.js';
 export * from './flow-templates.js';
 export * from './flow-control.js';
 export * from './flow-safety-report.js';
+export * from './flow-run-summary.js';
 
 export * from './components/FlowAssistantDrawer.js';
 export * from './components/FlowAuditPanel.js';

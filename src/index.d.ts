@@ -275,6 +275,59 @@ export function createFlowRunner(options: {
   }>;
 };
 export function getUnfilledMissingSlots(missingSlots?: FlowSlot[], slots?: Record<string, unknown>): FlowSlot[];
+export interface FlowExecutionNodeState {
+  status: 'idle' | 'executed' | 'failed' | 'skipped';
+  result?: unknown;
+  durationMs?: number;
+  message?: string;
+  code?: string;
+  label?: string;
+  capability?: string;
+}
+export interface FlowRunSummaryNode {
+  id: string;
+  label: string;
+  index: number;
+  type: string;
+  capability: string;
+  risk: FlowRisk | string;
+  status: 'idle' | 'executed' | 'failed' | 'skipped';
+  durationMs: number;
+  message: string;
+  code: string;
+}
+export interface FlowRunSummary {
+  ok: boolean;
+  status: 'idle' | 'success' | 'failed';
+  message: string;
+  code: string;
+  durationMs: number;
+  totalNodes: number;
+  executedCount: number;
+  failedCount: number;
+  skippedCount: number;
+  nodeItems: FlowRunSummaryNode[];
+  failedNodes: FlowRunSummaryNode[];
+  slowestNodes: FlowRunSummaryNode[];
+  firstFailedNode: FlowRunSummaryNode | null;
+  slowestNode: FlowRunSummaryNode | null;
+  recommendations: string[];
+}
+export function getFlowRunSummary(result?: PivotResult | null, flowOrNodes?: FlowDefinition | FlowNode[], options?: {
+  edges?: FlowEdge[];
+  slowestLimit?: number;
+}): FlowRunSummary;
+export function renderFlowRunSummaryToHTML(summaryOrResult?: FlowRunSummary | PivotResult | null, options?: {
+  flow?: FlowDefinition;
+  nodes?: FlowNode[];
+  edges?: FlowEdge[];
+  slowestLimit?: number;
+}): string;
+export function getFlowResultDurationMs(item?: unknown): number;
+export function getFlowResultMessage(item?: unknown): string;
+export function getFlowResultCode(item?: unknown): string;
+export function formatFlowDuration(value?: number): string;
+export function truncateFlowText(value?: unknown, maxLength?: number): string;
 
 export const FLOW_FRONTEND_CAPABILITIES: {
   MESSAGE_SHOW: 'message.show';
@@ -580,13 +633,7 @@ export function groupFlowCanvasNodes(nodes?: FlowNode[], groupBy?: 'type' | 'ris
   }>;
 };
 export function getFlowExecutionTrace(result?: PivotResult | null, nodes?: FlowNode[], edges?: FlowEdge[]): {
-  nodeStates: Map<string, {
-    status: 'idle' | 'executed' | 'failed' | 'skipped';
-    result?: unknown;
-    durationMs?: number;
-    message?: string;
-    code?: string;
-  }>;
+  nodeStates: Map<string, FlowExecutionNodeState>;
   edgeStates: Map<string, { active: boolean; failed: boolean; fromStatus: string; toStatus: string }>;
   executedNodeIds: string[];
   failedNodeIds: string[];
@@ -659,7 +706,12 @@ export function renderNodePaletteToHTML(nodes?: unknown[]): string;
 export function renderVariableMapperToHTML(options?: Record<string, unknown>): string;
 export function renderIntentPatternEditorToHTML(flow?: FlowDefinition | null): string;
 export function renderFlowPreviewToHTML(preview?: PivotResult | null, options?: Record<string, unknown>): string;
-export function renderFlowRunPanelToHTML(result?: PivotResult | null): string;
+export function renderFlowRunPanelToHTML(result?: PivotResult | null, options?: {
+  flow?: FlowDefinition;
+  nodes?: FlowNode[];
+  edges?: FlowEdge[];
+  slowestLimit?: number;
+}): string;
 export function renderFlowCapabilityMatrixToHTML(flow?: FlowDefinition | null, runtime?: PivotRuntime): string;
 export function getFlowCapabilityRows(flow?: FlowDefinition | null, runtime?: PivotRuntime): Array<{
   nodeId?: string;

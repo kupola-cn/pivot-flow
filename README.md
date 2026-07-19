@@ -27,7 +27,9 @@ import {
   createLocalIntentMapper,
   createLocalStorageFlowStore,
   createFlowRunner,
+  getFlowRunSummary,
   registerFlowFrontendCapabilities,
+  renderFlowRunSummaryToHTML,
   flowToPlan,
   FlowManager,
   FlowAssistantDrawer
@@ -148,6 +150,19 @@ slots: [
   }
 ]
 ```
+
+## Run Diagnostics
+
+Use `getFlowRunSummary()` when a page needs a compact business-facing summary of a preview or execution result. The summary normalizes node status, failed nodes, node duration, result messages, result codes, and recommended checks.
+
+```js
+const execution = await runner.execute('删除角色 管理员');
+const summary = getFlowRunSummary(execution.result, flow);
+
+document.querySelector('#runSummary').innerHTML = renderFlowRunSummaryToHTML(summary);
+```
+
+`FlowRunPanel` renders this summary by default before the underlying PIVOT result and timeline. The recommendations are UI guidance only. Server APIs must still return proper `401`, `403`, `409`, and `422` responses for unauthorized or invalid operations.
 
 ## Flow Stores
 

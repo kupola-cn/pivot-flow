@@ -31,6 +31,7 @@ import {
   getFlowNodeAdjacency,
   getFlowNodeMatches,
   getFlowRisk,
+  getFlowRunSummary,
   groupFlowTemplates,
   groupFlowCanvasNodes,
   groupFlows,
@@ -41,6 +42,8 @@ import {
   renderFlowCanvasToHTML,
   renderFlowDesignerToHTML,
   renderFlowEdgeEditorToHTML,
+  renderFlowRunPanelToHTML,
+  renderFlowRunSummaryToHTML,
   renderFlowSafetyReportToHTML,
   renderFlowBatchSafetyReportToHTML,
   renderFlowSettingsToHTML,
@@ -588,6 +591,46 @@ test('creates flow canvas diagnostics for failed nodes and cross-group edges', (
   assert.match(html, /Failed nodes/);
   assert.match(html, /Role is protected/);
   assert.match(html, /Cross-group edges/);
+});
+
+test('summarizes flow run results for reusable diagnostics', () => {
+  const flow = createFlow({
+    id: 'run-summary-flow',
+    name: 'Run summary flow',
+    nodes: [
+      { id: 'resolve-role', type: 'capability.run', capability: 'role.resolve', label: 'Resolve role' },
+      { id: 'delete-role', type: 'capability.run', capability: 'role.delete', label: 'Delete role', risk: 'high' }
+    ],
+    edges: [
+      { id: 'resolve-to-delete', from: 'resolve-role', to: 'delete-role', condition: 'success' }
+    ]
+  });
+  const result = {
+    ok: false,
+    code: 403,
+    message: 'Forbidden',
+    data: {
+      nodes: [
+        { node: { id: 'resolve-role' }, result: { ok: true, data: { durationMs: 15 } } },
+        { node: { id: 'delete-role' }, result: { ok: false, message: 'No role delete permission', durationMs: 1200, code: 403 } }
+      ]
+    }
+  };
+
+  const summary = getFlowRunSummary(result, flow);
+  const html = renderFlowRunSummaryToHTML(summary);
+  const panel = renderFlowRunPanelToHTML(result, { flow });
+
+  assert.equal(summary.status, 'failed');
+  assert.equal(summary.failedCount, 1);
+  assert.equal(summary.executedCount, 1);
+  assert.equal(summary.durationMs, 1215);
+  assert.equal(summary.firstFailedNode.id, 'delete-role');
+  assert.equal(summary.slowestNode.id, 'delete-role');
+  assert.equal(summary.recommendations.some((item) => item.includes('server-side permissions')), true);
+  assert.match(html, /Flow run summary/);
+  assert.match(html, /No role delete permission/);
+  assert.match(panel, /Recommended checks/);
 });
 
 test('matches and highlights flow canvas nodes', () => {

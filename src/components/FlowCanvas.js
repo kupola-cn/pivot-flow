@@ -1,4 +1,9 @@
 import { getFlowNodeCapability } from '../node-types.js';
+import {
+  formatFlowDuration,
+  getFlowExecutionTrace,
+  truncateFlowText
+} from '../flow-run-summary.js';
 import { escapeHTML, escapeAttr } from './dom.js';
 
 export function renderFlowCanvasToHTML(flow, options = {}) {
@@ -34,7 +39,7 @@ export function renderFlowCanvasToHTML(flow, options = {}) {
     trace.executedNodeIds.length > 0 ? `<span class="flow-canvas__summary-status flow-canvas__summary-status--executed">${escapeHTML(trace.executedNodeIds.length)} executed</span>` : '',
     trace.failedNodeIds.length > 0 ? `<span class="flow-canvas__summary-status flow-canvas__summary-status--failed">${escapeHTML(trace.failedNodeIds.length)} failed</span>` : '',
     trace.skippedNodeIds.length > 0 ? `<span class="flow-canvas__summary-status flow-canvas__summary-status--skipped">${escapeHTML(trace.skippedNodeIds.length)} skipped</span>` : '',
-    trace.totalDurationMs > 0 ? `<span>${escapeHTML(formatDuration(trace.totalDurationMs))} total</span>` : '',
+    trace.totalDurationMs > 0 ? `<span>${escapeHTML(formatFlowDuration(trace.totalDurationMs))} total</span>` : '',
     '</div>',
     renderExecutionDiagnostics(diagnostics),
     groups.active
@@ -300,82 +305,7 @@ function renderEdgeRail(edges, options = {}, edgeStates = new Map(), adjacency =
   ].join('');
 }
 
-export function getFlowExecutionTrace(result, nodes = [], edges = []) {
-  const nodeStates = new Map();
-  const edgeStates = new Map();
-  const executedNodeIds = [];
-  const failedNodeIds = [];
-  const skippedNodeIds = [];
-  let totalDurationMs = 0;
-  const nodeResults = result?.data?.nodes;
-  if (!Array.isArray(nodeResults)) {
-    return {
-      nodeStates,
-      edgeStates,
-      executedNodeIds,
-      failedNodeIds,
-      skippedNodeIds,
-      firstFailedNodeId: '',
-      totalDurationMs
-    };
-  }
-
-  for (const item of nodeResults) {
-    const nodeId = item?.node?.id;
-    if (!nodeId) {
-      continue;
-    }
-    const skipped = Boolean(item?.result?.data?.skipped);
-    const ok = Boolean(item?.result?.ok);
-    const status = skipped ? 'skipped' : ok ? 'executed' : 'failed';
-    const durationMs = getResultDurationMs(item);
-    const message = getResultMessage(item);
-    if (durationMs > 0) {
-      totalDurationMs += durationMs;
-    }
-    nodeStates.set(nodeId, {
-      status,
-      result: item?.result ?? null,
-      durationMs,
-      message,
-      code: getResultCode(item)
-    });
-
-    if (status === 'executed') {
-      executedNodeIds.push(nodeId);
-    } else if (status === 'failed') {
-      failedNodeIds.push(nodeId);
-    } else if (status === 'skipped') {
-      skippedNodeIds.push(nodeId);
-    }
-  }
-
-  const knownNodeIds = new Set((Array.isArray(nodes) ? nodes : []).map((node) => node.id));
-  for (const edge of Array.isArray(edges) ? edges : []) {
-    if (!edge?.id || !knownNodeIds.has(edge.from) || !knownNodeIds.has(edge.to)) {
-      continue;
-    }
-    const fromStatus = nodeStates.get(edge.from)?.status ?? 'idle';
-    const toStatus = nodeStates.get(edge.to)?.status ?? 'idle';
-    const active = isEdgeOnExecutionPath(edge, fromStatus, toStatus);
-    edgeStates.set(edge.id, {
-      active,
-      failed: active && (fromStatus === 'failed' || toStatus === 'failed'),
-      fromStatus,
-      toStatus
-    });
-  }
-
-  return {
-    nodeStates,
-    edgeStates,
-    executedNodeIds,
-    failedNodeIds,
-    skippedNodeIds,
-    firstFailedNodeId: failedNodeIds[0] ?? '',
-    totalDurationMs
-  };
-}
+export { getFlowExecutionTrace } from '../flow-run-summary.js';
 
 export function getFlowCanvasDiagnostics(result, nodes = [], edges = [], options = {}) {
   const safeNodes = Array.isArray(nodes) ? nodes : [];
@@ -455,7 +385,7 @@ function renderExecutionDiagnostics(diagnostics) {
       ? [
         '<span class="flow-canvas__diagnostic">',
         '<strong>Slowest node</strong>',
-        `<small>${escapeHTML(diagnostics.slowestNode.label)} · ${escapeHTML(formatDuration(diagnostics.slowestNode.durationMs))}</small>`,
+        `<small>${escapeHTML(diagnostics.slowestNode.label)} · ${escapeHTML(formatFlowDuration(diagnostics.slowestNode.durationMs))}</small>`,
         '</span>'
       ].join('')
       : '',
@@ -483,7 +413,7 @@ function renderFailedNodeList(failedNodes) {
       '<li>',
       `<button type="button" data-flow-action="select-node" data-node-id="${escapeAttr(node.id)}">`,
       `<span>${escapeHTML(node.label)}</span>`,
-      `<small>${escapeHTML([node.message || node.code, node.durationMs ? formatDuration(node.durationMs) : ''].filter(Boolean).join(' · '))}</small>`,
+      `<small>${escapeHTML([node.message || node.code, node.durationMs ? formatFlowDuration(node.durationMs) : ''].filter(Boolean).join(' · '))}</small>`,
       '</button>',
       '</li>'
     ].join('')),
@@ -542,120 +472,15 @@ export function getFlowNodeAdjacency(nodeId = '', edges = []) {
   return { active: true, relatedEdgeIds, relatedNodeIds };
 }
 
-function isEdgeOnExecutionPath(edge, fromStatus, toStatus) {
-  if (fromStatus === 'idle' || toStatus === 'idle') {
-    return false;
-  }
-
-  const condition = typeof edge.condition === 'string' ? edge.condition : 'success';
-  if (condition === 'always') {
-    return true;
-  }
-  if (condition === 'success') {
-    return fromStatus === 'executed';
-  }
-  if (condition === 'failure') {
-    return fromStatus === 'failed';
-  }
-  if (condition === 'skipped') {
-    return fromStatus === 'skipped';
-  }
-  return true;
-}
-
 function getNodeDiagnostic(nodeState) {
   if (!nodeState) {
     return { durationText: '', message: '' };
   }
 
   return {
-    durationText: nodeState.durationMs > 0 ? formatDuration(nodeState.durationMs) : '',
-    message: truncateText(nodeState.message || nodeState.code || '', 90)
+    durationText: nodeState.durationMs > 0 ? formatFlowDuration(nodeState.durationMs) : '',
+    message: truncateFlowText(nodeState.message || nodeState.code || '', 90)
   };
-}
-
-function getResultDurationMs(item) {
-  const candidates = [
-    item?.durationMs,
-    item?.elapsedMs,
-    item?.timeMs,
-    item?.result?.durationMs,
-    item?.result?.elapsedMs,
-    item?.result?.timeMs,
-    item?.result?.data?.durationMs,
-    item?.result?.data?.elapsedMs,
-    item?.result?.meta?.durationMs,
-    item?.result?.metadata?.durationMs
-  ];
-  for (const candidate of candidates) {
-    const value = Number(candidate);
-    if (Number.isFinite(value) && value > 0) {
-      return value;
-    }
-  }
-  return 0;
-}
-
-function getResultMessage(item) {
-  const result = item?.result ?? {};
-  const data = result?.data ?? {};
-  const error = result?.error ?? {};
-  const candidates = [
-    result.message,
-    result.error,
-    error.message,
-    data.message,
-    data.error,
-    data.reason,
-    data.detail,
-    data.summary
-  ];
-  for (const candidate of candidates) {
-    if (candidate === undefined || candidate === null) {
-      continue;
-    }
-    const value = typeof candidate === 'string' ? candidate : JSON.stringify(candidate);
-    if (value.trim()) {
-      return value.trim();
-    }
-  }
-  return '';
-}
-
-function getResultCode(item) {
-  const result = item?.result ?? {};
-  const data = result?.data ?? {};
-  const candidates = [
-    result.code,
-    result.status,
-    data.code,
-    data.status
-  ];
-  for (const candidate of candidates) {
-    if (candidate !== undefined && candidate !== null && String(candidate).trim()) {
-      return String(candidate).trim();
-    }
-  }
-  return '';
-}
-
-function formatDuration(value) {
-  const ms = Number(value);
-  if (!Number.isFinite(ms) || ms <= 0) {
-    return '';
-  }
-  if (ms < 1000) {
-    return `${Math.round(ms)}ms`;
-  }
-  return `${(ms / 1000).toFixed(ms < 10000 ? 1 : 0)}s`;
-}
-
-function truncateText(value, maxLength) {
-  const text = String(value || '').trim();
-  if (text.length <= maxLength) {
-    return text;
-  }
-  return `${text.slice(0, Math.max(0, maxLength - 3))}...`;
 }
 
 function getNodeClasses(input) {
