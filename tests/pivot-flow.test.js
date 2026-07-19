@@ -121,6 +121,28 @@ test('memory store publishes and filters flows', async () => {
   assert.equal(published[0].id, flow.id);
 });
 
+test('validates edge ids and conditions', () => {
+  const flow = createFlow({
+    id: 'invalid-edge-flow',
+    name: 'Invalid edge flow',
+    status: 'draft',
+    nodes: [
+      { id: 'a', type: 'message.show' },
+      { id: 'b', type: 'message.show' }
+    ],
+    edges: [
+      { id: 'edge-1', from: 'a', to: 'b', condition: 'success' },
+      { id: 'edge-1', from: 'a', to: 'a', condition: 'maybe' }
+    ]
+  });
+  const validation = validateFlow(flow);
+
+  assert.equal(validation.valid, false);
+  assert.match(validation.errors.join('\n'), /Duplicate flow edge id: edge-1/);
+  assert.match(validation.errors.join('\n'), /Flow edge cannot reference the same node: a/);
+  assert.match(validation.errors.join('\n'), /Unknown flow edge condition: maybe/);
+});
+
 test('HTTP store maps REST endpoints and normalizes flow responses', async () => {
   const calls = [];
   const store = createHttpFlowStore({

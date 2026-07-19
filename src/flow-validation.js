@@ -30,6 +30,7 @@ export function validateFlow(flow, options = {}) {
 
   const nodeIds = new Set();
   const nodeById = new Map();
+  const edgeIds = new Set();
 
   for (const node of flow.nodes) {
     if (!isPlainObject(node)) {
@@ -74,6 +75,14 @@ export function validateFlow(flow, options = {}) {
       continue;
     }
 
+    if (typeof edge.id !== 'string' || edge.id.trim() === '') {
+      errors.push('Flow edge id is required.');
+    } else if (edgeIds.has(edge.id)) {
+      errors.push(`Duplicate flow edge id: ${edge.id}`);
+    } else {
+      edgeIds.add(edge.id);
+    }
+
     if (!nodeIds.has(edge.from)) {
       errors.push(`Flow edge references unknown from node: ${edge.from}`);
     }
@@ -84,6 +93,10 @@ export function validateFlow(flow, options = {}) {
 
     if (edge.from === edge.to) {
       errors.push(`Flow edge cannot reference the same node: ${edge.from}`);
+    }
+
+    if (!isKnownEdgeCondition(edge.condition)) {
+      errors.push(`Unknown flow edge condition: ${String(edge.condition)}`);
     }
   }
 
@@ -109,6 +122,18 @@ export function validateFlow(flow, options = {}) {
   }
 
   return createFlowValidationResult(errors, warnings);
+}
+
+function isKnownEdgeCondition(condition) {
+  if (condition === undefined || condition === null) {
+    return true;
+  }
+
+  if (typeof condition === 'object') {
+    return true;
+  }
+
+  return ['always', 'success', 'failure', 'skipped'].includes(condition);
 }
 
 export function createFlowValidationResult(errors = [], warnings = []) {

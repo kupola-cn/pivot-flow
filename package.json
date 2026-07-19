@@ -1,6 +1,6 @@
 {
   "name": "@kupola/pivot-flow",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "AI-native frontend business flow orchestration layer for Kupola PIVOT.",
   "type": "module",
   "main": "src/index.js",
