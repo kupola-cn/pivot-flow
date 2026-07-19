@@ -590,6 +590,7 @@ export function FlowManager(options = {}) {
     on(target, 'click', '[data-flow-action="select-node"]', (e, el) => {
       state.selectedNodeId = el.dataset.nodeId;
       render();
+      scrollSelectedNodeIntoView(target, state.selectedNodeId);
     }),
     on(target, 'click', '[data-flow-action="select-edge"]', (e, el) => {
       state.selectedEdgeId = el.dataset.edgeId;
@@ -608,6 +609,12 @@ export function FlowManager(options = {}) {
     on(target, 'click', '[data-flow-action="clear-node-search"]', () => {
       state.nodeKeyword = '';
       render();
+    }),
+    on(target, 'click', '[data-flow-action="focus-failed-node"]', () => {
+      const flow = getSelectedFlow(state);
+      focusFirstFailedNode(state, flow, state.result ?? state.preview);
+      render();
+      scrollSelectedNodeIntoView(target, state.selectedNodeId);
     }),
     on(target, 'click', '[data-flow-action="preview"]', () => {
       previewSelected();
@@ -714,6 +721,13 @@ export function FlowManager(options = {}) {
         render();
       }
     }),
+    on(target, 'change', '[data-flow-canvas-field]', (e, el) => {
+      if (el.dataset.flowCanvasField === 'selectedNodeId') {
+        state.selectedNodeId = e.target.value;
+        render();
+        scrollSelectedNodeIntoView(target, state.selectedNodeId);
+      }
+    }),
     on(target, 'change', '[data-flow-list-filter]', (e, el) => {
       if (el.dataset.flowListFilter === 'status') {
         state.listStatus = e.target.value;
@@ -817,6 +831,33 @@ function focusFirstFailedNode(state, flow, result) {
   if (trace.firstFailedNodeId) {
     state.selectedNodeId = trace.firstFailedNodeId;
   }
+}
+
+function scrollSelectedNodeIntoView(target, nodeId) {
+  if (!nodeId || typeof target.querySelector !== 'function') {
+    return;
+  }
+
+  const run = () => {
+    const node = target.querySelector(`[data-node-id="${cssEscape(nodeId)}"]`);
+    if (node && typeof node.scrollIntoView === 'function') {
+      node.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+  };
+
+  if (typeof globalThis.queueMicrotask === 'function') {
+    globalThis.queueMicrotask(run);
+  } else {
+    globalThis.setTimeout?.(run, 0);
+  }
+}
+
+function cssEscape(value) {
+  if (globalThis.CSS && typeof globalThis.CSS.escape === 'function') {
+    return globalThis.CSS.escape(value);
+  }
+
+  return String(value).replace(/["\\]/g, '\\$&');
 }
 
 async function resolveContext(contextProvider) {

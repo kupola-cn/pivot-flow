@@ -112,9 +112,13 @@
   border-radius: var(--radius-4);
   display: grid;
   gap: var(--spacer-10);
-  grid-template-columns: minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 240px) auto;
   min-width: 0;
   padding: var(--spacer-10);
+}
+
+.flow-canvas-controls .flow-field {
+  min-width: 0;
 }
 
 .flow-canvas-controls__meta {

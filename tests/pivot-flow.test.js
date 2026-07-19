@@ -23,6 +23,7 @@ import {
   renderEditableNodeInspectorToHTML,
   renderFlowCapabilityMatrixToHTML,
   renderFlowCanvasToHTML,
+  renderFlowDesignerToHTML,
   renderFlowEdgeEditorToHTML,
   renderFlowSettingsToHTML,
   renderFlowTestPanelToHTML,
@@ -388,6 +389,38 @@ test('matches and highlights flow canvas nodes', () => {
   assert.equal(adjacency.relatedNodeIds.has('message'), true);
   assert.match(html, /is-matched/);
   assert.match(html, /is-related/);
+});
+
+test('renders canvas node locate and failed-node jump controls', () => {
+  const flow = createFlow({
+    id: 'canvas-locate-flow',
+    name: 'Canvas locate flow',
+    nodes: [
+      { id: 'start', type: 'message.show', label: 'Start' },
+      { id: 'failed-step', type: 'capability.run', capability: 'demo.fail', label: 'Failed step' }
+    ],
+    edges: [
+      { id: 'edge-1', from: 'start', to: 'failed-step', condition: 'success' }
+    ]
+  });
+  const result = {
+    ok: false,
+    data: {
+      nodes: [
+        { node: { id: 'start' }, result: { ok: true, data: {} } },
+        { node: { id: 'failed-step' }, result: { ok: false, data: {} } }
+      ]
+    }
+  };
+  const html = renderFlowDesignerToHTML(flow, {
+    selectedNodeId: 'start',
+    result
+  });
+
+  assert.match(html, /data-flow-canvas-field="selectedNodeId"/);
+  assert.match(html, /data-flow-action="focus-failed-node"/);
+  assert.match(html, /Failed node/);
+  assert.match(html, /Selected: Start/);
 });
 
 test('renders editable node inspector controls', () => {

@@ -2,7 +2,7 @@ import { flowToPlan } from '../flow-to-plan.js';
 import { validateFlow } from '../flow-validation.js';
 import { FLOW_RISK_LEVELS, FLOW_STATUS } from '../node-types.js';
 import { escapeAttr, escapeHTML, on, resolveTarget, setHTML } from './dom.js';
-import { getFlowNodeMatches, renderFlowCanvasToHTML } from './FlowCanvas.js';
+import { getFlowExecutionTrace, getFlowNodeMatches, renderFlowCanvasToHTML } from './FlowCanvas.js';
 import { renderIntentPatternEditorToHTML } from './IntentPatternEditor.js';
 import { renderNodeInspectorToHTML } from './NodeInspector.js';
 import { renderNodePaletteToHTML } from './NodePalette.js';
@@ -37,7 +37,7 @@ export function renderFlowDesignerToHTML(flow, state = {}) {
     '</div>',
     validation.valid ? '' : `<div class="flow-alert flow-alert--error">${escapeHTML(validation.errors.join('; '))}</div>`,
     renderFlowSettingsToHTML(flow),
-    renderCanvasControlsToHTML(state, nodeMatches),
+    renderCanvasControlsToHTML(flow, state, nodeMatches),
     renderFlowCanvasToHTML(flow, state),
     renderFlowEdgeEditorToHTML(flow, state),
     renderFlowTestPanelToHTML(state),
@@ -51,7 +51,12 @@ export function renderFlowDesignerToHTML(flow, state = {}) {
   ].join('');
 }
 
-function renderCanvasControlsToHTML(state, nodeMatches) {
+function renderCanvasControlsToHTML(flow, state, nodeMatches) {
+  const nodes = Array.isArray(flow?.nodes) ? flow.nodes : [];
+  const trace = getFlowExecutionTrace(state.result ?? state.preview, nodes, flow?.edges ?? []);
+  const selectedNode = nodes.find((node) => node.id === state.selectedNodeId) ?? null;
+  const firstFailedNode = nodes.find((node) => node.id === trace.firstFailedNodeId) ?? null;
+
   return [
     '<section class="flow-canvas-controls">',
     '<label class="flow-field">',
@@ -59,10 +64,20 @@ function renderCanvasControlsToHTML(state, nodeMatches) {
     '<input class="ds-input ds-input--sm" type="search" placeholder="Search node, capability, type" ',
     `value="${escapeAttr(state.nodeKeyword || '')}" data-flow-canvas-field="nodeKeyword">`,
     '</label>',
+    '<label class="flow-field">',
+    '<span>Locate node</span>',
+    `<select class="ds-select ds-select--sm" data-flow-canvas-field="selectedNodeId">${renderNodeOptions(nodes, state.selectedNodeId)}</select>`,
+    '</label>',
     '<div class="flow-canvas-controls__meta">',
     nodeMatches.active
       ? `<span>${escapeHTML(nodeMatches.count)} matched</span>`
       : '<span>No search</span>',
+    selectedNode
+      ? `<span>Selected: ${escapeHTML(selectedNode.label || selectedNode.id)}</span>`
+      : '<span>No node selected</span>',
+    firstFailedNode
+      ? `<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-action="focus-failed-node">Failed node</button>`
+      : '',
     state.nodeKeyword
       ? '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="clear-node-search">Clear</button>'
       : '',
@@ -212,6 +227,16 @@ export function FlowDesigner(options = {}) {
     on(target, 'click', '[data-flow-action="select-node"]', (e, el) => {
       state.selectedNodeId = el.dataset.nodeId;
       render();
+      scrollSelectedNodeIntoView(target, state.selectedNodeId);
+    }),
+    on(target, 'click', '[data-flow-action="focus-failed-node"]', () => {
+      const trace = getFlowExecutionTrace(state.result ?? state.preview, state.flow?.nodes ?? [], state.flow?.edges ?? []);
+      if (!trace.firstFailedNodeId) {
+        return;
+      }
+      state.selectedNodeId = trace.firstFailedNodeId;
+      render();
+      scrollSelectedNodeIntoView(target, state.selectedNodeId);
     }),
     on(target, 'click', '[data-flow-action="clear-node-search"]', () => {
       state.nodeKeyword = '';
@@ -221,6 +246,13 @@ export function FlowDesigner(options = {}) {
       if (el.dataset.flowCanvasField === 'nodeKeyword') {
         state.nodeKeyword = e.target.value;
         render();
+      }
+    }),
+    on(target, 'change', '[data-flow-canvas-field]', (e, el) => {
+      if (el.dataset.flowCanvasField === 'selectedNodeId') {
+        state.selectedNodeId = e.target.value;
+        render();
+        scrollSelectedNodeIntoView(target, state.selectedNodeId);
       }
     }),
     on(target, 'click', '[data-flow-action="preview"]', () => {
@@ -250,4 +282,31 @@ export function FlowDesigner(options = {}) {
 
 function getSelectedNode(flow, selectedNodeId) {
   return flow?.nodes?.find((node) => node.id === selectedNodeId) ?? flow?.nodes?.[0] ?? null;
+}
+
+function scrollSelectedNodeIntoView(target, nodeId) {
+  if (!nodeId || typeof target.querySelector !== 'function') {
+    return;
+  }
+
+  const run = () => {
+    const node = target.querySelector(`[data-node-id="${cssEscape(nodeId)}"]`);
+    if (node && typeof node.scrollIntoView === 'function') {
+      node.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+  };
+
+  if (typeof globalThis.queueMicrotask === 'function') {
+    globalThis.queueMicrotask(run);
+  } else {
+    globalThis.setTimeout?.(run, 0);
+  }
+}
+
+function cssEscape(value) {
+  if (globalThis.CSS && typeof globalThis.CSS.escape === 'function') {
+    return globalThis.CSS.escape(value);
+  }
+
+  return String(value).replace(/["\\]/g, '\\$&');
 }

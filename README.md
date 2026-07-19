@@ -243,7 +243,7 @@ FlowAssistantDrawer({
 - add built-in nodes from the palette
 - edit node label, type, capability, risk, confirmation, and JSON params
 - inspect a layered flow canvas generated from nodes and edges
-- search canvas nodes and highlight nodes related to the current selection
+- search canvas nodes, locate a node from a compact selector, and highlight nodes related to the current selection
 - configure condition node JSON and transform node schemas
 - move or delete selected nodes
 - add, edit, and delete edges between nodes
@@ -253,7 +253,7 @@ FlowAssistantDrawer({
 - preview and execute the selected flow through the configured PIVOT runtime
 - inspect capability dependencies, risk levels, confirmation requirements, and registered permissions for the selected flow
 - inspect execution paths in the canvas, including executed nodes, skipped nodes, failed nodes, and active edges
-- automatically focus the first failed node after execution so the operator can inspect the broken step
+- automatically focus the first failed node after execution and expose a failed-node jump action so the operator can inspect the broken step
 
 The designer uses a structured layered canvas rather than a freeform drag canvas. This keeps the API stable while making dependencies, edge direction, risk, confirmation, and execution state easier to inspect.
 
