@@ -182,6 +182,116 @@ export function createLocalStorageFlowStore(options = {}) {
   };
 }
 
+export function createHttpFlowStore(options = {}) {
+  const baseUrl = trimTrailingSlash(options.baseUrl ?? '/api/pivot-flows');
+  const runsUrl = trimTrailingSlash(options.runsUrl ?? '/api/pivot-flow-runs');
+  const fetcher = options.fetcher ?? globalThis.fetch;
+  const credentials = options.credentials ?? 'same-origin';
+
+  if (typeof fetcher !== 'function') {
+    throw new Error('A fetch implementation is required to create an HTTP FlowStore.');
+  }
+
+  const request = async (url, init = {}) => {
+    const response = await fetcher(url, {
+      credentials,
+      ...init,
+      headers: {
+        Accept: 'application/json',
+        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(await resolveHeaders(options.headers)),
+        ...(init.headers ?? {})
+      }
+    });
+
+    const payload = await parseJsonResponse(response);
+    if (!response.ok) {
+      const message = payload?.message || payload?.error || `FlowStore request failed with status ${response.status}.`;
+      const error = new Error(message);
+      error.status = response.status;
+      error.payload = payload;
+      throw error;
+    }
+
+    return unwrapData(payload);
+  };
+
+  return {
+    async list(query = {}) {
+      const params = new URLSearchParams();
+      if (query.status) {
+        params.set('status', query.status);
+      }
+      if (query.keyword) {
+        params.set('keyword', query.keyword);
+      }
+
+      const suffix = params.toString() ? `?${params.toString()}` : '';
+      const flows = await request(`${baseUrl}${suffix}`);
+      return Array.isArray(flows) ? flows.map(createFlow) : [];
+    },
+
+    async get(id) {
+      const flow = await request(`${baseUrl}/${encodeURIComponent(id)}`);
+      return flow ? createFlow(flow) : null;
+    },
+
+    async create(flowInput) {
+      const flow = await request(baseUrl, {
+        method: 'POST',
+        body: JSON.stringify(flowInput)
+      });
+      return createFlow(flow);
+    },
+
+    async update(id, patch) {
+      const flow = await request(`${baseUrl}/${encodeURIComponent(id)}`, {
+        method: 'PUT',
+        body: JSON.stringify(patch)
+      });
+      return createFlow(flow);
+    },
+
+    async remove(id) {
+      await request(`${baseUrl}/${encodeURIComponent(id)}`, {
+        method: 'DELETE'
+      });
+    },
+
+    async publish(id) {
+      const flow = await request(`${baseUrl}/${encodeURIComponent(id)}/publish`, {
+        method: 'POST'
+      });
+      return createFlow(flow);
+    },
+
+    async disable(id) {
+      const flow = await request(`${baseUrl}/${encodeURIComponent(id)}/disable`, {
+        method: 'POST'
+      });
+      return createFlow(flow);
+    },
+
+    async recordRun(record) {
+      return await request(runsUrl, {
+        method: 'POST',
+        body: JSON.stringify(record)
+      });
+    },
+
+    async listRuns(flowId) {
+      const params = new URLSearchParams();
+      if (flowId) {
+        params.set('flowId', flowId);
+      }
+
+      const suffix = params.toString() ? `?${params.toString()}` : '';
+      const runs = await request(`${runsUrl}${suffix}`);
+      return Array.isArray(runs) ? runs : [];
+    }
+  };
+}
+
 function filterFlows(flows, query = {}) {
   const keyword = String(query.keyword ?? '').trim().toLowerCase();
   return flows.filter((flow) => {
@@ -196,4 +306,41 @@ function filterFlows(flows, query = {}) {
 
     return true;
   });
+}
+
+function trimTrailingSlash(value) {
+  return String(value ?? '').replace(/\/+$/, '');
+}
+
+async function resolveHeaders(headers) {
+  if (typeof headers === 'function') {
+    return await headers();
+  }
+
+  return headers ?? {};
+}
+
+async function parseJsonResponse(response) {
+  if (response.status === 204) {
+    return null;
+  }
+
+  const text = await response.text();
+  if (!text) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+}
+
+function unwrapData(payload) {
+  if (payload && typeof payload === 'object' && Object.prototype.hasOwnProperty.call(payload, 'data')) {
+    return payload.data;
+  }
+
+  return payload;
 }

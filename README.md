@@ -134,6 +134,34 @@ if (preview.stage === 'slots') {
 
 `FlowAssistantDrawer` uses the same mechanism and renders parameter inputs for missing required slots before preview or execution.
 
+## Flow Stores
+
+Use an in-memory or localStorage store for prototypes. Use `createHttpFlowStore()` when the app needs server-backed persistence and backend authorization.
+
+```js
+import { createHttpFlowStore } from '@kupola/pivot-flow';
+
+const flowStore = createHttpFlowStore({
+  baseUrl: '/api/pivot-flows',
+  runsUrl: '/api/pivot-flow-runs',
+  headers: () => ({
+    'X-CSRF-Token': getCsrfToken()
+  })
+});
+```
+
+Expected HTTP endpoints:
+
+- `GET /api/pivot-flows`
+- `POST /api/pivot-flows`
+- `GET /api/pivot-flows/:id`
+- `PUT /api/pivot-flows/:id`
+- `DELETE /api/pivot-flows/:id`
+- `POST /api/pivot-flows/:id/publish`
+- `POST /api/pivot-flows/:id/disable`
+- `GET /api/pivot-flow-runs`
+- `POST /api/pivot-flow-runs`
+
 ## UI Example
 
 ```js

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { ActionType, RiskLevel, createPivotRuntime } from '@kupola/pivot';
 import {
   createFlow,
+  createHttpFlowStore,
   createLocalIntentMapper,
   createMemoryFlowStore,
   createFlowRunner,
@@ -114,6 +115,49 @@ test('memory store publishes and filters flows', async () => {
   assert.equal(published[0].id, flow.id);
 });
 
+test('HTTP store maps REST endpoints and normalizes flow responses', async () => {
+  const calls = [];
+  const store = createHttpFlowStore({
+    baseUrl: '/flows',
+    runsUrl: '/runs',
+    headers: () => ({ 'X-CSRF-Token': 'token' }),
+    fetcher: async (url, init = {}) => {
+      calls.push({ url, init });
+
+      if (url.startsWith('/flows?')) {
+        return jsonResponse({ data: [createOrganizationFlow()] });
+      }
+
+      if (url === '/flows/org-create/publish') {
+        return jsonResponse({ data: { ...createOrganizationFlow(), status: 'published' } });
+      }
+
+      if (url === '/flows/org-create' && init.method === 'DELETE') {
+        return new Response(null, { status: 204 });
+      }
+
+      if (url === '/runs?flowId=org-create') {
+        return jsonResponse({ data: [{ flowId: 'org-create', ok: true }] });
+      }
+
+      return jsonResponse({ data: createOrganizationFlow() });
+    }
+  });
+
+  const flows = await store.list({ status: 'published', keyword: '组织' });
+  const published = await store.publish('org-create');
+  const runs = await store.listRuns('org-create');
+  await store.remove('org-create');
+
+  assert.equal(flows[0].id, 'org-create');
+  assert.equal(published.status, 'published');
+  assert.equal(runs[0].ok, true);
+  assert.equal(calls[0].init.credentials, 'same-origin');
+  assert.equal(calls[0].init.headers['X-CSRF-Token'], 'token');
+  assert.equal(decodeURIComponent(calls[0].url), '/flows?status=published&keyword=组织');
+  assert.equal(calls.at(-1).init.method, 'DELETE');
+});
+
 test('registers built-in frontend capabilities', async () => {
   const runtime = createPivotRuntime();
   const calls = [];
@@ -159,6 +203,14 @@ test('registers built-in frontend capabilities', async () => {
     ['message', 'done']
   ]);
 });
+
+function jsonResponse(payload, init = {}) {
+  return new Response(JSON.stringify(payload), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+    ...init
+  });
+}
 
 test('runs a flow with FlowRunner', async () => {
   const runtime = createPivotRuntime();

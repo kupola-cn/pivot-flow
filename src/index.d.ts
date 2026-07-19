@@ -130,6 +130,13 @@ export function resolveFlowParams(value: unknown, input?: Record<string, unknown
 export function createLocalIntentMapper(options?: { minConfidence?: number }): IntentMapper;
 export function createMemoryFlowStore(initialFlows?: FlowDefinition[]): FlowStore;
 export function createLocalStorageFlowStore(options?: { key?: string; runKey?: string; storage?: Storage; initialFlows?: FlowDefinition[] }): FlowStore;
+export function createHttpFlowStore(options?: {
+  baseUrl?: string;
+  runsUrl?: string;
+  fetcher?: typeof fetch;
+  headers?: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>);
+  credentials?: RequestCredentials;
+}): FlowStore;
 export function createFlowRunner(options: {
   runtime: PivotRuntime;
   flowStore?: FlowStore;
