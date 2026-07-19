@@ -1000,6 +1000,58 @@
   white-space: pre-wrap;
 }
 
+.flow-ai-draft-review {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-12);
+  min-width: 0;
+  padding: var(--spacer-12);
+}
+
+.flow-ai-draft-review__header,
+.flow-ai-draft-review__actions {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-8);
+  min-width: 0;
+}
+
+.flow-ai-draft-review__header {
+  justify-content: space-between;
+}
+
+.flow-ai-draft-review__header > div {
+  display: grid;
+  gap: var(--spacer-4);
+  min-width: 0;
+}
+
+.flow-ai-draft-review__header strong {
+  color: var(--text-default);
+  font-size: var(--body-sm-font-size);
+}
+
+.flow-ai-draft-review__header span,
+.flow-ai-draft-review__message {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  line-height: 1.6;
+}
+
+.flow-ai-draft-review__actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.flow-ai-draft-review__message {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  padding: var(--spacer-8);
+}
+
 @media (max-width: 1180px) {
   .flow-manager__grid,
   .flow-designer,

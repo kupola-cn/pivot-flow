@@ -2,6 +2,7 @@ import { ActionType, RiskLevel } from '@kupola/pivot';
 import { createFlow } from './flow-schema.js';
 import { validateFlow } from './flow-validation.js';
 import { FLOW_NODE_TYPES, FLOW_STATUS, getDefaultCapabilityForNodeType, getFlowNodeCapability } from './node-types.js';
+import { on, resolveTarget, setHTML } from './components/dom.js';
 
 export function createAIFlowBuilderContext(source, options = {}) {
   const capabilitySummary = createCapabilityManifestSummary(source, options);
@@ -183,6 +184,100 @@ export function renderAIFlowDraftPreviewToHTML(draftResult, options = {}) {
       : '',
     '</section>'
   ].join('');
+}
+
+export function renderAIFlowDraftReviewToHTML(draftResult, options = {}) {
+  const validation = draftResult?.validation ?? validateAIFlowDraft(draftResult?.flow ?? draftResult, options);
+  const canSave = Boolean(validation.valid && options.canSave !== false);
+  const title = options.title ?? 'Review AI Flow draft';
+  const description = options.description ?? 'Review the generated draft before saving it. AI output is never executed or published from this step.';
+
+  return [
+    '<section class="flow-ai-draft-review">',
+    '<div class="flow-ai-draft-review__header">',
+    '<div>',
+    `<strong>${escapeHTML(title)}</strong>`,
+    `<span>${escapeHTML(description)}</span>`,
+    '</div>',
+    `<span class="flow-badge flow-badge--${canSave ? 'low' : 'high'}">${canSave ? 'ready' : 'blocked'}</span>`,
+    '</div>',
+    renderAIFlowDraftPreviewToHTML(draftResult, { ...options, showDiff: options.showDiff ?? true }),
+    '<div class="flow-ai-draft-review__actions">',
+    `<button type="button" class="ds-btn ds-btn--brand ds-btn--sm" data-flow-ai-action="save-draft"${canSave ? '' : ' disabled'}>Save draft</button>`,
+    '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-ai-action="cancel-draft">Cancel</button>',
+    '</div>',
+    '</section>'
+  ].join('');
+}
+
+export function AIFlowDraftReviewer(options = {}) {
+  const target = resolveTarget(options.target);
+  const state = {
+    draftResult: options.draftResult ?? null,
+    saving: false,
+    message: ''
+  };
+
+  const render = () => {
+    const content = state.draftResult
+      ? renderAIFlowDraftReviewToHTML(state.draftResult, {
+        ...options,
+        canSave: !state.saving
+      })
+      : '<div class="flow-empty">No AI Flow draft to review.</div>';
+    const message = state.message
+      ? `<div class="flow-ai-draft-review__message">${escapeHTML(state.message)}</div>`
+      : '';
+    setHTML(target, [content, message].join(''));
+  };
+
+  const cleanups = [
+    on(target, 'click', '[data-flow-ai-action="save-draft"]', async () => {
+      if (!state.draftResult || state.saving || typeof options.onSaveDraft !== 'function') {
+        return;
+      }
+
+      state.saving = true;
+      state.message = 'Saving draft...';
+      render();
+
+      try {
+        const saved = await options.onSaveDraft(state.draftResult.flow, state.draftResult);
+        state.message = options.savedMessage ?? 'Draft saved.';
+        if (typeof options.onSaved === 'function') {
+          await options.onSaved(saved, state.draftResult);
+        }
+      } catch (error) {
+        state.message = error?.message || 'Failed to save draft.';
+      } finally {
+        state.saving = false;
+        render();
+      }
+    }),
+    on(target, 'click', '[data-flow-ai-action="cancel-draft"]', async () => {
+      state.draftResult = null;
+      state.message = '';
+      if (typeof options.onCancel === 'function') {
+        await options.onCancel();
+      }
+      render();
+    })
+  ];
+
+  render();
+
+  return {
+    element: target,
+    update(nextDraftResult) {
+      state.draftResult = nextDraftResult;
+      state.message = '';
+      render();
+    },
+    destroy() {
+      cleanups.forEach((cleanup) => cleanup());
+      target.innerHTML = '';
+    }
+  };
 }
 
 export function createCapabilityManifestSummary(source, options = {}) {

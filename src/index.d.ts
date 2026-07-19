@@ -294,6 +294,30 @@ export function renderAIFlowDraftPreviewToHTML(draftResult?: FlowDefinition | Re
   showJSON?: boolean;
   showDiff?: boolean;
 }): string;
+export function renderAIFlowDraftReviewToHTML(draftResult?: FlowDefinition | ReturnType<typeof createAIFlowDraft>, options?: {
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+  allowPublished?: boolean;
+  showJSON?: boolean;
+  showDiff?: boolean;
+  canSave?: boolean;
+  title?: string;
+  description?: string;
+}): string;
+export function AIFlowDraftReviewer(options: {
+  target: string | Element;
+  draftResult?: ReturnType<typeof createAIFlowDraft>;
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+  showJSON?: boolean;
+  showDiff?: boolean;
+  title?: string;
+  description?: string;
+  savedMessage?: string;
+  onSaveDraft?: (flow: FlowDefinition, draftResult: ReturnType<typeof createAIFlowDraft>) => unknown | Promise<unknown>;
+  onSaved?: (saved: unknown, draftResult: ReturnType<typeof createAIFlowDraft>) => void | Promise<void>;
+  onCancel?: () => void | Promise<void>;
+}): { element: Element; update(draftResult: ReturnType<typeof createAIFlowDraft>): void; destroy(): void };
 export function createCapabilityManifestSummary(source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
   filter?: Record<string, unknown>;
   includeSchemas?: boolean;

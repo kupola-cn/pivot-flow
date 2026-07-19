@@ -269,7 +269,9 @@ import {
   diffAIFlowDraft,
   getMissingFlowCapabilities,
   recommendFlowCapabilities,
+  renderAIFlowDraftReviewToHTML,
   renderAIFlowDraftPreviewToHTML,
+  AIFlowDraftReviewer,
   validateAIFlowDraft
 } from '@kupola/pivot-flow';
 
@@ -281,6 +283,12 @@ const validation = validateAIFlowDraft(draft.flow, { runtime });
 const missing = getMissingFlowCapabilities(draft.flow, runtime);
 const diff = diffAIFlowDraft(aiStructuredOutput.flow, draft.flow);
 const previewHTML = renderAIFlowDraftPreviewToHTML(draft, { showDiff: true });
+
+AIFlowDraftReviewer({
+  target: '#review',
+  draftResult: draft,
+  onSaveDraft: (flow) => flowStore.create(flow)
+});
 ```
 
 - `createAIFlowBuilderContext()` returns model-facing instructions, safety rules, expected Flow shape, and a sanitized capability summary.
@@ -290,6 +298,7 @@ const previewHTML = renderAIFlowDraftPreviewToHTML(draft, { showDiff: true });
 - `diffAIFlowDraft()` shows how the raw AI output changed during normalization, such as `published` becoming `draft` or high-risk confirmation being added.
 - `recommendFlowCapabilities()` ranks registered capabilities for a natural-language prompt.
 - `renderAIFlowDraftPreviewToHTML()` renders a safe draft preview with validation errors, nodes, risk, and confirmation state.
+- `renderAIFlowDraftReviewToHTML()` and `AIFlowDraftReviewer()` add a human review step before a draft is saved.
 - `validateAIFlowDraft()` checks that AI output stays as a draft, only references registered capabilities, and requires confirmation for high-risk or delete operations.
 
 ## Security Boundary

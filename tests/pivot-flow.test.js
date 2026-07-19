@@ -36,6 +36,7 @@ import {
   renderFlowTemplateListToHTML,
   recommendFlowCapabilities,
   renderAIFlowDraftPreviewToHTML,
+  renderAIFlowDraftReviewToHTML,
   parseFlowTestSlots,
   registerFlowFrontendCapabilities,
   validateAIFlowDraft,
@@ -816,6 +817,52 @@ test('reports missing AI draft capabilities and normalization diff', () => {
   assert.equal(draft.diff.some((item) => item.path === 'status' && item.after === 'draft'), true);
   assert.match(html, /Missing capabilities/);
   assert.match(html, /Draft changes/);
+});
+
+test('renders AI flow draft review actions only for valid drafts', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'material.delete',
+    resource: 'material',
+    action: ActionType.DELETE,
+    risk: RiskLevel.HIGH,
+    description: '删除耗材',
+    execute: () => ({ deleted: true })
+  });
+  const validDraft = createAIFlowDraft({
+    flow: {
+      id: 'ai-review-valid',
+      name: 'Review valid draft',
+      nodes: [
+        {
+          id: 'delete',
+          type: 'capability.run',
+          capability: 'material.delete'
+        }
+      ]
+    }
+  }, { runtime });
+  const blockedDraft = createAIFlowDraft({
+    flow: {
+      id: 'ai-review-blocked',
+      name: 'Review blocked draft',
+      nodes: [
+        {
+          id: 'missing',
+          type: 'capability.run',
+          capability: 'missing.delete'
+        }
+      ]
+    }
+  }, { runtime });
+  const validHTML = renderAIFlowDraftReviewToHTML(validDraft);
+  const blockedHTML = renderAIFlowDraftReviewToHTML(blockedDraft);
+
+  assert.match(validHTML, /data-flow-ai-action="save-draft"/);
+  assert.doesNotMatch(validHTML, /save-draft" disabled/);
+  assert.match(validHTML, /Draft changes/);
+  assert.match(blockedHTML, /data-flow-ai-action="save-draft" disabled/);
+  assert.match(blockedHTML, /Missing capabilities/);
 });
 
 function jsonResponse(payload, init = {}) {
