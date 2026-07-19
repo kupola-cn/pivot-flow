@@ -257,6 +257,23 @@ FlowAssistantDrawer({
 
 The designer uses a structured layered canvas rather than a freeform drag canvas. This keeps the API stable while making dependencies, edge direction, risk, confirmation, and execution state easier to inspect.
 
+## AI Flow Builder Safety Primitives
+
+`pivot-flow` does not let AI execute or publish flows directly. The library exposes helper APIs for future AI builders:
+
+```js
+import {
+  createCapabilityManifestSummary,
+  validateAIFlowDraft
+} from '@kupola/pivot-flow';
+
+const manifest = createCapabilityManifestSummary(runtime);
+const validation = validateAIFlowDraft(aiGeneratedFlow, { runtime });
+```
+
+- `createCapabilityManifestSummary()` returns a capability summary without `execute` functions.
+- `validateAIFlowDraft()` checks that AI output stays as a draft, only references registered capabilities, and requires confirmation for high-risk or delete operations.
+
 ## Security Boundary
 
 Frontend PIVOT Flow permissions are only interaction hints and client-side safeguards. They do not replace backend authorization.

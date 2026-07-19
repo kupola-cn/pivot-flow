@@ -1,4 +1,4 @@
-import type { PivotRuntime, PivotPlan, PivotResult } from '@kupola/pivot';
+import type { PivotRuntime, PivotPlan, PivotResult, PivotCapability } from '@kupola/pivot';
 
 export type FlowStatus = 'draft' | 'published' | 'disabled' | 'archived';
 export type FlowRisk = 'low' | 'medium' | 'high' | 'critical';
@@ -234,6 +234,29 @@ export interface FlowFrontendCapabilityAdapter {
 
 export function createFlowFrontendCapabilities(adapter?: FlowFrontendCapabilityAdapter): unknown[];
 export function registerFlowFrontendCapabilities(runtime: PivotRuntime, adapter?: FlowFrontendCapabilityAdapter): unknown[];
+export function createCapabilityManifestSummary(source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
+  filter?: Record<string, unknown>;
+  includeSchemas?: boolean;
+  maxDescriptionLength?: number;
+}): {
+  generatedAt: string;
+  count: number;
+  capabilities: Array<Record<string, unknown>>;
+  resources: Record<string, number>;
+  actions: Record<string, number>;
+  risks: Record<string, number>;
+  permissions: string[];
+};
+export function validateAIFlowDraft(flow: FlowDefinition, options?: {
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+  allowPublished?: boolean;
+}): {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  capabilitySummary: ReturnType<typeof createCapabilityManifestSummary>;
+};
 
 export function renderFlowListToHTML(flows?: FlowDefinition[], options?: Record<string, unknown>): string;
 export function filterFlows(flows?: FlowDefinition[], options?: { keyword?: string; status?: FlowStatus | string; risk?: FlowRisk | string }): FlowDefinition[];

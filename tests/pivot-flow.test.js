@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { ActionType, RiskLevel, createPivotRuntime } from '@kupola/pivot';
 import {
   createFlow,
+  createCapabilityManifestSummary,
   createFlowFromTemplate,
   createHttpFlowStore,
   createLocalIntentMapper,
@@ -31,6 +32,7 @@ import {
   renderFlowTemplateListToHTML,
   parseFlowTestSlots,
   registerFlowFrontendCapabilities,
+  validateAIFlowDraft,
   validateFlow
 } from '../src/index.js';
 
@@ -628,6 +630,62 @@ test('registers built-in frontend capabilities', async () => {
     ['table', 'organizations'],
     ['message', 'done']
   ]);
+});
+
+test('summarizes runtime capabilities for AI flow builder without execute functions', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'material.delete',
+    resource: 'material',
+    action: ActionType.DELETE,
+    risk: RiskLevel.HIGH,
+    permissions: ['material:catalog:delete'],
+    requiresConfirmation: true,
+    paramsSchema: {
+      id: { type: 'number', required: true }
+    },
+    execute: () => ({ deleted: true })
+  });
+
+  const summary = createCapabilityManifestSummary(runtime);
+
+  assert.equal(summary.count, 1);
+  assert.equal(summary.capabilities[0].name, 'material.delete');
+  assert.equal(summary.capabilities[0].execute, undefined);
+  assert.equal(summary.risks.high, 1);
+  assert.deepEqual(summary.permissions, ['material:catalog:delete']);
+});
+
+test('validates AI-generated flow drafts against registered capabilities and risk confirmation', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'material.delete',
+    resource: 'material',
+    action: ActionType.DELETE,
+    risk: RiskLevel.HIGH,
+    permissions: ['material:catalog:delete'],
+    execute: () => ({ deleted: true })
+  });
+  const flow = createFlow({
+    id: 'ai-delete-material',
+    name: 'AI delete material',
+    status: 'published',
+    nodes: [
+      {
+        id: 'delete-material',
+        type: 'capability.run',
+        capability: 'material.delete',
+        risk: 'high',
+        params: { id: '{{intent.id}}' }
+      }
+    ]
+  });
+
+  const validation = validateAIFlowDraft(flow, { runtime });
+
+  assert.equal(validation.valid, false);
+  assert.match(validation.errors.join('\n'), /must remain draft/);
+  assert.match(validation.errors.join('\n'), /must require confirmation/);
 });
 
 function jsonResponse(payload, init = {}) {
