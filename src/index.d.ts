@@ -234,6 +234,27 @@ export interface FlowFrontendCapabilityAdapter {
 
 export function createFlowFrontendCapabilities(adapter?: FlowFrontendCapabilityAdapter): unknown[];
 export function registerFlowFrontendCapabilities(runtime: PivotRuntime, adapter?: FlowFrontendCapabilityAdapter): unknown[];
+export function createAIFlowBuilderContext(source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
+  filter?: Record<string, unknown>;
+  includeSchemas?: boolean;
+  maxDescriptionLength?: number;
+}): {
+  generatedAt: string;
+  instruction: string;
+  safetyRules: string[];
+  flowShape: Record<string, unknown>;
+  capabilitySummary: ReturnType<typeof createCapabilityManifestSummary>;
+};
+export function createAIFlowDraft(input?: Partial<FlowDefinition> | { prompt?: string; flow?: Partial<FlowDefinition> }, options?: {
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+  allowPublished?: boolean;
+}): {
+  ok: boolean;
+  flow: FlowDefinition;
+  validation: ReturnType<typeof validateAIFlowDraft>;
+  capabilitySummary: ReturnType<typeof createCapabilityManifestSummary>;
+};
 export function createCapabilityManifestSummary(source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
   filter?: Record<string, unknown>;
   includeSchemas?: boolean;

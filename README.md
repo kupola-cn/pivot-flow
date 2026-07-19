@@ -263,14 +263,20 @@ The designer uses a structured layered canvas rather than a freeform drag canvas
 
 ```js
 import {
+  createAIFlowBuilderContext,
+  createAIFlowDraft,
   createCapabilityManifestSummary,
   validateAIFlowDraft
 } from '@kupola/pivot-flow';
 
+const context = createAIFlowBuilderContext(runtime);
 const manifest = createCapabilityManifestSummary(runtime);
-const validation = validateAIFlowDraft(aiGeneratedFlow, { runtime });
+const draft = createAIFlowDraft(aiStructuredOutput, { runtime });
+const validation = validateAIFlowDraft(draft.flow, { runtime });
 ```
 
+- `createAIFlowBuilderContext()` returns model-facing instructions, safety rules, expected Flow shape, and a sanitized capability summary.
+- `createAIFlowDraft()` converts structured AI output into a normalized draft Flow and validates it immediately.
 - `createCapabilityManifestSummary()` returns a capability summary without `execute` functions.
 - `validateAIFlowDraft()` checks that AI output stays as a draft, only references registered capabilities, and requires confirmation for high-risk or delete operations.
 

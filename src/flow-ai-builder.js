@@ -1,6 +1,91 @@
 import { ActionType, RiskLevel } from '@kupola/pivot';
+import { createFlow } from './flow-schema.js';
 import { validateFlow } from './flow-validation.js';
-import { FLOW_STATUS, getFlowNodeCapability } from './node-types.js';
+import { FLOW_NODE_TYPES, FLOW_STATUS, getDefaultCapabilityForNodeType, getFlowNodeCapability } from './node-types.js';
+
+export function createAIFlowBuilderContext(source, options = {}) {
+  const capabilitySummary = createCapabilityManifestSummary(source, options);
+  return {
+    generatedAt: capabilitySummary.generatedAt,
+    instruction: 'Generate draft FlowDefinition JSON only. Do not execute, publish, or invent capabilities.',
+    safetyRules: [
+      'status must be draft',
+      'nodes may only reference registered capabilities from capabilitySummary.capabilities',
+      'high, critical, and delete operation nodes must set requiresConfirmation to true',
+      'API calls must be represented by registered capability.run nodes, not arbitrary URLs',
+      'sensitive values must be requested as manual slots instead of embedded in prompt examples'
+    ],
+    flowShape: {
+      id: 'string',
+      name: 'string',
+      description: 'string',
+      status: 'draft',
+      intent: {
+        examples: ['string'],
+        keywords: ['string'],
+        patterns: ['string'],
+        slots: [
+          {
+            name: 'string',
+            label: 'string',
+            type: 'string',
+            required: true,
+            source: 'intent'
+          }
+        ]
+      },
+      nodes: [
+        {
+          id: 'string',
+          type: 'capability.run',
+          label: 'string',
+          capability: 'registered.capability.name',
+          params: {}
+        }
+      ],
+      edges: [
+        {
+          from: 'node-id',
+          to: 'node-id',
+          condition: 'success'
+        }
+      ]
+    },
+    capabilitySummary
+  };
+}
+
+export function createAIFlowDraft(input = {}, options = {}) {
+  const capabilities = normalizeCapabilities(options.capabilities ?? options.runtime);
+  const capabilityByName = new Map(capabilities.map((capability) => [capability.name, capability]));
+  const source = isPlainObject(input?.flow) ? input.flow : input;
+  const nodes = Array.isArray(source?.nodes)
+    ? source.nodes.map((node, index) => normalizeAIFlowNode(node, index, capabilityByName))
+    : [];
+  const flow = createFlow({
+    ...source,
+    status: FLOW_STATUS.DRAFT,
+    nodes,
+    edges: Array.isArray(source?.edges) ? source.edges : [],
+    metadata: {
+      ...(isPlainObject(source?.metadata) ? source.metadata : {}),
+      aiGenerated: true,
+      aiBuilder: 'pivot-flow',
+      sourceIntent: input?.prompt || source?.metadata?.sourceIntent || ''
+    }
+  });
+  const validation = validateAIFlowDraft(flow, {
+    ...options,
+    capabilities
+  });
+
+  return {
+    ok: validation.valid,
+    flow,
+    validation,
+    capabilitySummary: validation.capabilitySummary
+  };
+}
 
 export function createCapabilityManifestSummary(source, options = {}) {
   const capabilities = normalizeCapabilities(source, options.filter)
@@ -55,6 +140,25 @@ export function validateAIFlowDraft(flow, options = {}) {
     errors,
     warnings,
     capabilitySummary: createCapabilityManifestSummary(capabilities)
+  };
+}
+
+function normalizeAIFlowNode(node, index, capabilityByName) {
+  const safeNode = isPlainObject(node) ? node : {};
+  const type = safeNode.type || (safeNode.capability ? FLOW_NODE_TYPES.CAPABILITY_RUN : FLOW_NODE_TYPES.MESSAGE_SHOW);
+  const capabilityName = safeNode.capability || getDefaultCapabilityForNodeType(type);
+  const capability = capabilityByName.get(capabilityName);
+  const risk = safeNode.risk || capability?.risk || RiskLevel.LOW;
+
+  return {
+    ...safeNode,
+    id: String(safeNode.id || `node-${index + 1}`).trim(),
+    type,
+    label: String(safeNode.label || safeNode.name || capability?.description || capabilityName || type).trim(),
+    capability: capabilityName,
+    risk,
+    requiresConfirmation: Boolean(safeNode.requiresConfirmation || requiresHumanConfirmation({ ...safeNode, risk }, capability)),
+    params: isPlainObject(safeNode.params) ? safeNode.params : {}
   };
 }
 
@@ -132,4 +236,8 @@ function clonePlainValue(value) {
   }
 
   return JSON.parse(JSON.stringify(value));
+}
+
+function isPlainObject(value) {
+  return Object.prototype.toString.call(value) === '[object Object]';
 }

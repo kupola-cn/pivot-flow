@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { ActionType, RiskLevel, createPivotRuntime } from '@kupola/pivot';
 import {
   createFlow,
+  createAIFlowBuilderContext,
+  createAIFlowDraft,
   createCapabilityManifestSummary,
   createFlowFromTemplate,
   createHttpFlowStore,
@@ -686,6 +688,50 @@ test('validates AI-generated flow drafts against registered capabilities and ris
   assert.equal(validation.valid, false);
   assert.match(validation.errors.join('\n'), /must remain draft/);
   assert.match(validation.errors.join('\n'), /must require confirmation/);
+});
+
+test('creates safe AI flow builder context and draft from structured output', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'material.delete',
+    resource: 'material',
+    action: ActionType.DELETE,
+    risk: RiskLevel.HIGH,
+    permissions: ['material:catalog:delete'],
+    paramsSchema: {
+      id: { type: 'number', required: true }
+    },
+    execute: () => ({ deleted: true })
+  });
+  const context = createAIFlowBuilderContext(runtime);
+  const draft = createAIFlowDraft({
+    prompt: '删除耗材 TEST-001',
+    flow: {
+      id: 'ai-material-delete',
+      name: 'AI material delete',
+      status: 'published',
+      intent: {
+        examples: ['删除耗材 TEST-001'],
+        keywords: ['删除耗材']
+      },
+      nodes: [
+        {
+          id: 'delete-material',
+          type: 'capability.run',
+          capability: 'material.delete',
+          params: { id: '{{intent.id}}' }
+        }
+      ]
+    }
+  }, { runtime });
+
+  assert.equal(context.capabilitySummary.count, 1);
+  assert.match(context.safetyRules.join('\n'), /status must be draft/);
+  assert.equal(draft.ok, true);
+  assert.equal(draft.flow.status, 'draft');
+  assert.equal(draft.flow.metadata.aiGenerated, true);
+  assert.equal(draft.flow.nodes[0].risk, 'high');
+  assert.equal(draft.flow.nodes[0].requiresConfirmation, true);
 });
 
 function jsonResponse(payload, init = {}) {
