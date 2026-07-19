@@ -141,6 +141,10 @@ export const FLOW_FRONTEND_CAPABILITIES: {
   AUDIT_MARK: 'audit.mark';
 };
 
+export const DEFAULT_NODE_CAPABILITY_MAP: Record<string, string>;
+export function getDefaultCapabilityForNodeType(type: string): string;
+export function getFlowNodeCapability(node: Partial<FlowNode>): string;
+
 export interface FlowFrontendCapabilityAdapter {
   showMessage?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
   navigate?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;

@@ -1,7 +1,7 @@
 import { createPlan } from '@kupola/pivot';
 import { normalizeFlow } from './flow-schema.js';
 import { validateFlow } from './flow-validation.js';
-import { FLOW_NODE_TYPES, isPlanVisibleNode } from './node-types.js';
+import { FLOW_NODE_TYPES, getFlowNodeCapability, isPlanVisibleNode } from './node-types.js';
 
 const TEMPLATE_PATTERN = /^\{\{\s*([^}]+?)\s*\}\}$/;
 
@@ -75,7 +75,7 @@ export function flowNodeToPlanNode(node, flow, input = {}, context = {}) {
 
   return {
     id: node.id,
-    capability: node.capability,
+    capability: getFlowNodeCapability(node),
     intent: node.label || flow.name,
     risk: node.risk,
     params: resolveFlowParams(node.params ?? {}, input, context),

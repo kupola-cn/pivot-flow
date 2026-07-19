@@ -28,6 +28,16 @@ export const FLOW_RISK_LEVELS = Object.freeze({
   CRITICAL: 'critical'
 });
 
+export const DEFAULT_NODE_CAPABILITY_MAP = Object.freeze({
+  [FLOW_NODE_TYPES.MESSAGE_SHOW]: 'message.show',
+  [FLOW_NODE_TYPES.ROUTE_NAVIGATE]: 'route.navigate',
+  [FLOW_NODE_TYPES.TABLE_REFRESH]: 'table.refresh',
+  [FLOW_NODE_TYPES.FORM_OPEN]: 'form.open',
+  [FLOW_NODE_TYPES.DRAWER_OPEN]: 'drawer.open',
+  [FLOW_NODE_TYPES.MODAL_OPEN]: 'modal.open',
+  [FLOW_NODE_TYPES.AUDIT_MARK]: 'audit.mark'
+});
+
 export const BUILT_IN_NODE_DEFINITIONS = Object.freeze([
   {
     type: FLOW_NODE_TYPES.CAPABILITY_RUN,
@@ -98,16 +108,9 @@ export function isKnownRiskLevel(risk) {
 }
 
 export function isCapabilityBackedNode(node) {
-  return Boolean(node?.capability) || [
+  return Boolean(getFlowNodeCapability(node)) || [
     FLOW_NODE_TYPES.CAPABILITY_RUN,
-    FLOW_NODE_TYPES.API_CALL,
-    FLOW_NODE_TYPES.MESSAGE_SHOW,
-    FLOW_NODE_TYPES.ROUTE_NAVIGATE,
-    FLOW_NODE_TYPES.TABLE_REFRESH,
-    FLOW_NODE_TYPES.FORM_OPEN,
-    FLOW_NODE_TYPES.DRAWER_OPEN,
-    FLOW_NODE_TYPES.MODAL_OPEN,
-    FLOW_NODE_TYPES.AUDIT_MARK
+    FLOW_NODE_TYPES.API_CALL
   ].includes(node?.type);
 }
 
@@ -124,5 +127,17 @@ export function isPlanVisibleNode(node) {
     return false;
   }
 
-  return Boolean(node.capability) || node.type === FLOW_NODE_TYPES.CONFIRM;
+  return Boolean(getFlowNodeCapability(node)) || node.type === FLOW_NODE_TYPES.CONFIRM;
+}
+
+export function getDefaultCapabilityForNodeType(type) {
+  return DEFAULT_NODE_CAPABILITY_MAP[type] ?? '';
+}
+
+export function getFlowNodeCapability(node) {
+  if (!node || typeof node !== 'object') {
+    return '';
+  }
+
+  return node.capability || getDefaultCapabilityForNodeType(node.type);
 }

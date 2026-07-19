@@ -130,14 +130,12 @@ test('registers built-in frontend capabilities', async () => {
         id: 'refresh',
         type: 'table.refresh',
         label: 'Refresh table',
-        capability: 'table.refresh',
         params: { target: 'organizations' }
       },
       {
         id: 'message',
         type: 'message.show',
         label: 'Show message',
-        capability: 'message.show',
         params: { message: 'done' }
       }
     ],
@@ -147,6 +145,9 @@ test('registers built-in frontend capabilities', async () => {
   });
 
   const plan = flowToPlan(flow);
+  assert.equal(plan.nodes[0].capability, 'table.refresh');
+  assert.equal(plan.nodes[1].capability, 'message.show');
+
   const preview = await runtime.previewPlan(plan);
   assert.equal(preview.ok, true);
 

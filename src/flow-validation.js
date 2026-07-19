@@ -1,4 +1,4 @@
-import { FLOW_NODE_TYPES, FLOW_STATUS, isCapabilityBackedNode, isKnownFlowNodeType, isKnownFlowStatus, isKnownRiskLevel } from './node-types.js';
+import { FLOW_NODE_TYPES, FLOW_STATUS, getFlowNodeCapability, isCapabilityBackedNode, isKnownFlowNodeType, isKnownFlowStatus, isKnownRiskLevel } from './node-types.js';
 
 export function validateFlow(flow, options = {}) {
   const errors = [];
@@ -57,12 +57,14 @@ export function validateFlow(flow, options = {}) {
       errors.push(`Unknown flow node risk: ${String(node.risk)}`);
     }
 
-    if (isCapabilityBackedNode(node) && node.type !== FLOW_NODE_TYPES.CONFIRM && !node.capability) {
+    const capability = getFlowNodeCapability(node);
+
+    if (isCapabilityBackedNode(node) && node.type !== FLOW_NODE_TYPES.CONFIRM && !capability) {
       errors.push(`Flow node capability is required: ${node.id}`);
     }
 
-    if (knownCapabilities && node.capability && !knownCapabilities.has(node.capability)) {
-      errors.push(`Flow node capability is not registered: ${node.capability}`);
+    if (knownCapabilities && capability && !knownCapabilities.has(capability)) {
+      errors.push(`Flow node capability is not registered: ${capability}`);
     }
   }
 

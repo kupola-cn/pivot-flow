@@ -46,6 +46,10 @@ registerFlowFrontendCapabilities(runtime, {
   refreshTable: ({ target }) => console.info(`refresh ${target}`)
 });
 
+// Built-in frontend node types infer their capability automatically:
+// message.show -> capability "message.show"
+// table.refresh -> capability "table.refresh"
+
 runtime.registerCapability({
   name: 'org.create',
   resource: 'organization',
