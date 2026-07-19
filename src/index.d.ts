@@ -368,6 +368,53 @@ export function renderFlowChangeReportToHTML(reportOrBefore?: FlowChangeReport |
   capabilities?: unknown;
   runtime?: PivotRuntime;
 }): string;
+export interface FlowEditSession {
+  readonly baseline: FlowDefinition;
+  readonly draft: FlowDefinition;
+  readonly snapshots: FlowSnapshot[];
+  readonly dirty: boolean;
+  readonly changes: FlowChangeItem[];
+  readonly report: FlowChangeReport;
+  update(patch?: Partial<FlowDefinition>): FlowDefinition;
+  replace(nextFlow?: Partial<FlowDefinition>): FlowDefinition;
+  mutate(mutator: (draft: FlowDefinition) => FlowDefinition | void): FlowDefinition;
+  reset(): FlowDefinition;
+  commit(options?: { flow?: Partial<FlowDefinition> }): FlowDefinition;
+  snapshot(options?: {
+    id?: string;
+    label?: string;
+    reason?: string;
+    createdAt?: string;
+    createdBy?: string | Record<string, unknown>;
+    metadata?: Record<string, unknown>;
+  }): FlowSnapshot;
+  restore(snapshotOrId: string | FlowSnapshot, options?: Partial<FlowDefinition> & {
+    restoredAt?: string;
+  }): FlowDefinition;
+  getChangeReport(options?: {
+    ignorePaths?: string[];
+    limit?: number;
+    capabilities?: unknown;
+    runtime?: PivotRuntime;
+  }): FlowChangeReport;
+  getChanges(options?: {
+    ignorePaths?: string[];
+    limit?: number;
+  }): FlowChangeItem[];
+}
+export function createFlowEditSession(flow?: Partial<FlowDefinition>, options?: {
+  draft?: Partial<FlowDefinition>;
+  diffOptions?: {
+    ignorePaths?: string[];
+    limit?: number;
+  };
+  reportOptions?: {
+    ignorePaths?: string[];
+    limit?: number;
+  };
+  capabilities?: unknown;
+  runtime?: PivotRuntime;
+}): FlowEditSession;
 export interface FlowDataReference {
   source: 'node' | 'intent' | 'context';
   raw: string;

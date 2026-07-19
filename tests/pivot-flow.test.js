@@ -21,6 +21,7 @@ import {
   createFlowExportPayload,
   createFlowImportReport,
   createFlowChangeReport,
+  createFlowEditSession,
   createFlowSnapshot,
   applyAIFlowDraftRepairPlan,
   createFlowBatchSafetyReport,
@@ -308,6 +309,47 @@ test('blocks flow change reports when the target flow is invalid', () => {
   assert.equal(report.ok, false);
   assert.equal(report.status, 'blocked');
   assert.equal(report.blockingIssues.some((item) => item.includes('capability is required')), true);
+});
+
+test('tracks flow edit sessions with reset commit and snapshots', () => {
+  const source = createOrganizationFlow();
+  const session = createFlowEditSession(source);
+
+  assert.equal(session.dirty, false);
+
+  session.mutate((draft) => {
+    draft.intent.keywords.push('分院');
+    draft.nodes[0].requiresConfirmation = true;
+  });
+
+  assert.equal(session.dirty, true);
+  assert.equal(session.changes.some((item) => item.path.includes('keywords')), true);
+  assert.equal(session.report.status, 'review');
+  assert.equal(session.baseline.intent.keywords.includes('分院'), false);
+  assert.equal(session.draft.intent.keywords.includes('分院'), true);
+
+  const snapshot = session.snapshot({
+    id: 'edit-snapshot-1',
+    label: 'Edited draft'
+  });
+  session.reset();
+
+  assert.equal(session.dirty, false);
+  assert.equal(session.draft.intent.keywords.includes('分院'), false);
+
+  session.restore(snapshot, {
+    restoredAt: '2026-07-19T12:00:00.000Z'
+  });
+
+  assert.equal(session.dirty, true);
+  assert.equal(session.draft.status, 'draft');
+  assert.equal(session.draft.metadata.restoredFromSnapshot, 'edit-snapshot-1');
+
+  session.commit();
+
+  assert.equal(session.dirty, false);
+  assert.equal(session.baseline.metadata.restoredFromSnapshot, 'edit-snapshot-1');
+  assert.throws(() => session.mutate(null), /mutator function/);
 });
 
 test('matches natural language intent to a published flow', () => {

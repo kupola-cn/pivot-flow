@@ -312,6 +312,30 @@ document.querySelector('#changeReport').innerHTML = renderFlowChangeReportToHTML
 
 Change reports classify edits across intent rules, nodes, edges, permissions, lifecycle fields, and metadata. Capability, permission, risk, confirmation, and condition changes are marked as high-impact so they are visible before publish. The report validates the target Flow and blocks invalid definitions, but backend publish APIs must still enforce authorization, capability allowlists, data rules, and audit.
 
+For custom management pages, `createFlowEditSession()` keeps a stable baseline and draft copy so UI code can show dirty state, reset unsaved edits, create snapshots, and render a reliable change report.
+
+```js
+import { createFlowEditSession, renderFlowChangeReportToHTML } from '@kupola/pivot-flow';
+
+const session = createFlowEditSession(currentFlow, { runtime });
+
+session.mutate((draft) => {
+  draft.intent.keywords.push('删除角色');
+  draft.nodes[0].requiresConfirmation = true;
+});
+
+if (session.dirty) {
+  document.querySelector('#changes').innerHTML = renderFlowChangeReportToHTML(session.report);
+}
+
+const snapshot = session.snapshot({ label: 'Before publish review' });
+session.reset();
+session.restore(snapshot);
+session.commit();
+```
+
+The edit session is headless. It does not save to a server by itself; call your `FlowStore.update()` only after review and backend authorization.
+
 ## Flow Templates
 
 Built-in templates provide common starting points for application flows. Templates create draft flows and still require project-specific capability registration, preview, publish checks, and backend authorization.
