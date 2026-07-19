@@ -5,6 +5,7 @@ import { createFlowRunner } from '../flow-runner.js';
 import { createMemoryFlowStore } from '../flow-store.js';
 import { createIntentClarificationPlan, createLocalIntentMapper } from '../intent-mapper.js';
 import { createFlowBatchSafetyReport, createFlowSafetyReport, renderFlowBatchSafetyReportToHTML, renderFlowSafetyReportToHTML } from '../flow-safety-report.js';
+import { renderFlowDataDependenciesToHTML } from '../flow-dependencies.js';
 import { getDefaultCapabilityForNodeType } from '../node-types.js';
 import { escapeAttr, escapeHTML, on, resolveTarget, setHTML } from './dom.js';
 import { renderFlowAuditPanelToHTML } from './FlowAuditPanel.js';
@@ -124,6 +125,10 @@ export function FlowManager(options = {}) {
       '<div>',
       '<div class="flow-panel-title">Capabilities</div>',
       renderFlowCapabilityMatrixToHTML(flow, options.runtime),
+      '</div>',
+      '<div>',
+      '<div class="flow-panel-title">Data dependencies</div>',
+      renderFlowDataDependenciesToHTML(flow),
       '</div>',
       '<div>',
       '<div class="flow-panel-title">Publish safety</div>',

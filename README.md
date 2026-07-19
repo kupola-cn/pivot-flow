@@ -29,9 +29,11 @@ import {
   createFlowRunner,
   createIntentClarificationPlan,
   explainIntentMatches,
+  analyzeFlowDataDependencies,
   getFlowRunSummary,
   registerFlowFrontendCapabilities,
   renderIntentClarificationPlanToHTML,
+  renderFlowDataDependenciesToHTML,
   renderIntentMatchExplanationToHTML,
   renderFlowRunSummaryToHTML,
   flowToPlan,
@@ -175,6 +177,19 @@ This helps operators understand whether a command matched because of a keyword, 
 `createIntentClarificationPlan()` returns a structured next step when the prompt has no strong match, multiple close matches, or missing required slots. Applications can render the default HTML or turn the returned questions into their own multi-step form.
 
 `FlowAssistantDrawer` and the `FlowManager` test panel render clarification hints by default when a command is ambiguous or missing required parameters.
+
+## Data Dependencies
+
+Use `analyzeFlowDataDependencies()` to inspect node-to-node data references before a Flow is published or executed. It detects template references such as `{{query-parent.data.id}}` and structured references such as `{ "$from": "query-parent", "path": "data.id" }`.
+
+```js
+const report = analyzeFlowDataDependencies(flow);
+document.querySelector('#dependencies').innerHTML = renderFlowDataDependenciesToHTML(report);
+```
+
+The report identifies upstream dependencies, external intent/context references, missing nodes, self references, downstream references, and unconnected references that should be connected with edges. `FlowManager` renders the dependency report by default.
+
+This is a frontend modeling aid. Backend APIs must still enforce transaction boundaries, data integrity, authorization, and business invariants.
 
 ## Run Diagnostics
 

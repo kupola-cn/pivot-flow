@@ -18,7 +18,9 @@ import {
   createFlowSafetyReport,
   createFlowCanvasLayout,
   createIntentClarificationPlan,
+  analyzeFlowDataDependencies,
   explainIntentMatches,
+  extractFlowDataReferences,
   filterFlows,
   applyFlowTransform,
   evaluateFlowCondition,
@@ -47,6 +49,7 @@ import {
   renderFlowRunPanelToHTML,
   renderFlowRunSummaryToHTML,
   renderFlowSafetyReportToHTML,
+  renderFlowDataDependenciesToHTML,
   renderIntentClarificationPlanToHTML,
   renderIntentMatchExplanationToHTML,
   renderFlowBatchSafetyReportToHTML,
@@ -382,6 +385,66 @@ test('renders flow capability dependency matrix', () => {
   assert.equal(rows[0].permissions[0], 'system:org:create');
   assert.match(html, /flow-capability-matrix/);
   assert.match(html, /system:org:create/);
+});
+
+test('analyzes flow data dependencies between nodes', () => {
+  const refs = extractFlowDataReferences({
+    parentId: '{{query-parent.data.id}}',
+    actorId: '{{context.actor.id}}',
+    roleId: { $from: 'resolve-role', path: 'data.id' }
+  }, 'create.params');
+
+  assert.equal(refs.length, 3);
+  assert.equal(refs.find((ref) => ref.fromNodeId === 'query-parent').refPath, 'data.id');
+  assert.equal(refs.find((ref) => ref.source === 'context').refPath, 'actor.id');
+
+  const flow = createFlow({
+    id: 'dependency-flow',
+    name: 'Dependency flow',
+    nodes: [
+      { id: 'query-parent', type: 'capability.run', capability: 'org.query' },
+      {
+        id: 'create-child',
+        type: 'capability.run',
+        capability: 'org.create',
+        params: {
+          parentId: '{{query-parent.data.id}}',
+          roleId: { $from: 'resolve-role', path: 'data.id' }
+        }
+      },
+      {
+        id: 'notify',
+        type: 'message.show',
+        params: {
+          message: '{{create-child.data.name}}'
+        }
+      },
+      {
+        id: 'downstream-reader',
+        type: 'message.show',
+        params: {
+          message: '{{notify.data.message}}'
+        }
+      },
+      { id: 'resolve-role', type: 'capability.run', capability: 'role.resolve' }
+    ],
+    edges: [
+      { id: 'edge-1', from: 'query-parent', to: 'create-child', condition: 'success' },
+      { id: 'edge-2', from: 'create-child', to: 'notify', condition: 'success' },
+      { id: 'edge-3', from: 'downstream-reader', to: 'notify', condition: 'success' }
+    ]
+  });
+
+  const report = analyzeFlowDataDependencies(flow);
+  const html = renderFlowDataDependenciesToHTML(report);
+
+  assert.equal(report.ok, false);
+  assert.equal(report.status, 'blocked');
+  assert.equal(report.dependencies.some((item) => item.status === 'upstream' && item.fromNodeId === 'query-parent'), true);
+  assert.equal(report.dependencies.some((item) => item.status === 'unconnected' && item.fromNodeId === 'resolve-role'), true);
+  assert.equal(report.dependencies.some((item) => item.status === 'downstream' && item.fromNodeId === 'notify'), true);
+  assert.match(html, /Data dependencies/);
+  assert.match(html, /downstream/);
 });
 
 test('creates and renders flow publish safety reports', () => {

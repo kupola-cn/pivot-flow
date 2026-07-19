@@ -181,6 +181,36 @@ export function createFlowEdge(input?: Partial<FlowEdge>): FlowEdge;
 export function normalizeFlow(flow: Partial<FlowDefinition>): FlowDefinition;
 export function cloneFlow<T = unknown>(flow: T): T;
 export function validateFlow(flow: FlowDefinition, options?: { capabilities?: unknown }): FlowValidationResult;
+export interface FlowDataReference {
+  source: 'node' | 'intent' | 'context';
+  raw: string;
+  fromNodeId: string;
+  refPath: string;
+  path: string;
+}
+export interface FlowDataDependency extends FlowDataReference {
+  toNodeId: string;
+  status: 'upstream' | 'external' | 'missing-node' | 'self' | 'downstream' | 'unconnected';
+  message: string;
+}
+export interface FlowDataDependencyReport {
+  ok: boolean;
+  status: 'ready' | 'review' | 'blocked';
+  flowId: string;
+  flowName: string;
+  total: number;
+  upstreamCount: number;
+  externalCount: number;
+  warningCount: number;
+  blockingCount: number;
+  dependencies: FlowDataDependency[];
+  blocking: FlowDataDependency[];
+  warnings: FlowDataDependency[];
+  summary: string;
+}
+export function analyzeFlowDataDependencies(flow?: FlowDefinition | null): FlowDataDependencyReport;
+export function extractFlowDataReferences(value?: unknown, path?: string): FlowDataReference[];
+export function renderFlowDataDependenciesToHTML(reportOrFlow?: FlowDataDependencyReport | FlowDefinition | null): string;
 export interface FlowSafetyCapabilityRow {
   nodeId: string;
   nodeLabel: string;
