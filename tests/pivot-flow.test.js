@@ -437,12 +437,16 @@ test('analyzes flow data dependencies between nodes', () => {
 
   const report = analyzeFlowDataDependencies(flow);
   const html = renderFlowDataDependenciesToHTML(report);
+  const safety = createFlowSafetyReport(flow);
 
   assert.equal(report.ok, false);
   assert.equal(report.status, 'blocked');
   assert.equal(report.dependencies.some((item) => item.status === 'upstream' && item.fromNodeId === 'query-parent'), true);
   assert.equal(report.dependencies.some((item) => item.status === 'unconnected' && item.fromNodeId === 'resolve-role'), true);
   assert.equal(report.dependencies.some((item) => item.status === 'downstream' && item.fromNodeId === 'notify'), true);
+  assert.equal(safety.status, 'blocked');
+  assert.match(safety.blockingIssues.join('\n'), /Invalid data dependency/);
+  assert.match(safety.warnings.join('\n'), /Review data dependency/);
   assert.match(html, /Data dependencies/);
   assert.match(html, /downstream/);
 });

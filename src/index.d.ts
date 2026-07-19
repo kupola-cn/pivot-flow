@@ -251,6 +251,7 @@ export interface FlowSafetyReport {
   summary: string;
   checks: FlowSafetyCheck[];
   capabilities: FlowSafetyCapabilityRow[];
+  dataDependencies: FlowDataDependencyReport;
   sensitiveSlots: FlowSafetySensitiveSlot[];
   backendRequirements: string[];
   blockingIssues: string[];

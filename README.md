@@ -268,7 +268,7 @@ const payload = applyFlowTransform({
 
 ## Publish Safety Report
 
-`createFlowSafetyReport()` reviews a Flow before publish. It checks structure, registered capabilities, high-risk confirmation, permission hints, sensitive slots, and backend authorization reminders.
+`createFlowSafetyReport()` reviews a Flow before publish. It checks structure, data dependencies, registered capabilities, high-risk confirmation, permission hints, sensitive slots, and backend authorization reminders.
 
 ```js
 import {

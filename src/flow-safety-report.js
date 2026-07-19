@@ -1,5 +1,6 @@
 import { ActionType, RiskLevel } from '@kupola/pivot';
 import { validateFlow } from './flow-validation.js';
+import { analyzeFlowDataDependencies } from './flow-dependencies.js';
 import { getFlowNodeCapability, isCapabilityBackedNode } from './node-types.js';
 
 const RISK_RANK = {
@@ -16,10 +17,12 @@ export function createFlowSafetyReport(flow, source, options = {}) {
   const capabilityByName = new Map(capabilities.map((capability) => [capability.name, capability]).filter(([name]) => Boolean(name)));
   const knownCapabilities = capabilityByName.size > 0 ? Array.from(capabilityByName.keys()) : null;
   const validation = validateFlow(flow, knownCapabilities ? { capabilities: knownCapabilities } : {});
+  const dataDependencies = analyzeFlowDataDependencies(flow);
   const capabilityRows = collectCapabilityRows(flow, capabilityByName, Boolean(knownCapabilities));
   const sensitiveSlots = collectSensitiveSlots(flow);
   const checks = [
     createValidationCheck(validation),
+    createDataDependencyCheck(dataDependencies),
     createCapabilityRegistrationCheck(capabilityRows, Boolean(knownCapabilities)),
     createConfirmationCheck(capabilityRows),
     createPermissionCheck(capabilityRows),
@@ -33,10 +36,12 @@ export function createFlowSafetyReport(flow, source, options = {}) {
       .map((row) => `Capability is not registered: ${row.capability}`),
     ...capabilityRows
       .filter((row) => row.confirmationStatus === 'missing')
-      .map((row) => `High-risk node must require confirmation: ${row.nodeId || row.capability}`)
+      .map((row) => `High-risk node must require confirmation: ${row.nodeId || row.capability}`),
+    ...dataDependencies.blocking.map((item) => `Invalid data dependency: ${item.message}`)
   ];
   const warnings = [
     ...validation.warnings,
+    ...dataDependencies.warnings.map((item) => `Review data dependency: ${item.message}`),
     ...capabilityRows
       .filter((row) => row.permissionStatus === 'missing')
       .map((row) => `Capability has no declared permissions: ${row.capability}`),
@@ -57,6 +62,7 @@ export function createFlowSafetyReport(flow, source, options = {}) {
     summary: createReportSummary(blockingIssues.length, warnings.length),
     checks,
     capabilities: capabilityRows,
+    dataDependencies,
     sensitiveSlots,
     backendRequirements: createBackendRequirements(capabilityRows),
     blockingIssues,
@@ -234,6 +240,15 @@ function createCapabilityRegistrationCheck(rows, hasKnownCapabilities) {
     message: missing.length > 0
       ? `${missing.length} capability item(s) are not registered.`
       : hasKnownCapabilities ? 'All referenced capabilities are registered.' : 'Runtime capabilities were not provided; registration could not be verified.'
+  };
+}
+
+function createDataDependencyCheck(report) {
+  return {
+    id: 'data-dependencies',
+    label: 'Data dependencies',
+    status: report.status === 'blocked' ? 'fail' : report.status === 'review' ? 'warn' : 'pass',
+    message: report.summary
   };
 }
 
