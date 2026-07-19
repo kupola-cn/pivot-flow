@@ -16,6 +16,7 @@ export * from './components/FlowList.js';
 export * from './components/FlowManager.js';
 export * from './components/FlowPreview.js';
 export * from './components/FlowRunPanel.js';
+export * from './components/FlowTemplateList.js';
 export * from './components/IntentPatternEditor.js';
 export * from './components/NodeInspector.js';
 export * from './components/NodePalette.js';

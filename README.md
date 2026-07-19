@@ -177,6 +177,8 @@ const draftFlow = createFlowFromTemplate('organization.create-under-parent', {
 await flowStore.create(draftFlow);
 ```
 
+`FlowManager` renders built-in templates by default. Pass `templates` to replace them with project-specific templates.
+
 ## UI Example
 
 ```js
@@ -203,6 +205,7 @@ FlowAssistantDrawer({
 `FlowManager` provides the first configurable management surface:
 
 - create blank or sample flows
+- create draft flows from built-in or custom templates
 - edit flow name, description, status, risk, examples, keywords, and patterns
 - add built-in nodes from the palette
 - save, publish, disable, or delete flows through the configured `FlowStore`

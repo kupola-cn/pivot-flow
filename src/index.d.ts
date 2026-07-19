@@ -231,6 +231,7 @@ export function createFlowFrontendCapabilities(adapter?: FlowFrontendCapabilityA
 export function registerFlowFrontendCapabilities(runtime: PivotRuntime, adapter?: FlowFrontendCapabilityAdapter): unknown[];
 
 export function renderFlowListToHTML(flows?: FlowDefinition[], options?: Record<string, unknown>): string;
+export function renderFlowTemplateListToHTML(templates?: FlowTemplate[], options?: Record<string, unknown>): string;
 export function renderFlowDesignerToHTML(flow?: FlowDefinition | null, state?: Record<string, unknown>): string;
 export function renderFlowSettingsToHTML(flow: FlowDefinition): string;
 export function renderFlowCanvasToHTML(flow?: FlowDefinition | null, options?: Record<string, unknown>): string;
@@ -247,6 +248,7 @@ export function FlowManager(options: {
   runtime?: PivotRuntime;
   flowStore?: FlowStore;
   flows?: FlowDefinition[];
+  templates?: FlowTemplate[];
   contextProvider?: () => Record<string, unknown> | Promise<Record<string, unknown>>;
   input?: Record<string, unknown>;
 }): { element: Element; refresh(): Promise<void>; destroy(): void };

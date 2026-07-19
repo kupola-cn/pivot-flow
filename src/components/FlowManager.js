@@ -1,4 +1,5 @@
 import { createFlow, createFlowNode } from '../flow-schema.js';
+import { createFlowFromTemplate, listFlowTemplates } from '../flow-templates.js';
 import { flowToPlan } from '../flow-to-plan.js';
 import { createMemoryFlowStore } from '../flow-store.js';
 import { validateFlow } from '../flow-validation.js';
@@ -9,12 +10,15 @@ import { renderFlowDesignerToHTML } from './FlowDesigner.js';
 import { renderFlowListToHTML } from './FlowList.js';
 import { renderFlowPreviewToHTML } from './FlowPreview.js';
 import { renderFlowRunPanelToHTML } from './FlowRunPanel.js';
+import { renderFlowTemplateListToHTML } from './FlowTemplateList.js';
 
 export function FlowManager(options = {}) {
   const target = resolveTarget(options.target);
   const flowStore = options.flowStore ?? createMemoryFlowStore(options.flows ?? []);
+  const templates = Array.isArray(options.templates) ? options.templates : listFlowTemplates();
   const state = {
     flows: [],
+    templates,
     selectedFlowId: '',
     selectedNodeId: '',
     preview: null,
@@ -57,6 +61,7 @@ export function FlowManager(options = {}) {
       '<div class="flow-manager__grid">',
       '<aside class="flow-manager__sidebar">',
       renderFlowListToHTML(state.flows, { activeId: state.selectedFlowId }),
+      renderFlowTemplateListToHTML(state.templates),
       '</aside>',
       '<main class="flow-manager__workspace">',
       renderFlowDesignerToHTML(flow, state),
@@ -231,6 +236,28 @@ export function FlowManager(options = {}) {
     }
   };
 
+  const createTemplateFlow = async (templateId) => {
+    const template = state.templates.find((item) => item.id === templateId);
+    if (!template) {
+      state.error = `Flow template was not found: ${templateId}`;
+      render();
+      return;
+    }
+
+    try {
+      const flow = await flowStore.create(createFlowFromTemplate(template));
+      state.selectedFlowId = flow.id;
+      state.selectedNodeId = flow.nodes?.[0]?.id ?? '';
+      state.preview = null;
+      state.result = null;
+      state.error = '';
+      await refresh();
+    } catch (error) {
+      state.error = error?.message || 'Failed to create flow from template.';
+      render();
+    }
+  };
+
   const addNodeToSelected = (nodeType) => {
     const flow = getSelectedFlow(state);
     if (!flow || !nodeType) {
@@ -303,6 +330,9 @@ export function FlowManager(options = {}) {
     }),
     on(target, 'click', '[data-flow-action="create-flow"]', () => {
       createBlankFlow();
+    }),
+    on(target, 'click', '[data-flow-action="create-from-template"]', (e, el) => {
+      createTemplateFlow(el.dataset.templateId);
     }),
     on(target, 'click', '[data-flow-action="add-node"]', (e, el) => {
       addNodeToSelected(el.dataset.nodeType);

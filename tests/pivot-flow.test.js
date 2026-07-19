@@ -10,6 +10,7 @@ import {
   createFlowRunner,
   flowToPlan,
   listFlowTemplates,
+  renderFlowTemplateListToHTML,
   registerFlowFrontendCapabilities,
   validateFlow
 } from '../src/index.js';
@@ -173,6 +174,13 @@ test('creates draft flows from built-in templates', () => {
   assert.equal(flow.metadata.templateId, 'organization.create-under-parent');
   assert.equal(validateFlow(flow).valid, true);
   assert.equal(match.best.slots.organizationName, 'C');
+});
+
+test('renders flow template list actions', () => {
+  const html = renderFlowTemplateListToHTML(listFlowTemplates({ group: 'material' }));
+
+  assert.match(html, /data-flow-action="create-from-template"/);
+  assert.match(html, /material\.delete-with-confirm/);
 });
 
 test('registers built-in frontend capabilities', async () => {

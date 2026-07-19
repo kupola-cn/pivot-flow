@@ -108,6 +108,7 @@
 }
 
 .flow-list,
+.flow-template-list,
 .flow-palette__list,
 .flow-canvas__nodes,
 .flow-token-list {
@@ -119,6 +120,7 @@
 }
 
 .flow-list__button,
+.flow-template-card,
 .flow-node__button,
 .flow-node-type {
   border: 1px solid var(--border-neutral-l1);
@@ -132,6 +134,7 @@
 }
 
 .flow-list__button:hover,
+.flow-template-card:hover,
 .flow-node__button:hover,
 .flow-node-type:hover,
 .flow-list__item.is-active .flow-list__button,
@@ -141,6 +144,7 @@
 }
 
 .flow-list__main,
+.flow-template-card__main,
 .flow-node__body,
 .flow-node-type {
   display: grid;
@@ -149,6 +153,7 @@
 }
 
 .flow-list__main strong,
+.flow-template-card__main strong,
 .flow-node__body strong {
   color: var(--text-default);
   overflow: hidden;
@@ -157,6 +162,7 @@
 }
 
 .flow-list__main small,
+.flow-template-card__main small,
 .flow-node__body small,
 .flow-node-type small {
   color: var(--text-secondary);
@@ -224,6 +230,7 @@
 .flow-inspector,
 .flow-variable-mapper,
 .flow-intent-editor,
+.flow-template-panel,
 .flow-settings {
   display: grid;
   gap: var(--spacer-10);
