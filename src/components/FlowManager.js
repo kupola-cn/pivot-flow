@@ -38,6 +38,8 @@ export function FlowManager(options = {}) {
     selectedEdgeId: '',
     listKeyword: '',
     listStatus: '',
+    listRisk: '',
+    listGroupBy: '',
     testPrompt: '',
     testSlotsText: '{}',
     testMatch: null,
@@ -68,7 +70,8 @@ export function FlowManager(options = {}) {
     const flow = getSelectedFlow(state);
     const visibleFlows = filterFlows(state.flows, {
       keyword: state.listKeyword,
-      status: state.listStatus
+      status: state.listStatus,
+      risk: state.listRisk
     });
     setHTML(target, [
       '<section class="flow-manager">',
@@ -91,6 +94,8 @@ export function FlowManager(options = {}) {
         activeId: state.selectedFlowId,
         keyword: state.listKeyword,
         status: state.listStatus,
+        risk: state.listRisk,
+        groupBy: state.listGroupBy,
         emptyText: 'No flows match the current filters.'
       }),
       renderFlowTemplateListToHTML(state.templates),
@@ -594,6 +599,8 @@ export function FlowManager(options = {}) {
     on(target, 'click', '[data-flow-action="clear-flow-filters"]', () => {
       state.listKeyword = '';
       state.listStatus = '';
+      state.listRisk = '';
+      state.listGroupBy = '';
       render();
     }),
     on(target, 'click', '[data-flow-action="preview"]', () => {
@@ -700,6 +707,14 @@ export function FlowManager(options = {}) {
         state.listStatus = e.target.value;
         render();
       }
+      if (el.dataset.flowListFilter === 'risk') {
+        state.listRisk = e.target.value;
+        render();
+      }
+      if (el.dataset.flowListFilter === 'groupBy') {
+        state.listGroupBy = e.target.value;
+        render();
+      }
     }),
     on(target, 'click', '[data-flow-action="create-sample"]', async () => {
       const sample = await flowStore.create(createSampleFlow());
@@ -737,6 +752,12 @@ function parseListInput(value) {
 
 function renderFlowListFilters(state, visibleCount) {
   const statuses = ['', 'published', 'draft', 'disabled', 'archived'];
+  const risks = ['', 'critical', 'high', 'medium', 'low'];
+  const groupOptions = [
+    ['', 'No grouping'],
+    ['status', 'Group by status'],
+    ['risk', 'Group by risk']
+  ];
   return [
     '<div class="flow-list-filters">',
     '<div class="flow-list-filters__meta">',
@@ -752,7 +773,23 @@ function renderFlowListFilters(state, visibleCount) {
       '</option>'
     ].join('')),
     '</select>',
-    state.listKeyword || state.listStatus
+    '<div class="flow-list-filters__row">',
+    '<select class="ds-select ds-select--sm" data-flow-list-filter="risk">',
+    ...risks.map((risk) => [
+      `<option value="${escapeAttr(risk)}"${state.listRisk === risk ? ' selected' : ''}>`,
+      escapeHTML(risk || 'All risks'),
+      '</option>'
+    ].join('')),
+    '</select>',
+    '<select class="ds-select ds-select--sm" data-flow-list-filter="groupBy">',
+    ...groupOptions.map(([value, label]) => [
+      `<option value="${escapeAttr(value)}"${state.listGroupBy === value ? ' selected' : ''}>`,
+      escapeHTML(label),
+      '</option>'
+    ].join('')),
+    '</select>',
+    '</div>',
+    state.listKeyword || state.listStatus || state.listRisk || state.listGroupBy
       ? '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="clear-flow-filters">Clear filters</button>'
       : '',
     '</div>'

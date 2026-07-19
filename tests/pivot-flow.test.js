@@ -16,6 +16,8 @@ import {
   listFlowTemplates,
   getFlowCapabilityRows,
   getFlowExecutionTrace,
+  getFlowRisk,
+  groupFlows,
   renderEditableNodeInspectorToHTML,
   renderFlowCapabilityMatrixToHTML,
   renderFlowCanvasToHTML,
@@ -240,6 +242,7 @@ test('filters flows by status and keyword', () => {
       id: 'role-create',
       name: 'Create role',
       status: 'draft',
+      risk: 'high',
       intent: {
         keywords: ['role', 'permission']
       }
@@ -248,13 +251,20 @@ test('filters flows by status and keyword', () => {
       id: 'disabled-material',
       name: 'Material update',
       status: 'disabled',
-      description: 'Update catalog material'
+      description: 'Update catalog material',
+      nodes: [
+        { id: 'update', type: 'capability.run', risk: 'medium' }
+      ]
     })
   ];
 
   assert.equal(filterFlows(flows, { status: 'published' }).length, 1);
   assert.equal(filterFlows(flows, { keyword: 'permission' })[0].id, 'role-create');
   assert.equal(filterFlows(flows, { keyword: 'catalog', status: 'disabled' })[0].id, 'disabled-material');
+  assert.equal(filterFlows(flows, { risk: 'high' })[0].id, 'role-create');
+  assert.equal(getFlowRisk(flows[2]), 'medium');
+  assert.equal(groupFlows(flows, { groupBy: 'status' })[0].key, 'published');
+  assert.equal(groupFlows(flows, { groupBy: 'risk' })[0].key, 'high');
 });
 
 test('renders flow capability dependency matrix', () => {
