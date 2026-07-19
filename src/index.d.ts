@@ -131,6 +131,36 @@ export function createLocalIntentMapper(options?: { minConfidence?: number }): I
 export function createMemoryFlowStore(initialFlows?: FlowDefinition[]): FlowStore;
 export function createLocalStorageFlowStore(options?: { key?: string; runKey?: string; storage?: Storage; initialFlows?: FlowDefinition[] }): FlowStore;
 
+export const FLOW_FRONTEND_CAPABILITIES: {
+  MESSAGE_SHOW: 'message.show';
+  ROUTE_NAVIGATE: 'route.navigate';
+  TABLE_REFRESH: 'table.refresh';
+  FORM_OPEN: 'form.open';
+  DRAWER_OPEN: 'drawer.open';
+  MODAL_OPEN: 'modal.open';
+  AUDIT_MARK: 'audit.mark';
+};
+
+export interface FlowFrontendCapabilityAdapter {
+  showMessage?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
+  navigate?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
+  refreshTable?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
+  openForm?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
+  openDrawer?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
+  openModal?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
+  markAudit?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
+  messagePermissions?: string[];
+  routePermissions?: string[];
+  tablePermissions?: string[];
+  formPermissions?: string[];
+  drawerPermissions?: string[];
+  modalPermissions?: string[];
+  auditPermissions?: string[];
+}
+
+export function createFlowFrontendCapabilities(adapter?: FlowFrontendCapabilityAdapter): unknown[];
+export function registerFlowFrontendCapabilities(runtime: PivotRuntime, adapter?: FlowFrontendCapabilityAdapter): unknown[];
+
 export function renderFlowListToHTML(flows?: FlowDefinition[], options?: Record<string, unknown>): string;
 export function renderFlowDesignerToHTML(flow?: FlowDefinition | null, state?: Record<string, unknown>): string;
 export function renderFlowCanvasToHTML(flow?: FlowDefinition | null, options?: Record<string, unknown>): string;

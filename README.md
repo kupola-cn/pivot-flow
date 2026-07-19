@@ -26,6 +26,7 @@ import {
   createFlow,
   createLocalIntentMapper,
   createLocalStorageFlowStore,
+  registerFlowFrontendCapabilities,
   flowToPlan,
   FlowManager,
   FlowAssistantDrawer
@@ -37,9 +38,14 @@ import '@kupola/pivot-flow/css';
 
 ```js
 import { createPivotRuntime } from '@kupola/pivot';
-import { createFlow, createLocalIntentMapper, flowToPlan } from '@kupola/pivot-flow';
+import { createFlow, createLocalIntentMapper, flowToPlan, registerFlowFrontendCapabilities } from '@kupola/pivot-flow';
 
 const runtime = createPivotRuntime();
+registerFlowFrontendCapabilities(runtime, {
+  showMessage: ({ message }) => console.info(message),
+  refreshTable: ({ target }) => console.info(`refresh ${target}`)
+});
+
 runtime.registerCapability({
   name: 'org.create',
   resource: 'organization',

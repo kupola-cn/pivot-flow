@@ -6,6 +6,7 @@ import {
   createLocalIntentMapper,
   createMemoryFlowStore,
   flowToPlan,
+  registerFlowFrontendCapabilities,
   validateFlow
 } from '../src/index.js';
 
@@ -110,4 +111,49 @@ test('memory store publishes and filters flows', async () => {
 
   assert.equal(published.length, 1);
   assert.equal(published[0].id, flow.id);
+});
+
+test('registers built-in frontend capabilities', async () => {
+  const runtime = createPivotRuntime();
+  const calls = [];
+  registerFlowFrontendCapabilities(runtime, {
+    showMessage: (params) => calls.push(['message', params.message]),
+    refreshTable: (params) => calls.push(['table', params.target])
+  });
+
+  const flow = createFlow({
+    id: 'frontend-flow',
+    name: 'Frontend feedback flow',
+    status: 'published',
+    nodes: [
+      {
+        id: 'refresh',
+        type: 'table.refresh',
+        label: 'Refresh table',
+        capability: 'table.refresh',
+        params: { target: 'organizations' }
+      },
+      {
+        id: 'message',
+        type: 'message.show',
+        label: 'Show message',
+        capability: 'message.show',
+        params: { message: 'done' }
+      }
+    ],
+    edges: [
+      { from: 'refresh', to: 'message', condition: 'success' }
+    ]
+  });
+
+  const plan = flowToPlan(flow);
+  const preview = await runtime.previewPlan(plan);
+  assert.equal(preview.ok, true);
+
+  const result = await runtime.executePlan(plan);
+  assert.equal(result.ok, true);
+  assert.deepEqual(calls, [
+    ['table', 'organizations'],
+    ['message', 'done']
+  ]);
 });
