@@ -3,6 +3,7 @@
 .flow-assistant,
 .flow-preview,
 .flow-run-panel,
+.flow-run-history,
 .flow-run-summary,
 .flow-test-panel,
 .flow-intent-explain,
@@ -1220,6 +1221,102 @@
   font-weight: 600;
 }
 
+.flow-run-history {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-10);
+  min-width: 0;
+  padding: var(--spacer-10);
+}
+
+.flow-run-history__header {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.flow-run-history__header > div {
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+}
+
+.flow-run-history__header strong,
+.flow-run-history__item strong {
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-run-history__header span,
+.flow-run-history__header small,
+.flow-run-history__item small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.flow-run-history__filters {
+  display: grid;
+  gap: var(--spacer-8);
+  grid-template-columns: minmax(160px, 1fr) minmax(110px, 140px) auto;
+  min-width: 0;
+}
+
+.flow-run-history__summary {
+  display: grid;
+  gap: var(--spacer-8);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.flow-run-history__summary span {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+  padding: var(--spacer-8);
+}
+
+.flow-run-history__summary strong {
+  color: var(--text-default);
+  font-size: var(--body-sm-font-size);
+}
+
+.flow-run-history__summary small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-run-history__list {
+  display: grid;
+  gap: var(--spacer-8);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.flow-run-history__item {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-6);
+  min-width: 0;
+  padding: var(--spacer-8);
+}
+
+.flow-run-history__item > div {
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+}
+
 .flow-intent-explain {
   background: var(--bg-overlay-l1);
   border: 1px solid var(--border-neutral-l1);
@@ -2172,6 +2269,7 @@
   .flow-manager__runtime,
   .flow-canvas-controls,
   .flow-edge-form,
+  .flow-run-history__filters,
   .flow-test-panel__grid,
   .flow-settings__grid {
     grid-template-columns: 1fr;

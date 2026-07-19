@@ -15,6 +15,7 @@ import { getFlowExecutionTrace, groupFlowCanvasNodes } from './FlowCanvas.js';
 import { renderFlowDesignerToHTML } from './FlowDesigner.js';
 import { filterFlows, renderFlowListToHTML } from './FlowList.js';
 import { renderFlowPreviewToHTML } from './FlowPreview.js';
+import { renderFlowRunHistoryToHTML } from './FlowRunHistory.js';
 import { renderFlowRunPanelToHTML } from './FlowRunPanel.js';
 import { parseFlowTestSlots } from './FlowTestPanel.js';
 import { renderFlowTemplateListToHTML } from './FlowTemplateList.js';
@@ -55,6 +56,10 @@ export function FlowManager(options = {}) {
     testClarification: null,
     preview: null,
     result: null,
+    runs: [],
+    runKeyword: '',
+    runStatus: '',
+    runsLoading: false,
     loading: false,
     error: ''
   };
@@ -66,6 +71,7 @@ export function FlowManager(options = {}) {
       state.flows = await flowStore.list();
       state.selectedFlowId = state.selectedFlowId || state.flows[0]?.id || '';
       state.selectedEdgeId = state.selectedEdgeId || getSelectedFlow(state)?.edges?.[0]?.id || '';
+      state.runs = typeof flowStore.listRuns === 'function' ? await flowStore.listRuns(state.selectedFlowId) : [];
       state.error = '';
     } catch (error) {
       state.error = error?.message || 'Failed to load flows.';
@@ -123,6 +129,17 @@ export function FlowManager(options = {}) {
       renderFlowRunPanelToHTML(state.result, { flow }),
       '</div>',
       '<div>',
+      '<div class="flow-panel-title">Run history</div>',
+      state.runsLoading
+        ? '<div class="flow-empty flow-empty--compact">Loading run records...</div>'
+        : renderFlowRunHistoryToHTML(state.runs, {
+          flow,
+          flowId: flow?.id,
+          keyword: state.runKeyword,
+          status: state.runStatus
+        }),
+      '</div>',
+      '<div>',
       '<div class="flow-panel-title">Audit</div>',
       renderFlowAuditPanelToHTML(options.runtime?.getAuditEvents?.() ?? []),
       '</div>',
@@ -174,7 +191,9 @@ export function FlowManager(options = {}) {
     } else {
       state.result = state.preview;
     }
+    await recordFlowRun(flow, options.input?.prompt ?? flow.name, state.result);
     focusFirstFailedNode(state, flow, state.result);
+    await loadRuns(flow.id, { silent: true });
     render();
   };
 
@@ -269,8 +288,50 @@ export function FlowManager(options = {}) {
     state.result = execution.result ?? execution.preview ?? null;
     state.error = execution.ok ? '' : execution.message;
     focusFirstFailedNode(state, flow, state.result);
+    await loadRuns(flow.id, { silent: true });
     render();
     return execution;
+  };
+
+  const loadRuns = async (flowId = state.selectedFlowId, options = {}) => {
+    if (typeof flowStore.listRuns !== 'function') {
+      state.runs = [];
+      return [];
+    }
+
+    if (!options.silent) {
+      state.runsLoading = true;
+      render();
+    }
+
+    try {
+      state.runs = await flowStore.listRuns(flowId);
+      state.error = '';
+      return state.runs;
+    } catch (error) {
+      state.error = error?.message || 'Failed to load flow run records.';
+      return [];
+    } finally {
+      state.runsLoading = false;
+      if (!options.silent) {
+        render();
+      }
+    }
+  };
+
+  const recordFlowRun = async (flow, prompt, result) => {
+    if (!flow || typeof flowStore.recordRun !== 'function') {
+      return null;
+    }
+
+    return await flowStore.recordRun({
+      flowId: flow.id,
+      flowName: flow.name,
+      prompt,
+      ok: result?.ok === true,
+      message: result?.message || '',
+      result
+    });
   };
 
   const parseTestSlots = () => {
@@ -710,7 +771,10 @@ export function FlowManager(options = {}) {
       state.testMissingSlots = [];
       state.preview = null;
       state.result = null;
+      state.runKeyword = '';
+      state.runStatus = '';
       render();
+      loadRuns(state.selectedFlowId);
     }),
     on(target, 'click', '[data-flow-action="select-node"]', (e, el) => {
       state.selectedNodeId = el.dataset.nodeId;
@@ -733,6 +797,11 @@ export function FlowManager(options = {}) {
     }),
     on(target, 'click', '[data-flow-action="clear-node-search"]', () => {
       state.nodeKeyword = '';
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="clear-run-filters"]', () => {
+      state.runKeyword = '';
+      state.runStatus = '';
       render();
     }),
     on(target, 'click', '[data-flow-action="toggle-canvas-group"]', (e, el) => {
@@ -885,6 +954,12 @@ export function FlowManager(options = {}) {
         render();
       }
     }),
+    on(target, 'input', '[data-flow-run-filter]', (e, el) => {
+      if (el.dataset.flowRunFilter === 'keyword') {
+        state.runKeyword = e.target.value;
+        render();
+      }
+    }),
     on(target, 'change', '[data-flow-canvas-field]', (e, el) => {
       if (el.dataset.flowCanvasField === 'selectedNodeId') {
         state.selectedNodeId = e.target.value;
@@ -912,6 +987,12 @@ export function FlowManager(options = {}) {
       }
       if (el.dataset.flowListFilter === 'groupBy') {
         state.listGroupBy = e.target.value;
+        render();
+      }
+    }),
+    on(target, 'change', '[data-flow-run-filter]', (e, el) => {
+      if (el.dataset.flowRunFilter === 'status') {
+        state.runStatus = e.target.value;
         render();
       }
     }),

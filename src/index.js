@@ -21,6 +21,7 @@ export * from './components/FlowDesigner.js';
 export * from './components/FlowList.js';
 export * from './components/FlowManager.js';
 export * from './components/FlowPreview.js';
+export * from './components/FlowRunHistory.js';
 export * from './components/FlowRunPanel.js';
 export * from './components/FlowTestPanel.js';
 export * from './components/FlowTemplateList.js';

@@ -461,6 +461,35 @@ export function renderFlowRunSummaryToHTML(summaryOrResult?: FlowRunSummary | Pi
   edges?: FlowEdge[];
   slowestLimit?: number;
 }): string;
+export interface FlowRunHistorySummary {
+  total: number;
+  successCount: number;
+  failedCount: number;
+  latestAt: string;
+  latestStatus: 'success' | 'failed' | 'unknown' | '';
+}
+export function filterFlowRuns(runs?: Record<string, unknown>[], options?: {
+  flowId?: string;
+  keyword?: string;
+  status?: 'success' | 'failed' | string;
+  limit?: number;
+}): Record<string, unknown>[];
+export function createFlowRunHistorySummary(runs?: Record<string, unknown>[], options?: {
+  flowId?: string;
+  keyword?: string;
+  status?: 'success' | 'failed' | string;
+  limit?: number;
+}): FlowRunHistorySummary;
+export function renderFlowRunHistoryToHTML(runs?: Record<string, unknown>[], options?: {
+  flow?: FlowDefinition;
+  nodes?: FlowNode[];
+  flowId?: string;
+  keyword?: string;
+  status?: 'success' | 'failed' | string;
+  limit?: number;
+  title?: boolean;
+  controls?: boolean;
+}): string;
 export function getFlowResultDurationMs(item?: unknown): number;
 export function getFlowResultMessage(item?: unknown): string;
 export function getFlowResultCode(item?: unknown): string;

@@ -15,6 +15,7 @@ import {
   createLocalIntentMapper,
   createMemoryFlowStore,
   createFlowRunner,
+  createFlowRunHistorySummary,
   createFlowBatchSafetyReport,
   createFlowSafetyReport,
   createFlowCanvasLayout,
@@ -43,6 +44,7 @@ import {
   groupFlowCanvasNodes,
   groupFlows,
   generateAIFlowDraft,
+  filterFlowRuns,
   normalizeFlowCanvasViewport,
   parseAIFlowProviderOutput,
   renderEditableNodeInspectorToHTML,
@@ -51,6 +53,7 @@ import {
   renderFlowDesignerToHTML,
   renderFlowEdgeEditorToHTML,
   renderFlowRunPanelToHTML,
+  renderFlowRunHistoryToHTML,
   renderFlowRunSummaryToHTML,
   renderFlowSafetyReportToHTML,
   renderFlowDataDependenciesToHTML,
@@ -797,6 +800,68 @@ test('summarizes flow run results for reusable diagnostics', () => {
   assert.match(html, /Flow run summary/);
   assert.match(html, /No role delete permission/);
   assert.match(panel, /Recommended checks/);
+});
+
+test('filters and renders flow run history', () => {
+  const runs = [
+    {
+      id: 'run-1',
+      flowId: 'org-create',
+      prompt: '在集团下增加分机构 C',
+      ok: true,
+      timestamp: '2026-07-19T08:00:00.000Z',
+      message: 'Created',
+      result: {
+        ok: true,
+        message: 'Created',
+        data: {
+          nodes: [
+            { node: { id: 'create-org' }, result: { ok: true, data: { durationMs: 30 } } }
+          ]
+        }
+      }
+    },
+    {
+      id: 'run-2',
+      flowId: 'org-create',
+      prompt: '删除角色 admin',
+      ok: false,
+      timestamp: '2026-07-19T09:00:00.000Z',
+      message: 'Forbidden',
+      result: {
+        ok: false,
+        message: 'Forbidden',
+        data: {
+          nodes: [
+            { node: { id: 'delete-role' }, result: { ok: false, message: 'No permission', durationMs: 40 } }
+          ]
+        }
+      }
+    },
+    {
+      id: 'run-3',
+      flowId: 'material-query',
+      prompt: '查询耗材',
+      ok: true,
+      timestamp: '2026-07-18T09:00:00.000Z',
+      result: { ok: true, data: {} }
+    }
+  ];
+
+  const filtered = filterFlowRuns(runs, { flowId: 'org-create', status: 'failed', keyword: '角色' });
+  const summary = createFlowRunHistorySummary(runs, { flowId: 'org-create' });
+  const html = renderFlowRunHistoryToHTML(runs, { flowId: 'org-create', status: 'failed', keyword: '角色' });
+
+  assert.equal(filtered.length, 1);
+  assert.equal(filtered[0].id, 'run-2');
+  assert.equal(summary.total, 2);
+  assert.equal(summary.successCount, 1);
+  assert.equal(summary.failedCount, 1);
+  assert.equal(summary.latestStatus, 'failed');
+  assert.match(html, /Run history/);
+  assert.match(html, /data-flow-run-filter="keyword"/);
+  assert.match(html, /删除角色 admin/);
+  assert.match(html, /Forbidden/);
 });
 
 test('matches and highlights flow canvas nodes', () => {

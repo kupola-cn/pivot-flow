@@ -223,7 +223,7 @@ const summary = getFlowRunSummary(execution.result, flow);
 document.querySelector('#runSummary').innerHTML = renderFlowRunSummaryToHTML(summary);
 ```
 
-`FlowRunPanel` renders this summary by default before the underlying PIVOT result and timeline. The recommendations are UI guidance only. Server APIs must still return proper `401`, `403`, `409`, and `422` responses for unauthorized or invalid operations.
+`FlowRunPanel` renders this summary by default before the underlying PIVOT result and timeline. `FlowRunHistory` can render records returned by `flowStore.listRuns()`, with keyword and success/failed filters. `FlowManager` shows the selected flow history by default and records direct manager executions when the store implements `recordRun()`. The recommendations are UI guidance only. Server APIs must still return proper `401`, `403`, `409`, and `422` responses for unauthorized or invalid operations.
 
 ## Flow Stores
 
