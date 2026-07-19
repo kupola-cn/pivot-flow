@@ -250,6 +250,8 @@ FlowAssistantDrawer({
 - save, publish, disable, or delete flows through the configured `FlowStore`
 - preview and execute the selected flow through the configured PIVOT runtime
 - inspect capability dependencies, risk levels, confirmation requirements, and registered permissions for the selected flow
+- inspect execution paths in the canvas, including executed nodes, skipped nodes, failed nodes, and active edges
+- automatically focus the first failed node after execution so the operator can inspect the broken step
 
 The designer uses a structured layered canvas rather than a freeform drag canvas. This keeps the API stable while making dependencies, edge direction, risk, confirmation, and execution state easier to inspect.
 

@@ -14,6 +14,7 @@ import {
   flowToPlan,
   listFlowTemplates,
   getFlowCapabilityRows,
+  getFlowExecutionTrace,
   renderEditableNodeInspectorToHTML,
   renderFlowCapabilityMatrixToHTML,
   renderFlowCanvasToHTML,
@@ -282,6 +283,44 @@ test('lays out flow canvas by edge dependencies', () => {
   assert.match(html, /flow-canvas__board/);
   assert.match(html, /Layer 3/);
   assert.match(html, /flow-canvas__edge-rail/);
+});
+
+test('derives flow canvas execution trace from runtime node results', () => {
+  const flow = createFlow({
+    id: 'failed-path-flow',
+    name: 'Failed path flow',
+    status: 'published',
+    nodes: [
+      { id: 'first', type: 'capability.run', capability: 'first.run', label: 'First' },
+      { id: 'second', type: 'capability.run', capability: 'second.run', label: 'Second' },
+      { id: 'fallback', type: 'message.show', label: 'Fallback' }
+    ],
+    edges: [
+      { id: 'edge-success', from: 'first', to: 'second', condition: 'success' },
+      { id: 'edge-failure', from: 'second', to: 'fallback', condition: 'failure' }
+    ]
+  });
+  const result = {
+    ok: false,
+    data: {
+      nodes: [
+        { node: { id: 'first' }, result: { ok: true, data: {} } },
+        { node: { id: 'second' }, result: { ok: false, data: {} } },
+        { node: { id: 'fallback' }, result: { ok: true, data: {} } }
+      ]
+    }
+  };
+
+  const trace = getFlowExecutionTrace(result, flow.nodes, flow.edges);
+  const html = renderFlowCanvasToHTML(flow, { result });
+
+  assert.equal(trace.firstFailedNodeId, 'second');
+  assert.deepEqual(trace.executedNodeIds, ['first', 'fallback']);
+  assert.deepEqual(trace.failedNodeIds, ['second']);
+  assert.equal(trace.edgeStates.get('edge-success').active, true);
+  assert.equal(trace.edgeStates.get('edge-failure').failed, true);
+  assert.match(html, /flow-node--failed/);
+  assert.match(html, /failed path/);
 });
 
 test('renders editable node inspector controls', () => {

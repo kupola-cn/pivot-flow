@@ -245,6 +245,14 @@ export function createFlowCanvasLayout(nodes?: FlowNode[], edges?: FlowEdge[]): 
   layers: Array<Array<{ node: FlowNode; index: number }>>;
   layerById: Map<string, number>;
 };
+export function getFlowExecutionTrace(result?: PivotResult | null, nodes?: FlowNode[], edges?: FlowEdge[]): {
+  nodeStates: Map<string, { status: 'idle' | 'executed' | 'failed' | 'skipped'; result?: unknown }>;
+  edgeStates: Map<string, { active: boolean; failed: boolean; fromStatus: string; toStatus: string }>;
+  executedNodeIds: string[];
+  failedNodeIds: string[];
+  skippedNodeIds: string[];
+  firstFailedNodeId: string;
+};
 export function renderNodeInspectorToHTML(node?: FlowNode | null, options?: { editable?: boolean }): string;
 export function renderEditableNodeInspectorToHTML(node: FlowNode): string;
 export function renderNodePaletteToHTML(nodes?: unknown[]): string;

@@ -14,7 +14,7 @@ export function renderFlowCanvasToHTML(flow, options = {}) {
   }
 
   const layout = createFlowCanvasLayout(nodes, edges);
-  const nodeStates = getFlowNodeStates(options.result ?? options.preview);
+  const trace = getFlowExecutionTrace(options.result ?? options.preview, nodes, edges);
 
   return [
     '<div class="flow-canvas">',
@@ -22,11 +22,14 @@ export function renderFlowCanvasToHTML(flow, options = {}) {
     `<span>${escapeHTML(nodes.length)} nodes</span>`,
     `<span>${escapeHTML(edges.length)} edges</span>`,
     `<span>${escapeHTML(layout.layers.length)} layers</span>`,
+    trace.executedNodeIds.length > 0 ? `<span class="flow-canvas__summary-status flow-canvas__summary-status--executed">${escapeHTML(trace.executedNodeIds.length)} executed</span>` : '',
+    trace.failedNodeIds.length > 0 ? `<span class="flow-canvas__summary-status flow-canvas__summary-status--failed">${escapeHTML(trace.failedNodeIds.length)} failed</span>` : '',
+    trace.skippedNodeIds.length > 0 ? `<span class="flow-canvas__summary-status flow-canvas__summary-status--skipped">${escapeHTML(trace.skippedNodeIds.length)} skipped</span>` : '',
     '</div>',
     '<div class="flow-canvas__board">',
-    ...layout.layers.map((layer, index) => renderLayer(layer, index, options, nodeStates)),
+    ...layout.layers.map((layer, index) => renderLayer(layer, index, options, trace.nodeStates)),
     '</div>',
-    renderEdgeRail(edges, options),
+    renderEdgeRail(edges, options, trace.edgeStates),
     '</div>'
   ].join('');
 }
@@ -124,7 +127,7 @@ export function renderNodeCard(node, index, options = {}, nodeState = null) {
   ].join('');
 }
 
-function renderEdgeRail(edges, options = {}) {
+function renderEdgeRail(edges, options = {}, edgeStates = new Map()) {
   if (!Array.isArray(edges) || edges.length === 0) {
     return '';
   }
@@ -134,10 +137,10 @@ function renderEdgeRail(edges, options = {}) {
     '<div class="flow-canvas__edge-title">Edges</div>',
     '<ol>',
     ...edges.map((edge) => [
-      `<li class="${edge.id === options.selectedEdgeId ? 'is-selected' : ''}">`,
+      `<li class="${getEdgeClasses(edge, options, edgeStates)}">`,
       `<button type="button" data-flow-action="select-edge" data-edge-id="${escapeAttr(edge.id)}">`,
       `<span>${escapeHTML(edge.from || '-')} -> ${escapeHTML(edge.to || '-')}</span>`,
-      `<small>${escapeHTML(edge.condition || 'success')}</small>`,
+      `<small>${escapeHTML(getEdgeStateLabel(edge, edgeStates))}</small>`,
       '</button>',
       '</li>'
     ].join('')),
@@ -146,11 +149,22 @@ function renderEdgeRail(edges, options = {}) {
   ].join('');
 }
 
-function getFlowNodeStates(result) {
-  const states = new Map();
+export function getFlowExecutionTrace(result, nodes = [], edges = []) {
+  const nodeStates = new Map();
+  const edgeStates = new Map();
+  const executedNodeIds = [];
+  const failedNodeIds = [];
+  const skippedNodeIds = [];
   const nodeResults = result?.data?.nodes;
   if (!Array.isArray(nodeResults)) {
-    return states;
+    return {
+      nodeStates,
+      edgeStates,
+      executedNodeIds,
+      failedNodeIds,
+      skippedNodeIds,
+      firstFailedNodeId: ''
+    };
   }
 
   for (const item of nodeResults) {
@@ -160,9 +174,79 @@ function getFlowNodeStates(result) {
     }
     const skipped = Boolean(item?.result?.data?.skipped);
     const ok = Boolean(item?.result?.ok);
-    states.set(nodeId, {
-      status: skipped ? 'skipped' : ok ? 'executed' : 'failed'
+    const status = skipped ? 'skipped' : ok ? 'executed' : 'failed';
+    nodeStates.set(nodeId, { status, result: item?.result ?? null });
+
+    if (status === 'executed') {
+      executedNodeIds.push(nodeId);
+    } else if (status === 'failed') {
+      failedNodeIds.push(nodeId);
+    } else if (status === 'skipped') {
+      skippedNodeIds.push(nodeId);
+    }
+  }
+
+  const knownNodeIds = new Set((Array.isArray(nodes) ? nodes : []).map((node) => node.id));
+  for (const edge of Array.isArray(edges) ? edges : []) {
+    if (!edge?.id || !knownNodeIds.has(edge.from) || !knownNodeIds.has(edge.to)) {
+      continue;
+    }
+    const fromStatus = nodeStates.get(edge.from)?.status ?? 'idle';
+    const toStatus = nodeStates.get(edge.to)?.status ?? 'idle';
+    const active = isEdgeOnExecutionPath(edge, fromStatus, toStatus);
+    edgeStates.set(edge.id, {
+      active,
+      failed: active && (fromStatus === 'failed' || toStatus === 'failed'),
+      fromStatus,
+      toStatus
     });
   }
-  return states;
+
+  return {
+    nodeStates,
+    edgeStates,
+    executedNodeIds,
+    failedNodeIds,
+    skippedNodeIds,
+    firstFailedNodeId: failedNodeIds[0] ?? ''
+  };
+}
+
+function isEdgeOnExecutionPath(edge, fromStatus, toStatus) {
+  if (fromStatus === 'idle' || toStatus === 'idle') {
+    return false;
+  }
+
+  const condition = typeof edge.condition === 'string' ? edge.condition : 'success';
+  if (condition === 'always') {
+    return true;
+  }
+  if (condition === 'success') {
+    return fromStatus === 'executed';
+  }
+  if (condition === 'failure') {
+    return fromStatus === 'failed';
+  }
+  if (condition === 'skipped') {
+    return fromStatus === 'skipped';
+  }
+  return true;
+}
+
+function getEdgeClasses(edge, options, edgeStates) {
+  const state = edgeStates.get(edge.id);
+  return [
+    edge.id === options.selectedEdgeId ? 'is-selected' : '',
+    state?.active ? 'is-path' : '',
+    state?.failed ? 'is-failed-path' : ''
+  ].filter(Boolean).join(' ');
+}
+
+function getEdgeStateLabel(edge, edgeStates) {
+  const condition = edge.condition || 'success';
+  const state = edgeStates.get(edge.id);
+  if (!state?.active) {
+    return condition;
+  }
+  return state.failed ? `${condition} · failed path` : `${condition} · path`;
 }

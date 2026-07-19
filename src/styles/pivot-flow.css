@@ -252,6 +252,24 @@
   padding: 4px 8px;
 }
 
+.flow-canvas__summary .flow-canvas__summary-status--executed {
+  background: var(--status-success-surface-l1);
+  border-color: var(--status-success-default);
+  color: var(--status-success-default);
+}
+
+.flow-canvas__summary .flow-canvas__summary-status--failed {
+  background: var(--status-error-surface-l1);
+  border-color: var(--status-error-default);
+  color: var(--status-error-default);
+}
+
+.flow-canvas__summary .flow-canvas__summary-status--skipped {
+  background: var(--status-warning-surface-l1);
+  border-color: var(--status-warning-default);
+  color: var(--status-warning-default);
+}
+
 .flow-canvas__board {
   align-items: stretch;
   display: grid;
@@ -327,6 +345,17 @@
   color: var(--text-default);
 }
 
+.flow-canvas__edge-rail li.is-path button {
+  border-color: var(--status-success-default);
+  color: var(--text-default);
+}
+
+.flow-canvas__edge-rail li.is-failed-path button {
+  background: var(--status-error-surface-l1);
+  border-color: var(--status-error-default);
+  color: var(--status-error-default);
+}
+
 .flow-canvas__edge-rail small {
   color: var(--text-tertiary);
 }
@@ -367,14 +396,17 @@
 }
 
 .flow-node--executed .flow-node__button {
+  background: color-mix(in srgb, var(--status-success-surface-l1) 58%, var(--bg-overlay-l2));
   border-color: var(--status-success-default);
 }
 
 .flow-node--failed .flow-node__button {
+  background: var(--status-error-surface-l1);
   border-color: var(--status-error-default);
 }
 
 .flow-node--skipped .flow-node__button {
+  background: color-mix(in srgb, var(--status-warning-surface-l1) 42%, var(--bg-overlay-l2));
   opacity: 0.72;
 }
 

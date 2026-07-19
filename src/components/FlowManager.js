@@ -9,6 +9,7 @@ import { getDefaultCapabilityForNodeType } from '../node-types.js';
 import { escapeHTML, on, resolveTarget, setHTML } from './dom.js';
 import { renderFlowAuditPanelToHTML } from './FlowAuditPanel.js';
 import { renderFlowCapabilityMatrixToHTML } from './FlowCapabilityMatrix.js';
+import { getFlowExecutionTrace } from './FlowCanvas.js';
 import { renderFlowDesignerToHTML } from './FlowDesigner.js';
 import { renderFlowListToHTML } from './FlowList.js';
 import { renderFlowPreviewToHTML } from './FlowPreview.js';
@@ -135,6 +136,7 @@ export function FlowManager(options = {}) {
     } else {
       state.result = state.preview;
     }
+    focusFirstFailedNode(state, flow, state.result);
     render();
   };
 
@@ -219,6 +221,7 @@ export function FlowManager(options = {}) {
     state.preview = execution.preview ?? null;
     state.result = execution.result ?? execution.preview ?? null;
     state.error = execution.ok ? '' : execution.message;
+    focusFirstFailedNode(state, flow, state.result);
     render();
     return execution;
   };
@@ -705,6 +708,13 @@ function parseListInput(value) {
 
 function getSelectedFlow(state) {
   return state.flows.find((flow) => flow.id === state.selectedFlowId) ?? state.flows[0] ?? null;
+}
+
+function focusFirstFailedNode(state, flow, result) {
+  const trace = getFlowExecutionTrace(result, flow?.nodes ?? [], flow?.edges ?? []);
+  if (trace.firstFailedNodeId) {
+    state.selectedNodeId = trace.firstFailedNodeId;
+  }
 }
 
 async function resolveContext(contextProvider) {
