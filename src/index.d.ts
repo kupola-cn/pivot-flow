@@ -119,6 +119,14 @@ export interface FlowStore {
   listRuns?(flowId?: string): Promise<Record<string, unknown>[]>;
 }
 
+export interface FlowTemplate {
+  id: string;
+  name: string;
+  group?: string;
+  description?: string;
+  flow: Partial<FlowDefinition>;
+}
+
 export function createFlow(input?: Partial<FlowDefinition>): FlowDefinition;
 export function createFlowNode(input?: Partial<FlowNode>): FlowNode;
 export function createFlowEdge(input?: Partial<FlowEdge>): FlowEdge;
@@ -137,6 +145,10 @@ export function createHttpFlowStore(options?: {
   headers?: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>);
   credentials?: RequestCredentials;
 }): FlowStore;
+export const BUILT_IN_FLOW_TEMPLATES: readonly FlowTemplate[];
+export function listFlowTemplates(query?: { group?: string; keyword?: string }): FlowTemplate[];
+export function getFlowTemplate(id: string): FlowTemplate | null;
+export function createFlowFromTemplate(templateOrId: string | FlowTemplate, overrides?: Partial<FlowDefinition>): FlowDefinition;
 export function createFlowRunner(options: {
   runtime: PivotRuntime;
   flowStore?: FlowStore;

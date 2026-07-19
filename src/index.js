@@ -6,6 +6,7 @@ export * from './intent-mapper.js';
 export * from './flow-store.js';
 export * from './flow-capabilities.js';
 export * from './flow-runner.js';
+export * from './flow-templates.js';
 
 export * from './components/FlowAssistantDrawer.js';
 export * from './components/FlowAuditPanel.js';

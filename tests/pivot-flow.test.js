@@ -3,11 +3,13 @@ import assert from 'node:assert/strict';
 import { ActionType, RiskLevel, createPivotRuntime } from '@kupola/pivot';
 import {
   createFlow,
+  createFlowFromTemplate,
   createHttpFlowStore,
   createLocalIntentMapper,
   createMemoryFlowStore,
   createFlowRunner,
   flowToPlan,
+  listFlowTemplates,
   registerFlowFrontendCapabilities,
   validateFlow
 } from '../src/index.js';
@@ -156,6 +158,21 @@ test('HTTP store maps REST endpoints and normalizes flow responses', async () =>
   assert.equal(calls[0].init.headers['X-CSRF-Token'], 'token');
   assert.equal(decodeURIComponent(calls[0].url), '/flows?status=published&keyword=组织');
   assert.equal(calls.at(-1).init.method, 'DELETE');
+});
+
+test('creates draft flows from built-in templates', () => {
+  const templates = listFlowTemplates({ group: 'organization' });
+  const flow = createFlowFromTemplate('organization.create-under-parent', {
+    name: 'Create branch from template'
+  });
+  const match = createLocalIntentMapper().match('在集团下增加分机构 C', [flow], { includeDraft: true });
+
+  assert.equal(templates.length > 0, true);
+  assert.equal(flow.name, 'Create branch from template');
+  assert.equal(flow.status, 'draft');
+  assert.equal(flow.metadata.templateId, 'organization.create-under-parent');
+  assert.equal(validateFlow(flow).valid, true);
+  assert.equal(match.best.slots.organizationName, 'C');
 });
 
 test('registers built-in frontend capabilities', async () => {

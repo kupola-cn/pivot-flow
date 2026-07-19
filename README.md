@@ -162,6 +162,21 @@ Expected HTTP endpoints:
 - `GET /api/pivot-flow-runs`
 - `POST /api/pivot-flow-runs`
 
+## Flow Templates
+
+Built-in templates provide common starting points for application flows. Templates create draft flows and still require project-specific capability registration, preview, publish checks, and backend authorization.
+
+```js
+import { createFlowFromTemplate, listFlowTemplates } from '@kupola/pivot-flow';
+
+const templates = listFlowTemplates({ group: 'organization' });
+const draftFlow = createFlowFromTemplate('organization.create-under-parent', {
+  name: '在集团下新增分机构'
+});
+
+await flowStore.create(draftFlow);
+```
+
 ## UI Example
 
 ```js
