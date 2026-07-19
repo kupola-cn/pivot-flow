@@ -17,6 +17,7 @@
 .flow-manager__actions,
 .flow-designer__toolbar,
 .flow-designer__actions,
+.flow-inspector__actions,
 .flow-assistant__header,
 .flow-assistant__actions,
 .flow-list__button,
@@ -254,6 +255,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--spacer-8);
+}
+
+.flow-inspector__actions {
+  flex-wrap: wrap;
 }
 
 .flow-field--wide {

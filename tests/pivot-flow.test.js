@@ -198,6 +198,8 @@ test('renders editable node inspector controls', () => {
   assert.match(html, /data-flow-node-field="label"/);
   assert.match(html, /data-flow-node-field="capability"/);
   assert.match(html, /data-flow-node-field="params"/);
+  assert.match(html, /data-flow-action="move-node-up"/);
+  assert.match(html, /data-flow-action="remove-node"/);
   assert.match(html, /user\.create/);
 });
 

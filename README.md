@@ -209,6 +209,7 @@ FlowAssistantDrawer({
 - edit flow name, description, status, risk, examples, keywords, and patterns
 - add built-in nodes from the palette
 - edit node label, type, capability, risk, confirmation, and JSON params
+- move or delete selected nodes
 - save, publish, disable, or delete flows through the configured `FlowStore`
 - preview and execute the selected flow through the configured PIVOT runtime
 

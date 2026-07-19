@@ -277,6 +277,41 @@ export function FlowManager(options = {}) {
     render();
   };
 
+  const removeSelectedNode = () => {
+    const flow = getSelectedFlow(state);
+    if (!flow || !state.selectedNodeId) {
+      return;
+    }
+
+    flow.nodes = (flow.nodes ?? []).filter((node) => node.id !== state.selectedNodeId);
+    flow.edges = (flow.edges ?? []).filter((edge) => edge.from !== state.selectedNodeId && edge.to !== state.selectedNodeId);
+    state.selectedNodeId = flow.nodes?.[0]?.id ?? '';
+    state.preview = null;
+    state.result = null;
+    state.error = '';
+    render();
+  };
+
+  const moveSelectedNode = (direction) => {
+    const flow = getSelectedFlow(state);
+    const nodes = flow?.nodes ?? [];
+    const index = nodes.findIndex((node) => node.id === state.selectedNodeId);
+    const nextIndex = direction === 'up' ? index - 1 : index + 1;
+
+    if (index < 0 || nextIndex < 0 || nextIndex >= nodes.length) {
+      return;
+    }
+
+    const nextNodes = [...nodes];
+    const [node] = nextNodes.splice(index, 1);
+    nextNodes.splice(nextIndex, 0, node);
+    flow.nodes = nextNodes;
+    state.preview = null;
+    state.result = null;
+    state.error = '';
+    render();
+  };
+
   const updateSelectedField = (field, value) => {
     const flow = getSelectedFlow(state);
     if (!flow || !field) {
@@ -363,6 +398,15 @@ export function FlowManager(options = {}) {
     }),
     on(target, 'click', '[data-flow-action="add-node"]', (e, el) => {
       addNodeToSelected(el.dataset.nodeType);
+    }),
+    on(target, 'click', '[data-flow-action="remove-node"]', () => {
+      removeSelectedNode();
+    }),
+    on(target, 'click', '[data-flow-action="move-node-up"]', () => {
+      moveSelectedNode('up');
+    }),
+    on(target, 'click', '[data-flow-action="move-node-down"]', () => {
+      moveSelectedNode('down');
     }),
     on(target, 'input', '[data-flow-field]', (e, el) => {
       updateSelectedField(el.dataset.flowField, e.target.value);
