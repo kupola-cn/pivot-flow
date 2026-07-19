@@ -26,6 +26,8 @@ export interface FlowSlot {
   pattern?: string;
   options?: string[];
   fallback?: unknown;
+  sensitive?: boolean;
+  inputType?: 'text' | 'password' | 'number' | 'date' | 'email' | 'tel' | 'url';
 }
 
 export interface FlowIntentConfig {

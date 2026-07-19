@@ -195,14 +195,43 @@ function renderMissingSlots(missingSlots = [], slotValues = {}) {
   return [
     '<section class="flow-missing-slots">',
     '<div class="flow-panel-title">Required parameters</div>',
-    ...missingSlots.map((slot) => [
-      '<label class="flow-field">',
-      `<span>${escapeHTML(slot.label || slot.name)}</span>`,
-      `<input class="ds-input" data-flow-slot="${escapeAttr(slot.name)}" value="${escapeAttr(slotValues[slot.name] ?? '')}" placeholder="${escapeAttr(slot.name)}">`,
-      '</label>'
-    ].join('')),
+    ...missingSlots.map((slot) => renderMissingSlotInput(slot, slotValues)),
     '</section>'
   ].join('');
+}
+
+function renderMissingSlotInput(slot, slotValues = {}) {
+  const inputType = getSlotInputType(slot);
+  return [
+    '<label class="flow-field">',
+    `<span>${escapeHTML(slot.label || slot.name)}</span>`,
+    `<input type="${escapeAttr(inputType)}" autocomplete="${escapeAttr(getSlotAutocomplete(slot, inputType))}" class="ds-input" data-flow-slot="${escapeAttr(slot.name)}" value="${escapeAttr(slotValues[slot.name] ?? '')}" placeholder="${escapeAttr(slot.name)}">`,
+    '</label>'
+  ].join('');
+}
+
+function getSlotInputType(slot) {
+  const allowedTypes = new Set(['text', 'password', 'number', 'date', 'email', 'tel', 'url']);
+  if (slot?.inputType && allowedTypes.has(slot.inputType)) {
+    return slot.inputType;
+  }
+  if (slot?.sensitive || /password|secret|token/i.test(slot?.name || '')) {
+    return 'password';
+  }
+  if (slot?.type === 'number') {
+    return 'number';
+  }
+  if (slot?.type === 'date') {
+    return 'date';
+  }
+  return 'text';
+}
+
+function getSlotAutocomplete(slot, inputType) {
+  if (inputType === 'password' || slot?.sensitive) {
+    return 'new-password';
+  }
+  return 'off';
 }
 
 function renderMatch(match) {

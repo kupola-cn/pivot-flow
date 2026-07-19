@@ -85,7 +85,9 @@ export function normalizeSlot(slot = {}) {
     source: slot.source ?? 'intent',
     pattern: slot.pattern ?? '',
     options: Array.isArray(slot.options) ? slot.options : [],
-    fallback: slot.fallback
+    fallback: slot.fallback,
+    sensitive: Boolean(slot.sensitive),
+    inputType: slot.inputType ?? ''
   };
 }
 

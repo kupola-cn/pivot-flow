@@ -70,6 +70,21 @@ test('matches natural language intent to a published flow', () => {
   assert.equal(match.best.slots.parentId, 'group-root');
 });
 
+test('normalizes sensitive manual slots for secure input rendering', () => {
+  const flow = createFlow({
+    id: 'user-create',
+    name: 'Create user',
+    intent: {
+      slots: [
+        { name: 'password', label: 'Initial password', required: true, source: 'manual', sensitive: true, inputType: 'password' }
+      ]
+    }
+  });
+
+  assert.equal(flow.intent.slots[0].sensitive, true);
+  assert.equal(flow.intent.slots[0].inputType, 'password');
+});
+
 test('converts flow to PIVOT plan and executes it', async () => {
   const flow = createOrganizationFlow();
   const mapper = createLocalIntentMapper();

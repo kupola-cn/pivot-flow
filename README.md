@@ -134,6 +134,21 @@ if (preview.stage === 'slots') {
 
 `FlowAssistantDrawer` uses the same mechanism and renders parameter inputs for missing required slots before preview or execution.
 
+For sensitive values, prefer manual slots instead of asking users to put secrets in the natural-language prompt. Mark the slot as sensitive so the drawer renders a password input:
+
+```js
+slots: [
+  {
+    name: 'password',
+    label: 'Initial password',
+    source: 'manual',
+    required: true,
+    sensitive: true,
+    inputType: 'password'
+  }
+]
+```
+
 ## Flow Stores
 
 Use an in-memory or localStorage store for prototypes. Use `createHttpFlowStore()` when the app needs server-backed persistence and backend authorization.
