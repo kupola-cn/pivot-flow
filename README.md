@@ -264,10 +264,13 @@ The designer uses a structured layered canvas rather than a freeform drag canvas
 ```js
 import {
   createAIFlowBuilderContext,
+  createAIFlowProvider,
   createAIFlowDraft,
   createCapabilityManifestSummary,
   diffAIFlowDraft,
+  generateAIFlowDraft,
   getMissingFlowCapabilities,
+  parseAIFlowProviderOutput,
   recommendFlowCapabilities,
   renderAIFlowDraftReviewToHTML,
   renderAIFlowDraftPreviewToHTML,
@@ -284,14 +287,36 @@ const missing = getMissingFlowCapabilities(draft.flow, runtime);
 const diff = diffAIFlowDraft(aiStructuredOutput.flow, draft.flow);
 const previewHTML = renderAIFlowDraftPreviewToHTML(draft, { showDiff: true });
 
+const provider = createAIFlowProvider(async (request) => {
+  const response = await fetch('/api/ai/flow-builder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      prompt: request.prompt,
+      safetyRules: request.safetyRules,
+      flowShape: request.flowShape,
+      capabilitySummary: request.capabilitySummary
+    })
+  });
+  return await response.json();
+}, { name: 'app-ai-flow-builder' });
+
+const generated = await generateAIFlowDraft('删除耗材 TEST-001', {
+  runtime,
+  provider
+});
+
 AIFlowDraftReviewer({
   target: '#review',
-  draftResult: draft,
+  draftResult: generated,
   onSaveDraft: (flow) => flowStore.create(flow)
 });
 ```
 
 - `createAIFlowBuilderContext()` returns model-facing instructions, safety rules, expected Flow shape, and a sanitized capability summary.
+- `createAIFlowProvider()` normalizes a project-owned AI adapter. The project can call any model API, but the provider must return structured JSON.
+- `generateAIFlowDraft()` sends a controlled builder request to the provider, parses the structured response, normalizes it as a draft, and validates it.
+- `parseAIFlowProviderOutput()` accepts common JSON response shapes, including raw JSON text, fenced JSON, `{ flow }`, `output_text`, and chat `choices[0].message.content`.
 - `createAIFlowDraft()` converts structured AI output into a normalized draft Flow and validates it immediately.
 - `createCapabilityManifestSummary()` returns a capability summary without `execute` functions.
 - `getMissingFlowCapabilities()` reports draft nodes that reference unavailable capabilities and suggests close registered capabilities.
@@ -300,6 +325,8 @@ AIFlowDraftReviewer({
 - `renderAIFlowDraftPreviewToHTML()` renders a safe draft preview with validation errors, nodes, risk, and confirmation state.
 - `renderAIFlowDraftReviewToHTML()` and `AIFlowDraftReviewer()` add a human review step before a draft is saved.
 - `validateAIFlowDraft()` checks that AI output stays as a draft, only references registered capabilities, and requires confirmation for high-risk or delete operations.
+
+The provider layer is intentionally generic. `pivot-flow` does not include OpenAI, Tongyi, Claude, or any other model SDK. Applications should call AI APIs through their own backend when secrets, tenant data, or audit requirements are involved. The backend should redact sensitive context, apply rate limits, and return only structured Flow JSON to the browser.
 
 ## Security Boundary
 

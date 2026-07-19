@@ -56,6 +56,78 @@ export function createAIFlowBuilderContext(source, options = {}) {
   };
 }
 
+export function createAIFlowProvider(provider, options = {}) {
+  if (typeof provider === 'function') {
+    return {
+      name: options.name || provider.name || 'custom-ai-provider',
+      async generate(request, callOptions = {}) {
+        return await provider(request, callOptions);
+      }
+    };
+  }
+
+  if (provider && typeof provider.generate === 'function') {
+    return {
+      ...provider,
+      name: options.name || provider.name || 'custom-ai-provider',
+      async generate(request, callOptions = {}) {
+        return await provider.generate(request, callOptions);
+      }
+    };
+  }
+
+  throw new Error('AI Flow provider must be a function or an object with generate(request).');
+}
+
+export async function generateAIFlowDraft(prompt = '', options = {}) {
+  const provider = createAIFlowProvider(options.provider, options.providerConfig ?? {});
+  const source = options.capabilities ?? options.runtime;
+  const builderContext = options.builderContext ?? createAIFlowBuilderContext(source, {
+    ...options.builderOptions,
+    filter: options.filter ?? options.builderOptions?.filter,
+    includeSchemas: options.includeSchemas ?? options.builderOptions?.includeSchemas,
+    maxDescriptionLength: options.maxDescriptionLength ?? options.builderOptions?.maxDescriptionLength
+  });
+  const request = {
+    prompt: String(prompt || ''),
+    builderContext,
+    capabilitySummary: builderContext.capabilitySummary,
+    safetyRules: builderContext.safetyRules,
+    flowShape: builderContext.flowShape,
+    metadata: isPlainObject(options.metadata) ? options.metadata : {},
+    signal: options.signal
+  };
+  const providerOutput = await provider.generate(request, options.providerOptions ?? {});
+  const structuredOutput = parseAIFlowProviderOutput(providerOutput, request.prompt);
+  const draft = createAIFlowDraft(structuredOutput, options);
+
+  return {
+    ...draft,
+    prompt: request.prompt,
+    provider: provider.name,
+    builderContext,
+    structuredOutput,
+    providerOutput: options.includeProviderOutput ? providerOutput : undefined
+  };
+}
+
+export function parseAIFlowProviderOutput(output, fallbackPrompt = '') {
+  const parsed = parseProviderPayload(output);
+  if (!isPlainObject(parsed)) {
+    throw new Error('AI Flow provider must return a Flow object, { flow }, or JSON text.');
+  }
+
+  const flow = isPlainObject(parsed.flow) ? parsed.flow : parsed;
+  if (!isPlainObject(flow)) {
+    throw new Error('AI Flow provider output does not contain a valid flow object.');
+  }
+
+  return {
+    prompt: parsed.prompt || fallbackPrompt || '',
+    flow
+  };
+}
+
 export function createAIFlowDraft(input = {}, options = {}) {
   const capabilities = normalizeCapabilities(options.capabilities ?? options.runtime);
   const capabilityByName = new Map(capabilities.map((capability) => [capability.name, capability]));
@@ -466,6 +538,73 @@ function normalizeAIFlowNode(node, index, capabilityByName) {
     requiresConfirmation: Boolean(safeNode.requiresConfirmation || requiresHumanConfirmation({ ...safeNode, risk }, capability)),
     params: isPlainObject(safeNode.params) ? safeNode.params : {}
   };
+}
+
+function parseProviderPayload(output) {
+  if (typeof output === 'string') {
+    return parseProviderJSON(output);
+  }
+
+  if (!isPlainObject(output)) {
+    return output;
+  }
+
+  if (typeof output.output_text === 'string') {
+    return parseProviderJSON(output.output_text);
+  }
+
+  if (typeof output.content === 'string') {
+    return parseProviderJSON(output.content);
+  }
+
+  if (typeof output.text === 'string') {
+    return parseProviderJSON(output.text);
+  }
+
+  const messageContent = output.message?.content;
+  if (typeof messageContent === 'string') {
+    return parseProviderJSON(messageContent);
+  }
+
+  const firstChoiceContent = output.choices?.[0]?.message?.content ?? output.choices?.[0]?.text;
+  if (typeof firstChoiceContent === 'string') {
+    return parseProviderJSON(firstChoiceContent);
+  }
+
+  return output;
+}
+
+function parseProviderJSON(text) {
+  const value = String(text || '').trim();
+  const candidates = [
+    value,
+    extractFencedJSON(value),
+    extractObjectJSON(value)
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    try {
+      return JSON.parse(candidate);
+    } catch {
+      // Try the next supported response shape.
+    }
+  }
+
+  throw new Error('AI Flow provider returned text that is not valid JSON.');
+}
+
+function extractFencedJSON(value) {
+  const match = value.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  return match?.[1]?.trim() ?? '';
+}
+
+function extractObjectJSON(value) {
+  const start = value.indexOf('{');
+  const end = value.lastIndexOf('}');
+  if (start < 0 || end <= start) {
+    return '';
+  }
+  return value.slice(start, end + 1);
 }
 
 function scoreCapability(capability, query, tokens) {

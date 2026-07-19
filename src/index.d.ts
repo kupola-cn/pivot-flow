@@ -245,6 +245,58 @@ export function createAIFlowBuilderContext(source?: PivotRuntime | PivotCapabili
   flowShape: Record<string, unknown>;
   capabilitySummary: ReturnType<typeof createCapabilityManifestSummary>;
 };
+export interface AIFlowProviderRequest {
+  prompt: string;
+  builderContext: ReturnType<typeof createAIFlowBuilderContext>;
+  capabilitySummary: ReturnType<typeof createCapabilityManifestSummary>;
+  safetyRules: string[];
+  flowShape: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  signal?: AbortSignal;
+}
+export interface AIFlowProvider {
+  name?: string;
+  generate(request: AIFlowProviderRequest, options?: Record<string, unknown>): unknown | Promise<unknown>;
+}
+export type AIFlowProviderLike =
+  | AIFlowProvider
+  | ((request: AIFlowProviderRequest, options?: Record<string, unknown>) => unknown | Promise<unknown>);
+export function createAIFlowProvider(provider: AIFlowProviderLike, options?: {
+  name?: string;
+}): Required<Pick<AIFlowProvider, 'name' | 'generate'>>;
+export function parseAIFlowProviderOutput(output?: unknown, fallbackPrompt?: string): {
+  prompt: string;
+  flow: Partial<FlowDefinition>;
+};
+export function generateAIFlowDraft(prompt?: string, options?: {
+  provider: AIFlowProviderLike;
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+  builderContext?: ReturnType<typeof createAIFlowBuilderContext>;
+  builderOptions?: {
+    filter?: Record<string, unknown>;
+    includeSchemas?: boolean;
+    maxDescriptionLength?: number;
+  };
+  filter?: Record<string, unknown>;
+  includeSchemas?: boolean;
+  maxDescriptionLength?: number;
+  providerConfig?: { name?: string };
+  providerOptions?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  signal?: AbortSignal;
+  allowPublished?: boolean;
+  includeProviderOutput?: boolean;
+}): Promise<ReturnType<typeof createAIFlowDraft> & {
+  prompt: string;
+  provider: string;
+  builderContext: ReturnType<typeof createAIFlowBuilderContext>;
+  structuredOutput: {
+    prompt: string;
+    flow: Partial<FlowDefinition>;
+  };
+  providerOutput?: unknown;
+}>;
 export function createAIFlowDraft(input?: Partial<FlowDefinition> | { prompt?: string; flow?: Partial<FlowDefinition> }, options?: {
   runtime?: PivotRuntime;
   capabilities?: PivotCapability[];

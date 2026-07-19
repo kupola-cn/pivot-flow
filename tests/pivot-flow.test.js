@@ -4,6 +4,7 @@ import { ActionType, RiskLevel, createPivotRuntime } from '@kupola/pivot';
 import {
   createFlow,
   createAIFlowBuilderContext,
+  createAIFlowProvider,
   createAIFlowDraft,
   createCapabilityManifestSummary,
   createFlowFromTemplate,
@@ -26,6 +27,8 @@ import {
   getFlowRisk,
   groupFlowTemplates,
   groupFlows,
+  generateAIFlowDraft,
+  parseAIFlowProviderOutput,
   renderEditableNodeInspectorToHTML,
   renderFlowCapabilityMatrixToHTML,
   renderFlowCanvasToHTML,
@@ -737,6 +740,81 @@ test('creates safe AI flow builder context and draft from structured output', ()
   assert.equal(draft.flow.metadata.aiGenerated, true);
   assert.equal(draft.flow.nodes[0].risk, 'high');
   assert.equal(draft.flow.nodes[0].requiresConfirmation, true);
+});
+
+test('generates AI flow drafts through a provider without executing or publishing', async () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'material.delete',
+    resource: 'material',
+    action: ActionType.DELETE,
+    risk: RiskLevel.HIGH,
+    description: '删除耗材',
+    execute: () => {
+      throw new Error('execute should not be called');
+    }
+  });
+  const calls = [];
+  const provider = createAIFlowProvider(async (request) => {
+    calls.push({
+      prompt: request.prompt,
+      capabilityCount: request.capabilitySummary.count,
+      rules: request.safetyRules.length
+    });
+    return {
+      prompt: request.prompt,
+      flow: {
+        id: 'ai-provider-delete',
+        name: 'Provider delete draft',
+        status: 'published',
+        nodes: [
+          {
+            id: 'delete',
+            type: 'capability.run',
+            capability: 'material.delete'
+          }
+        ]
+      }
+    };
+  }, { name: 'unit-test-provider' });
+
+  const draft = await generateAIFlowDraft('删除耗材 TEST-001', {
+    runtime,
+    provider
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].prompt, '删除耗材 TEST-001');
+  assert.equal(calls[0].capabilityCount, 1);
+  assert.equal(draft.provider, 'unit-test-provider');
+  assert.equal(draft.ok, true);
+  assert.equal(draft.flow.status, 'draft');
+  assert.equal(draft.flow.nodes[0].requiresConfirmation, true);
+  assert.equal(draft.providerOutput, undefined);
+  assert.equal(draft.diff.some((item) => item.path === 'status' && item.after === 'draft'), true);
+});
+
+test('parses common AI provider JSON response shapes for flow drafts', () => {
+  const fenced = parseAIFlowProviderOutput('```json\n{"flow":{"id":"fenced","name":"Fenced"}}\n```', '创建流程');
+  const openAIStyle = parseAIFlowProviderOutput({
+    choices: [
+      {
+        message: {
+          content: '{"prompt":"删除耗材","flow":{"id":"choice","name":"Choice"}}'
+        }
+      }
+    ]
+  });
+  const outputText = parseAIFlowProviderOutput({
+    output_text: 'Result:\n{"flow":{"id":"output-text","name":"Output text"}}'
+  });
+
+  assert.equal(fenced.prompt, '创建流程');
+  assert.equal(fenced.flow.id, 'fenced');
+  assert.equal(openAIStyle.prompt, '删除耗材');
+  assert.equal(openAIStyle.flow.id, 'choice');
+  assert.equal(outputText.flow.id, 'output-text');
+  assert.throws(() => parseAIFlowProviderOutput('not json'), /not valid JSON/);
 });
 
 test('recommends capabilities and renders AI flow draft preview safely', () => {
