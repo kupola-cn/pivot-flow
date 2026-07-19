@@ -225,6 +225,8 @@ document.querySelector('#runSummary').innerHTML = renderFlowRunSummaryToHTML(sum
 
 `FlowRunPanel` renders this summary by default before the underlying PIVOT result and timeline. `FlowRunHistory` can render records returned by `flowStore.listRuns()`, with keyword, success/failed, and time range filters. `FlowManager` shows the selected flow history by default and records direct manager executions when the store implements `recordRun()`. The recommendations are UI guidance only. Server APIs must still return proper `401`, `403`, `409`, and `422` responses for unauthorized or invalid operations.
 
+`FlowRunner` records summarized run data by default when `flowStore.recordRun()` exists. The summary redacts common sensitive keys, limits deep objects, and turns large arrays into counts. Use `createFlowRunRecord()`, `summarizeFlowRunResult()`, and `sanitizeFlowRunValue()` when a project needs the same behavior outside the bundled runner. Raw results are only included when `runRecord.includeRawResult` is explicitly enabled.
+
 ## Flow Stores
 
 Use an in-memory or localStorage store for prototypes. Use `createHttpFlowStore()` when the app needs server-backed persistence and backend authorization.

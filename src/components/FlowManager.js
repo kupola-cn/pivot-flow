@@ -2,6 +2,7 @@ import { createFlow, createFlowEdge, createFlowNode } from '../flow-schema.js';
 import { createFlowFromTemplate, listFlowTemplates } from '../flow-templates.js';
 import { flowToPlan } from '../flow-to-plan.js';
 import { canConnectFlowNodes } from '../flow-validation.js';
+import { createFlowRunRecord } from '../flow-run-record.js';
 import { createFlowRunner } from '../flow-runner.js';
 import { createMemoryFlowStore } from '../flow-store.js';
 import { createIntentClarificationPlan, createLocalIntentMapper } from '../intent-mapper.js';
@@ -350,14 +351,11 @@ export function FlowManager(options = {}) {
       return null;
     }
 
-    return await flowStore.recordRun({
-      flowId: flow.id,
-      flowName: flow.name,
+    return await flowStore.recordRun(createFlowRunRecord({
+      flow,
       prompt,
-      ok: result?.ok === true,
-      message: result?.message || '',
       result
-    });
+    }, options.runRecord ?? {}));
   };
 
   const parseTestSlots = () => {

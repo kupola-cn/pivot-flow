@@ -1,6 +1,7 @@
 import { flowToPlan } from './flow-to-plan.js';
 import { createMemoryFlowStore } from './flow-store.js';
 import { createIntentClarificationPlan, createLocalIntentMapper } from './intent-mapper.js';
+import { createFlowRunRecord } from './flow-run-record.js';
 
 export function createFlowRunner(options = {}) {
   const runtime = options.runtime;
@@ -144,13 +145,14 @@ export function createFlowRunner(options = {}) {
     const result = await runtime.executePlan(previewed.plan, previewed.context, input.executeOptions ?? {});
 
     if (typeof flowStore.recordRun === 'function') {
-      await flowStore.recordRun({
-        flowId: previewed.match?.flow?.id,
+      await flowStore.recordRun(createFlowRunRecord({
+        flow: previewed.match?.flow,
         prompt,
-        ok: result.ok,
-        message: result.message,
         result
-      });
+      }, {
+        ...(options.runRecord ?? {}),
+        ...(input.runRecord ?? {})
+      }));
     }
 
     return {

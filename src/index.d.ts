@@ -409,6 +409,14 @@ export function createFlowRunner(options: {
   intentMapper?: IntentMapper;
   contextProvider?: () => Record<string, unknown> | Promise<Record<string, unknown>>;
   context?: Record<string, unknown>;
+  runRecord?: {
+    includeRawResult?: boolean;
+    maxNodes?: number;
+    maxDepth?: number;
+    maxArrayItems?: number;
+    maxStringLength?: number;
+    summaryDepth?: number;
+  };
 }): {
   runtime: PivotRuntime;
   flowStore: FlowStore;
@@ -499,6 +507,35 @@ export function renderFlowRunSummaryToHTML(summaryOrResult?: FlowRunSummary | Pi
   edges?: FlowEdge[];
   slowestLimit?: number;
 }): string;
+export function createFlowRunRecord(input?: {
+  flow?: FlowDefinition;
+  flowId?: string;
+  flowName?: string;
+  prompt?: string;
+  ok?: boolean;
+  message?: string;
+  result?: PivotResult | null;
+  preview?: PivotResult | null;
+}, options?: {
+  includeRawResult?: boolean;
+  maxNodes?: number;
+  maxDepth?: number;
+  maxArrayItems?: number;
+  maxStringLength?: number;
+  summaryDepth?: number;
+}): Record<string, unknown>;
+export function summarizeFlowRunResult(result?: PivotResult | null, options?: {
+  maxNodes?: number;
+  maxDepth?: number;
+  maxArrayItems?: number;
+  maxStringLength?: number;
+  summaryDepth?: number;
+}): Record<string, unknown> | null;
+export function sanitizeFlowRunValue(value?: unknown, options?: {
+  maxDepth?: number;
+  maxArrayItems?: number;
+  maxStringLength?: number;
+}, depth?: number, key?: string): unknown;
 export interface FlowRunHistorySummary {
   total: number;
   successCount: number;
@@ -1028,6 +1065,14 @@ export function FlowManager(options: {
   contextProvider?: () => Record<string, unknown> | Promise<Record<string, unknown>>;
   context?: Record<string, unknown>;
   input?: Record<string, unknown>;
+  runRecord?: {
+    includeRawResult?: boolean;
+    maxNodes?: number;
+    maxDepth?: number;
+    maxArrayItems?: number;
+    maxStringLength?: number;
+    summaryDepth?: number;
+  };
 }): { element: Element; refresh(): Promise<void>; destroy(): void };
 
 export function FlowDesigner(options: {

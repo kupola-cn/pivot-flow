@@ -16,6 +16,7 @@ import {
   createMemoryFlowStore,
   createFlowRunner,
   createFlowRunHistorySummary,
+  createFlowRunRecord,
   createFlowAccessReport,
   createFlowBatchSafetyReport,
   createFlowSafetyReport,
@@ -74,6 +75,8 @@ import {
   renderAIFlowDraftReviewToHTML,
   parseFlowTestSlots,
   registerFlowFrontendCapabilities,
+  sanitizeFlowRunValue,
+  summarizeFlowRunResult,
   validateAIFlowDraft,
   validateFlow
 } from '../src/index.js';
@@ -919,6 +922,51 @@ test('filters and renders flow run history', () => {
   assert.match(html, /data-flow-run-filter="dateRange"/);
   assert.match(html, /删除角色 admin/);
   assert.match(html, /Forbidden/);
+});
+
+test('summarizes flow run records before persistence', () => {
+  const result = {
+    ok: true,
+    message: 'Created user',
+    data: {
+      nodes: [
+        {
+          node: { id: 'create-user', type: 'capability.run', label: 'Create user', capability: 'user.create' },
+          result: {
+            ok: true,
+            message: 'Created',
+            data: {
+              id: 'user-1',
+              username: 'alice',
+              password: 'secret',
+              token: 'abc',
+              list: Array.from({ length: 30 }, (_, index) => ({ id: index + 1, phone: '13800000000' }))
+            }
+          }
+        }
+      ],
+      token: 'top-secret'
+    }
+  };
+
+  const summary = summarizeFlowRunResult(result);
+  const record = createFlowRunRecord({
+    flow: { id: 'user-create', name: 'Create user' },
+    prompt: '创建用户 alice',
+    result
+  });
+  const sanitized = sanitizeFlowRunValue({ password: 'secret', nested: { phone: '13800000000' } });
+
+  assert.equal(summary.data.nodeCount, 1);
+  assert.equal(summary.data.nodes[0].result.data.id, 'user-1');
+  assert.equal(summary.data.nodes[0].result.data.password, '[redacted]');
+  assert.equal(summary.data.nodes[0].result.data.token, '[redacted]');
+  assert.equal(summary.data.nodes[0].result.data.listCount, 30);
+  assert.equal(summary.data.summary.token, '[redacted]');
+  assert.equal(record.flowId, 'user-create');
+  assert.equal(record.result.data.nodes[0].result.data.listCount, 30);
+  assert.equal(sanitized.password, '[redacted]');
+  assert.equal(sanitized.nested.phone, '[redacted]');
 });
 
 test('matches and highlights flow canvas nodes', () => {
@@ -1801,6 +1849,9 @@ test('runs a flow with FlowRunner', async () => {
   const runs = await flowStore.listRuns('org-create');
   assert.equal(runs.length, 1);
   assert.equal(runs[0].ok, true);
+  assert.equal(runs[0].result.data.nodeCount, 1);
+  assert.equal(runs[0].result.data.nodes[0].result.data.name, 'C');
+  assert.equal(runs[0].rawResult, undefined);
 });
 
 test('FlowRunner blocks preview when required slots are missing', async () => {

@@ -12,6 +12,7 @@ export * from './flow-control.js';
 export * from './flow-safety-report.js';
 export * from './flow-access-report.js';
 export * from './flow-run-summary.js';
+export * from './flow-run-record.js';
 export * from './flow-dependencies.js';
 
 export * from './components/FlowAssistantDrawer.js';
