@@ -2,7 +2,7 @@ import { flowToPlan } from '../flow-to-plan.js';
 import { validateFlow } from '../flow-validation.js';
 import { FLOW_RISK_LEVELS, FLOW_STATUS } from '../node-types.js';
 import { escapeAttr, escapeHTML, on, resolveTarget, setHTML } from './dom.js';
-import { getFlowExecutionTrace, getFlowNodeMatches, groupFlowCanvasNodes, renderFlowCanvasToHTML } from './FlowCanvas.js';
+import { getFlowExecutionTrace, getFlowNodeMatches, groupFlowCanvasNodes, normalizeFlowCanvasViewport, renderFlowCanvasToHTML } from './FlowCanvas.js';
 import { renderIntentPatternEditorToHTML } from './IntentPatternEditor.js';
 import { renderNodeInspectorToHTML } from './NodeInspector.js';
 import { renderNodePaletteToHTML } from './NodePalette.js';
@@ -58,6 +58,7 @@ function renderCanvasControlsToHTML(flow, state, nodeMatches) {
   const firstFailedNode = nodes.find((node) => node.id === trace.firstFailedNodeId) ?? null;
   const groups = groupFlowCanvasNodes(nodes, state.canvasGroupBy);
   const collapsedGroups = Array.isArray(state.collapsedCanvasGroups) ? state.collapsedCanvasGroups : [];
+  const viewport = normalizeFlowCanvasViewport(state);
 
   return [
     '<section class="flow-canvas-controls">',
@@ -73,6 +74,10 @@ function renderCanvasControlsToHTML(flow, state, nodeMatches) {
     '<label class="flow-field">',
     '<span>Group canvas</span>',
     `<select class="ds-select ds-select--sm" data-flow-canvas-field="canvasGroupBy">${renderCanvasGroupOptions(state.canvasGroupBy)}</select>`,
+    '</label>',
+    '<label class="flow-field">',
+    '<span>Density</span>',
+    `<select class="ds-select ds-select--sm" data-flow-canvas-field="canvasDensity">${renderCanvasDensityOptions(viewport.density)}</select>`,
     '</label>',
     '<div class="flow-canvas-controls__meta">',
     nodeMatches.active
@@ -93,6 +98,13 @@ function renderCanvasControlsToHTML(flow, state, nodeMatches) {
     groups.active && collapsedGroups.length === 0
       ? '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="collapse-canvas-groups">Collapse groups</button>'
       : '',
+    `<span>${escapeHTML(Math.round(viewport.zoom * 100))}%</span>`,
+    '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="zoom-canvas-out">Zoom out</button>',
+    '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="zoom-canvas-in">Zoom in</button>',
+    viewport.zoom !== 1
+      ? '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="reset-canvas-zoom">Reset zoom</button>'
+      : '',
+    `<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="toggle-canvas-minimap">${viewport.showMinimap ? 'Hide minimap' : 'Show minimap'}</button>`,
     state.nodeKeyword
       ? '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="clear-node-search">Clear</button>'
       : '',
@@ -240,6 +252,17 @@ function renderCanvasGroupOptions(value = '') {
   ].join('')).join('');
 }
 
+function renderCanvasDensityOptions(value = 'comfortable') {
+  return [
+    ['comfortable', 'Comfortable'],
+    ['compact', 'Compact']
+  ].map(([option, label]) => [
+    `<option value="${escapeAttr(option)}"${value === option ? ' selected' : ''}>`,
+    escapeHTML(label),
+    '</option>'
+  ].join('')).join('');
+}
+
 export function FlowDesigner(options = {}) {
   const target = resolveTarget(options.target);
   const state = {
@@ -247,6 +270,9 @@ export function FlowDesigner(options = {}) {
     selectedNodeId: options.flow?.nodes?.[0]?.id ?? '',
     nodeKeyword: '',
     canvasGroupBy: '',
+    canvasZoom: 1,
+    canvasDensity: 'comfortable',
+    showCanvasMinimap: false,
     collapsedCanvasGroups: []
   };
 
@@ -286,6 +312,22 @@ export function FlowDesigner(options = {}) {
       state.collapsedCanvasGroups = [];
       render();
     }),
+    on(target, 'click', '[data-flow-action="zoom-canvas-in"]', () => {
+      state.canvasZoom = adjustCanvasZoom(state.canvasZoom, 0.1);
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="zoom-canvas-out"]', () => {
+      state.canvasZoom = adjustCanvasZoom(state.canvasZoom, -0.1);
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="reset-canvas-zoom"]', () => {
+      state.canvasZoom = 1;
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="toggle-canvas-minimap"]', () => {
+      state.showCanvasMinimap = !state.showCanvasMinimap;
+      render();
+    }),
     on(target, 'input', '[data-flow-canvas-field]', (e, el) => {
       if (el.dataset.flowCanvasField === 'nodeKeyword') {
         state.nodeKeyword = e.target.value;
@@ -301,6 +343,10 @@ export function FlowDesigner(options = {}) {
       if (el.dataset.flowCanvasField === 'canvasGroupBy') {
         state.canvasGroupBy = e.target.value;
         state.collapsedCanvasGroups = [];
+        render();
+      }
+      if (el.dataset.flowCanvasField === 'canvasDensity') {
+        state.canvasDensity = e.target.value;
         render();
       }
     }),
@@ -321,6 +367,9 @@ export function FlowDesigner(options = {}) {
       state.selectedNodeId = nextFlow?.nodes?.[0]?.id ?? '';
       state.nodeKeyword = '';
       state.canvasGroupBy = '';
+      state.canvasZoom = 1;
+      state.canvasDensity = 'comfortable';
+      state.showCanvasMinimap = false;
       state.collapsedCanvasGroups = [];
       render();
     },
@@ -343,6 +392,11 @@ function toggleCanvasGroup(state, key) {
     current.add(groupKey);
   }
   state.collapsedCanvasGroups = Array.from(current);
+}
+
+function adjustCanvasZoom(value, delta) {
+  const next = Number(value || 1) + delta;
+  return Math.round(Math.min(1.5, Math.max(0.6, next)) * 10) / 10;
 }
 
 function getSelectedNode(flow, selectedNodeId) {

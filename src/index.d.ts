@@ -767,6 +767,12 @@ export function renderFlowCanvasToHTML(flow?: FlowDefinition | null, options?: {
   canvasGroupBy?: 'type' | 'risk' | 'resource' | string;
   collapsedGroups?: string[] | Set<string> | string;
   collapsedCanvasGroups?: string[] | Set<string> | string;
+  zoom?: number;
+  canvasZoom?: number;
+  density?: 'comfortable' | 'compact' | string;
+  canvasDensity?: 'comfortable' | 'compact' | string;
+  showMinimap?: boolean;
+  showCanvasMinimap?: boolean;
 }): string;
 export function createFlowCanvasLayout(nodes?: FlowNode[], edges?: FlowEdge[]): {
   layers: Array<Array<{ node: FlowNode; index: number }>>;
@@ -780,6 +786,18 @@ export function groupFlowCanvasNodes(nodes?: FlowNode[], groupBy?: 'type' | 'ris
     label: string;
     nodes: Array<{ node: FlowNode; index: number }>;
   }>;
+};
+export function normalizeFlowCanvasViewport(options?: {
+  zoom?: number;
+  canvasZoom?: number;
+  density?: 'comfortable' | 'compact' | string;
+  canvasDensity?: 'comfortable' | 'compact' | string;
+  showMinimap?: boolean;
+  showCanvasMinimap?: boolean;
+}): {
+  zoom: number;
+  density: 'comfortable' | 'compact' | string;
+  showMinimap: boolean;
 };
 export function getFlowExecutionTrace(result?: PivotResult | null, nodes?: FlowNode[], edges?: FlowEdge[]): {
   nodeStates: Map<string, FlowExecutionNodeState>;

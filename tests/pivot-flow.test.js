@@ -43,6 +43,7 @@ import {
   groupFlowCanvasNodes,
   groupFlows,
   generateAIFlowDraft,
+  normalizeFlowCanvasViewport,
   parseAIFlowProviderOutput,
   renderEditableNodeInspectorToHTML,
   renderFlowCapabilityMatrixToHTML,
@@ -853,6 +854,48 @@ test('groups and collapses flow canvas nodes', () => {
   assert.match(html, /data-flow-action="toggle-canvas-group"/);
   assert.match(designerHTML, /data-flow-canvas-field="canvasGroupBy"/);
   assert.match(designerHTML, /Collapse|Expand/);
+});
+
+test('renders flow canvas viewport controls', () => {
+  const flow = createFlow({
+    id: 'canvas-viewport-flow',
+    name: 'Canvas viewport flow',
+    nodes: [
+      { id: 'start', type: 'message.show', label: 'Start' },
+      { id: 'query-users', type: 'capability.run', capability: 'user.query', label: 'Query users' }
+    ],
+    edges: [
+      { id: 'edge-1', from: 'start', to: 'query-users', condition: 'success' }
+    ]
+  });
+
+  const viewport = normalizeFlowCanvasViewport({
+    canvasZoom: 2,
+    canvasDensity: 'compact',
+    showCanvasMinimap: true
+  });
+  const html = renderFlowCanvasToHTML(flow, {
+    canvasZoom: 0.7,
+    canvasDensity: 'compact',
+    showCanvasMinimap: true,
+    selectedNodeId: 'query-users'
+  });
+  const designerHTML = renderFlowDesignerToHTML(flow, {
+    canvasZoom: 1.2,
+    canvasDensity: 'compact',
+    showCanvasMinimap: true
+  });
+
+  assert.deepEqual(viewport, { zoom: 1.5, density: 'compact', showMinimap: true });
+  assert.match(html, /data-flow-canvas-zoom="0.7"/);
+  assert.match(html, /flow-canvas--density-compact/);
+  assert.match(html, /flow-canvas__viewport/);
+  assert.match(html, /flow-canvas__minimap/);
+  assert.match(html, /flow-canvas__minimap-node/);
+  assert.match(designerHTML, /data-flow-canvas-field="canvasDensity"/);
+  assert.match(designerHTML, /data-flow-action="zoom-canvas-in"/);
+  assert.match(designerHTML, /data-flow-action="toggle-canvas-minimap"/);
+  assert.match(designerHTML, /120%/);
 });
 
 test('renders canvas node locate and failed-node jump controls', () => {

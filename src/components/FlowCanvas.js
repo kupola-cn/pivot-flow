@@ -27,13 +27,16 @@ export function renderFlowCanvasToHTML(flow, options = {}) {
   const adjacency = getFlowNodeAdjacency(options.selectedNodeId, edges);
   const groups = groupFlowCanvasNodes(nodes, options.groupBy || options.canvasGroupBy);
   const collapsedGroups = normalizeCollapsedGroups(options.collapsedGroups ?? options.collapsedCanvasGroups);
+  const viewport = normalizeFlowCanvasViewport(options);
 
   return [
-    '<div class="flow-canvas">',
+    `<div class="flow-canvas flow-canvas--density-${escapeAttr(viewport.density)}" data-flow-canvas-zoom="${escapeAttr(viewport.zoom)}">`,
     '<div class="flow-canvas__summary">',
     `<span>${escapeHTML(nodes.length)} nodes</span>`,
     `<span>${escapeHTML(edges.length)} edges</span>`,
     `<span>${escapeHTML(layout.layers.length)} layers</span>`,
+    `<span>${escapeHTML(Math.round(viewport.zoom * 100))}% zoom</span>`,
+    `<span>${escapeHTML(viewport.density)} density</span>`,
     groups.active ? `<span>${escapeHTML(groups.groups.length)} groups</span>` : '',
     collapsedGroups.size > 0 ? `<span>${escapeHTML(collapsedGroups.size)} collapsed</span>` : '',
     trace.executedNodeIds.length > 0 ? `<span class="flow-canvas__summary-status flow-canvas__summary-status--executed">${escapeHTML(trace.executedNodeIds.length)} executed</span>` : '',
@@ -42,10 +45,14 @@ export function renderFlowCanvasToHTML(flow, options = {}) {
     trace.totalDurationMs > 0 ? `<span>${escapeHTML(formatFlowDuration(trace.totalDurationMs))} total</span>` : '',
     '</div>',
     renderExecutionDiagnostics(diagnostics),
-    groups.active
-      ? renderGroupedBoard(groups.groups, edges, options, trace.nodeStates, nodeMatches, adjacency, collapsedGroups)
-      : renderBoard(layout.layers, options, trace.nodeStates, nodeMatches, adjacency),
+    renderCanvasViewport(
+      groups.active
+        ? renderGroupedBoard(groups.groups, edges, options, trace.nodeStates, nodeMatches, adjacency, collapsedGroups)
+        : renderBoard(layout.layers, options, trace.nodeStates, nodeMatches, adjacency),
+      viewport
+    ),
     renderEdgeRail(edges, options, trace.edgeStates, adjacency),
+    viewport.showMinimap ? renderFlowCanvasMinimap(layout, options, trace.nodeStates, nodeMatches, adjacency) : '',
     '</div>'
   ].join('');
 }
@@ -140,6 +147,57 @@ export function groupFlowCanvasNodes(nodes = [], groupBy = '') {
     groupBy: mode,
     groups: Array.from(groups.values())
   };
+}
+
+export function normalizeFlowCanvasViewport(options = {}) {
+  const rawZoom = Number(options.zoom ?? options.canvasZoom ?? 1);
+  const zoom = Math.min(1.5, Math.max(0.6, Number.isFinite(rawZoom) ? rawZoom : 1));
+  const density = ['comfortable', 'compact'].includes(options.density || options.canvasDensity)
+    ? String(options.density || options.canvasDensity)
+    : 'comfortable';
+
+  return {
+    zoom: Math.round(zoom * 100) / 100,
+    density,
+    showMinimap: Boolean(options.showMinimap ?? options.showCanvasMinimap)
+  };
+}
+
+function renderCanvasViewport(content, viewport) {
+  const style = `--flow-canvas-zoom:${viewport.zoom}`;
+  return [
+    `<div class="flow-canvas__viewport" style="${escapeAttr(style)}">`,
+    '<div class="flow-canvas__viewport-inner">',
+    content,
+    '</div>',
+    '</div>'
+  ].join('');
+}
+
+function renderFlowCanvasMinimap(layout, options, nodeStates, nodeMatches, adjacency) {
+  const layers = Array.isArray(layout?.layers) ? layout.layers : [];
+  if (layers.length === 0) {
+    return '';
+  }
+
+  return [
+    '<div class="flow-canvas__minimap">',
+    '<div class="flow-canvas__minimap-title">Minimap</div>',
+    '<div class="flow-canvas__minimap-grid">',
+    ...layers.map((layer) => [
+      '<span class="flow-canvas__minimap-layer">',
+      ...layer.map((item) => {
+        const status = nodeStates.get(item.node.id)?.status ?? 'idle';
+        const selected = options.selectedNodeId === item.node.id;
+        const matched = nodeMatches?.matchedIds?.has(item.node.id) ?? false;
+        const related = adjacency?.relatedNodeIds?.has(item.node.id) ?? false;
+        return `<button type="button" title="${escapeAttr(item.node.label || item.node.id)}" class="${getMinimapNodeClasses({ status, selected, matched, related })}" data-flow-action="select-node" data-node-id="${escapeAttr(item.node.id)}"></button>`;
+      }).join(''),
+      '</span>'
+    ].join('')),
+    '</div>',
+    '</div>'
+  ].join('');
 }
 
 function renderBoard(layers, options, nodeStates, nodeMatches, adjacency) {
@@ -491,6 +549,16 @@ function getNodeClasses(input) {
     input.dimmed ? 'is-dimmed' : '',
     input.related ? 'is-related' : '',
     `flow-node--${escapeAttr(input.status)}`
+  ].filter(Boolean).join(' ');
+}
+
+function getMinimapNodeClasses(input) {
+  return [
+    'flow-canvas__minimap-node',
+    input.status && input.status !== 'idle' ? `flow-canvas__minimap-node--${escapeAttr(input.status)}` : '',
+    input.selected ? 'is-selected' : '',
+    input.matched ? 'is-matched' : '',
+    input.related ? 'is-related' : ''
   ].filter(Boolean).join(' ');
 }
 

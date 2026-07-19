@@ -40,6 +40,9 @@ export function FlowManager(options = {}) {
     selectedEdgeId: '',
     nodeKeyword: '',
     canvasGroupBy: '',
+    canvasZoom: 1,
+    canvasDensity: 'comfortable',
+    showCanvasMinimap: false,
     collapsedCanvasGroups: [],
     listKeyword: '',
     listStatus: '',
@@ -689,6 +692,9 @@ export function FlowManager(options = {}) {
       state.selectedEdgeId = '';
       state.nodeKeyword = '';
       state.canvasGroupBy = '';
+      state.canvasZoom = 1;
+      state.canvasDensity = 'comfortable';
+      state.showCanvasMinimap = false;
       state.collapsedCanvasGroups = [];
       state.testPrompt = getSelectedFlow(state)?.intent?.examples?.[0] ?? getSelectedFlow(state)?.name ?? '';
       state.testSlotsText = '{}';
@@ -733,6 +739,22 @@ export function FlowManager(options = {}) {
     }),
     on(target, 'click', '[data-flow-action="expand-canvas-groups"]', () => {
       state.collapsedCanvasGroups = [];
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="zoom-canvas-in"]', () => {
+      state.canvasZoom = adjustCanvasZoom(state.canvasZoom, 0.1);
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="zoom-canvas-out"]', () => {
+      state.canvasZoom = adjustCanvasZoom(state.canvasZoom, -0.1);
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="reset-canvas-zoom"]', () => {
+      state.canvasZoom = 1;
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="toggle-canvas-minimap"]', () => {
+      state.showCanvasMinimap = !state.showCanvasMinimap;
       render();
     }),
     on(target, 'click', '[data-flow-action="focus-failed-node"]', () => {
@@ -866,6 +888,10 @@ export function FlowManager(options = {}) {
         state.collapsedCanvasGroups = [];
         render();
       }
+      if (el.dataset.flowCanvasField === 'canvasDensity') {
+        state.canvasDensity = e.target.value;
+        render();
+      }
     }),
     on(target, 'change', '[data-flow-list-filter]', (e, el) => {
       if (el.dataset.flowListFilter === 'status') {
@@ -922,6 +948,11 @@ function toggleCanvasGroup(state, key) {
     current.add(groupKey);
   }
   state.collapsedCanvasGroups = Array.from(current);
+}
+
+function adjustCanvasZoom(value, delta) {
+  const next = Number(value || 1) + delta;
+  return Math.round(Math.min(1.5, Math.max(0.6, next)) * 10) / 10;
 }
 
 function parseListInput(value) {
