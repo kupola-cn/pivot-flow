@@ -1,6 +1,7 @@
 import { createLocalIntentMapper, renderIntentClarificationPlanToHTML } from '../intent-mapper.js';
 import { createMemoryFlowStore } from '../flow-store.js';
 import { createFlowRunner } from '../flow-runner.js';
+import { createFlowAccessReport, renderFlowAccessReportToHTML } from '../flow-access-report.js';
 import { createElement, escapeAttr, escapeHTML, on } from './dom.js';
 import { renderFlowPreviewToHTML } from './FlowPreview.js';
 import { renderFlowRunPanelToHTML } from './FlowRunPanel.js';
@@ -16,7 +17,8 @@ export function FlowAssistantDrawer(options = {}) {
       runtime: options.runtime,
       flowStore,
       intentMapper,
-      contextProvider: options.contextProvider
+      contextProvider: options.contextProvider,
+      context: options.context
     })
     : null;
   const state = {
@@ -26,6 +28,7 @@ export function FlowAssistantDrawer(options = {}) {
     missingSlots: [],
     slotValues: {},
     clarification: null,
+    access: null,
     preview: null,
     result: null,
     error: ''
@@ -62,6 +65,7 @@ export function FlowAssistantDrawer(options = {}) {
       state.error ? `<div class="flow-alert flow-alert--error">${escapeHTML(state.error)}</div>` : '',
       renderMatch(state.match),
       renderClarification(state.clarification),
+      state.access ? renderFlowAccessReportToHTML(state.access) : '',
       renderMissingSlots(state.missingSlots, state.slotValues),
       '<div class="flow-panel-title">Preview</div>',
       renderFlowPreviewToHTML(state.preview),
@@ -86,6 +90,11 @@ export function FlowAssistantDrawer(options = {}) {
     state.result = null;
     state.missingSlots = matchResult.match?.missingSlots ?? [];
     state.slotValues = { ...(matchResult.match?.slots ?? {}) };
+    state.access = matchResult.match
+      ? createFlowAccessReport(matchResult.match.flow, options.runtime, {
+        context: await resolveContext(options.contextProvider, options.context)
+      })
+      : null;
     state.error = matchResult.match ? '' : matchResult.message;
     render();
     return state.match;
@@ -108,6 +117,11 @@ export function FlowAssistantDrawer(options = {}) {
     state.slotValues = { ...state.slotValues, ...(previewResult.slots ?? {}) };
     state.preview = previewResult.preview ?? null;
     state.result = null;
+    state.access = previewResult.match
+      ? createFlowAccessReport(previewResult.match.flow, options.runtime, {
+        context: previewResult.context ?? await resolveContext(options.contextProvider, options.context)
+      })
+      : null;
     state.error = previewResult.ok ? '' : previewResult.message;
     render();
     return previewResult;
@@ -120,6 +134,17 @@ export function FlowAssistantDrawer(options = {}) {
       return;
     }
 
+    const flow = state.match?.flow;
+    if (flow) {
+      const context = await resolveContext(options.contextProvider, options.context);
+      state.access = createFlowAccessReport(flow, options.runtime, { context });
+      if (!state.access.ok) {
+        state.error = `Cannot execute flow: ${state.access.summary}`;
+        render();
+        return;
+      }
+    }
+
     const execution = await runner.execute(state.prompt, {
       match: state.match,
       slots: state.slotValues
@@ -130,6 +155,11 @@ export function FlowAssistantDrawer(options = {}) {
     state.slotValues = { ...state.slotValues, ...(execution.slots ?? {}) };
     state.preview = execution.preview ?? null;
     state.result = execution.result ?? execution.preview ?? null;
+    state.access = execution.match
+      ? createFlowAccessReport(execution.match.flow, options.runtime, {
+        context: execution.context ?? await resolveContext(options.contextProvider, options.context)
+      })
+      : state.access;
     state.error = execution.ok ? '' : execution.message;
     render();
   };
@@ -162,6 +192,7 @@ export function FlowAssistantDrawer(options = {}) {
       state.missingSlots = [];
       state.slotValues = {};
       state.clarification = null;
+      state.access = null;
       state.preview = null;
       state.result = null;
       state.error = '';
@@ -169,6 +200,7 @@ export function FlowAssistantDrawer(options = {}) {
     on(root, 'input', '[data-flow-slot]', (e, el) => {
       state.slotValues[el.dataset.flowSlot] = e.target.value;
       state.clarification = null;
+      state.access = null;
       state.preview = null;
       state.result = null;
       state.error = '';
@@ -246,6 +278,13 @@ function getSlotAutocomplete(slot, inputType) {
     return 'new-password';
   }
   return 'off';
+}
+
+async function resolveContext(contextProvider, fallback = {}) {
+  if (typeof contextProvider === 'function') {
+    return await contextProvider();
+  }
+  return fallback ?? {};
 }
 
 function renderMatch(match) {

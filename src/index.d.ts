@@ -1017,6 +1017,7 @@ export function FlowManager(options: {
   templates?: FlowTemplate[];
   intentMapper?: IntentMapper;
   contextProvider?: () => Record<string, unknown> | Promise<Record<string, unknown>>;
+  context?: Record<string, unknown>;
   input?: Record<string, unknown>;
 }): { element: Element; refresh(): Promise<void>; destroy(): void };
 
@@ -1035,4 +1036,5 @@ export function FlowAssistantDrawer(options: {
   flows?: FlowDefinition[];
   intentMapper?: IntentMapper;
   contextProvider?: () => Record<string, unknown> | Promise<Record<string, unknown>>;
+  context?: Record<string, unknown>;
 }): { element: Element; open(): void; close(): void; destroy(): void };

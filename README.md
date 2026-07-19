@@ -314,7 +314,7 @@ if (!report.ok) {
 
 ## Access Hints
 
-`createFlowAccessReport()` compares Flow-level and capability-level permission hints with the current actor permissions. `FlowManager` renders this report by default and blocks publish/execute interactions only when actor permissions are known and declared frontend permission hints are missing.
+`createFlowAccessReport()` compares Flow-level and capability-level permission hints with the current actor permissions. `FlowManager` renders this report by default and blocks publish/execute interactions only when actor permissions are known and declared frontend permission hints are missing. `FlowAssistantDrawer` renders the same hints after a flow is matched and blocks execution when the current actor is known to be missing declared frontend permission hints.
 
 ```js
 import {
