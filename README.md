@@ -400,6 +400,7 @@ import {
   createAIFlowProviderRequest,
   createAIFlowDraft,
   createAIFlowDraftRepairPlan,
+  applyAIFlowDraftRepairPlan,
   createCapabilityManifestSummary,
   diffAIFlowDraft,
   generateAIFlowDraft,
@@ -421,6 +422,7 @@ const draft = createAIFlowDraft(aiStructuredOutput, { runtime });
 const validation = validateAIFlowDraft(draft.flow, { runtime });
 const missing = getMissingFlowCapabilities(draft.flow, runtime);
 const repairPlan = createAIFlowDraftRepairPlan(draft, runtime);
+const repaired = applyAIFlowDraftRepairPlan(draft, runtime);
 const diff = diffAIFlowDraft(aiStructuredOutput.flow, draft.flow);
 const previewHTML = renderAIFlowDraftPreviewToHTML(draft, { showDiff: true });
 
@@ -467,6 +469,7 @@ AIFlowBuilderPanel({
 - `parseAIFlowProviderOutput()` accepts common JSON response shapes, including raw JSON text, fenced JSON, `{ flow }`, `output_text`, and chat `choices[0].message.content`.
 - `createAIFlowDraft()` converts structured AI output into a normalized draft Flow and validates it immediately.
 - `createAIFlowDraftRepairPlan()` turns missing capabilities into actionable review items: replace with a registered capability or register a new backend-backed capability first.
+- `applyAIFlowDraftRepairPlan()` applies reviewed `replace-capability` recommendations to a draft, then re-normalizes and re-validates it. It does not register capabilities, publish flows, or execute anything.
 - `createCapabilityManifestSummary()` returns a capability summary without `execute` functions.
 - `getMissingFlowCapabilities()` reports draft nodes that reference unavailable capabilities and suggests close registered capabilities.
 - `diffAIFlowDraft()` shows how the raw AI output changed during normalization, such as `published` becoming `draft` or high-risk confirmation being added.

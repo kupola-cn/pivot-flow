@@ -774,6 +774,29 @@ export function createAIFlowDraftRepairPlan(draftResult?: FlowDefinition | Retur
   recommendationLimit?: number;
   limit?: number;
 }): AIFlowDraftRepairPlan;
+export function applyAIFlowDraftRepairPlan(draftResult?: FlowDefinition | ReturnType<typeof createAIFlowDraft>, source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+  repairPlan?: AIFlowDraftRepairPlan;
+  nodeIds?: string[];
+  minScore?: number;
+  recommendationLimit?: number;
+  limit?: number;
+}): ReturnType<typeof createAIFlowDraft> & {
+  applied: Array<{
+    nodeId: string;
+    from: string;
+    to: string;
+    score: number;
+  }>;
+  skipped: Array<{
+    nodeId: string;
+    missingCapability: string;
+    action: 'replace-capability' | 'register-capability';
+    reason: string;
+  }>;
+  originalRepairPlan: AIFlowDraftRepairPlan;
+};
 export function diffAIFlowDraft(before?: unknown, after?: unknown, options?: {
   ignorePaths?: string[];
   limit?: number;

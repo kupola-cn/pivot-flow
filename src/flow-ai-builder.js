@@ -304,6 +304,72 @@ export function createAIFlowDraftRepairPlan(draftResult, source, options = {}) {
   };
 }
 
+export function applyAIFlowDraftRepairPlan(draftResult, source, options = {}) {
+  const flow = clonePlainValue(draftResult?.flow ?? draftResult ?? {});
+  const plan = options.repairPlan ?? createAIFlowDraftRepairPlan(draftResult, source, options);
+  const allowedNodeIds = new Set(options.nodeIds ?? []);
+  const applied = [];
+  const skipped = [];
+
+  flow.nodes = (Array.isArray(flow.nodes) ? flow.nodes : []).map((node) => {
+    const action = plan.actions.find((item) => item.nodeId === node.id);
+    if (!action) {
+      return node;
+    }
+    if (allowedNodeIds.size > 0 && !allowedNodeIds.has(action.nodeId)) {
+      skipped.push(createRepairSkip(action, 'node was not selected for repair'));
+      return node;
+    }
+    if (action.action !== 'replace-capability' || !action.recommendation?.capability?.name) {
+      skipped.push(createRepairSkip(action, 'registration work is required before this draft can be repaired'));
+      return node;
+    }
+    if (options.minScore && Number(action.recommendation.score || 0) < Number(options.minScore)) {
+      skipped.push(createRepairSkip(action, 'recommendation score is below the configured threshold'));
+      return node;
+    }
+
+    const capability = action.recommendation.capability;
+    applied.push({
+      nodeId: action.nodeId,
+      from: action.missingCapability,
+      to: capability.name,
+      score: action.recommendation.score
+    });
+
+    return {
+      ...node,
+      capability: capability.name,
+      risk: node.risk || capability.risk || RiskLevel.LOW,
+      requiresConfirmation: Boolean(node.requiresConfirmation || capability.requiresConfirmation || requiresHumanConfirmation(node, capability))
+    };
+  });
+
+  const draft = createAIFlowDraft({
+    prompt: draftResult?.prompt || flow?.metadata?.sourceIntent || '',
+    flow: {
+      ...flow,
+      metadata: {
+        ...(isPlainObject(flow.metadata) ? flow.metadata : {}),
+        repairedBy: 'pivot-flow',
+        repairedAt: new Date().toISOString(),
+        repairAppliedCount: applied.length
+      }
+    }
+  }, {
+    ...options,
+    capabilities: source ?? options.capabilities ?? options.runtime
+  });
+
+  return {
+    ...draft,
+    applied,
+    skipped,
+    repairPlan: createAIFlowDraftRepairPlan(draft, source, options),
+    originalRepairPlan: plan
+  };
+}
+
 export function diffAIFlowDraft(before = {}, after = {}, options = {}) {
   const changes = [];
   const ignorePaths = new Set(options.ignorePaths ?? ['createdAt', 'updatedAt', 'publishedAt']);
@@ -904,6 +970,15 @@ function inferCapabilityRegistration(capabilityName, node = {}, recommendation =
       'Implement backend authorization and business validation before exposing it to Flow.',
       'Publish the Flow only after preview, review, and server-side permission checks pass.'
     ]
+  };
+}
+
+function createRepairSkip(action, reason) {
+  return {
+    nodeId: action.nodeId,
+    missingCapability: action.missingCapability,
+    action: action.action,
+    reason
   };
 }
 

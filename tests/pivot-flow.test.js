@@ -18,6 +18,7 @@ import {
   createFlowRunHistorySummary,
   createFlowRunRecord,
   createFlowAccessReport,
+  applyAIFlowDraftRepairPlan,
   createFlowBatchSafetyReport,
   createFlowSafetyReport,
   createFlowCanvasLayout,
@@ -1689,6 +1690,48 @@ test('creates actionable repair plans for AI draft missing capabilities', () => 
   assert.equal(plan.actions[0].registration.requiresConfirmation, true);
   assert.match(html, /Repair plan/);
   assert.match(html, /Recommended: material\.delete/);
+});
+
+test('applies safe AI flow draft repair replacements', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'material.delete',
+    resource: 'material',
+    action: ActionType.DELETE,
+    risk: RiskLevel.HIGH,
+    requiresConfirmation: true,
+    description: '删除耗材',
+    execute: () => ({ deleted: true })
+  });
+  const draft = createAIFlowDraft({
+    flow: {
+      id: 'ai-apply-repair',
+      name: 'Apply repair flow',
+      status: 'published',
+      nodes: [
+        {
+          id: 'delete',
+          type: 'capability.run',
+          label: 'Remove material',
+          capability: 'material.remove',
+          params: { id: '{{intent.id}}' }
+        }
+      ]
+    }
+  }, { runtime });
+
+  const repaired = applyAIFlowDraftRepairPlan(draft, runtime);
+
+  assert.equal(repaired.applied.length, 1);
+  assert.equal(repaired.applied[0].from, 'material.remove');
+  assert.equal(repaired.applied[0].to, 'material.delete');
+  assert.equal(repaired.skipped.length, 0);
+  assert.equal(repaired.flow.status, 'draft');
+  assert.equal(repaired.flow.nodes[0].capability, 'material.delete');
+  assert.equal(repaired.flow.nodes[0].requiresConfirmation, true);
+  assert.equal(repaired.ok, true);
+  assert.equal(repaired.missingCapabilities.length, 0);
+  assert.equal(repaired.originalRepairPlan.missingCount, 1);
 });
 
 test('creates registration checklist when no capability recommendation exists', () => {
