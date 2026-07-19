@@ -25,6 +25,7 @@ import {
   diffAIFlowDraft,
   createAIFlowDraftRepairPlan,
   getFlowCapabilityRows,
+  getFlowCanvasDiagnostics,
   getFlowExecutionTrace,
   getMissingFlowCapabilities,
   getFlowNodeAdjacency,
@@ -549,6 +550,44 @@ test('derives flow canvas execution trace from runtime node results', () => {
   assert.match(html, /Permission denied/);
   assert.match(html, /65ms total/);
   assert.match(html, /Slowest node/);
+});
+
+test('creates flow canvas diagnostics for failed nodes and cross-group edges', () => {
+  const flow = createFlow({
+    id: 'canvas-diagnostics-flow',
+    name: 'Canvas diagnostics flow',
+    nodes: [
+      { id: 'resolve-user', type: 'capability.run', capability: 'user.resolve', label: 'Resolve user' },
+      { id: 'delete-role', type: 'capability.run', capability: 'role.delete', label: 'Delete role' },
+      { id: 'notify', type: 'message.show', label: 'Notify' }
+    ],
+    edges: [
+      { id: 'edge-cross', from: 'resolve-user', to: 'delete-role', condition: 'success' },
+      { id: 'edge-failure', from: 'delete-role', to: 'notify', condition: 'failure' }
+    ]
+  });
+  const result = {
+    ok: false,
+    data: {
+      nodes: [
+        { node: { id: 'resolve-user' }, result: { ok: true, data: { durationMs: 10 } } },
+        { node: { id: 'delete-role' }, result: { ok: false, message: 'Role is protected', durationMs: 30 } },
+        { node: { id: 'notify' }, result: { ok: false, data: { error: 'Notification failed', durationMs: 20 } } }
+      ]
+    }
+  };
+
+  const diagnostics = getFlowCanvasDiagnostics(result, flow.nodes, flow.edges, { groupBy: 'resource' });
+  const html = renderFlowCanvasToHTML(flow, { result, canvasGroupBy: 'resource' });
+
+  assert.equal(diagnostics.failedNodes.length, 2);
+  assert.equal(diagnostics.firstFailedNode.id, 'delete-role');
+  assert.equal(diagnostics.slowestNode.id, 'delete-role');
+  assert.equal(diagnostics.crossGroupEdges.length, 2);
+  assert.equal(diagnostics.failedCrossGroupEdges.some((edge) => edge.id === 'edge-failure'), true);
+  assert.match(html, /Failed nodes/);
+  assert.match(html, /Role is protected/);
+  assert.match(html, /Cross-group edges/);
 });
 
 test('matches and highlights flow canvas nodes', () => {

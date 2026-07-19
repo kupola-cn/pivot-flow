@@ -594,6 +594,63 @@ export function getFlowExecutionTrace(result?: PivotResult | null, nodes?: FlowN
   firstFailedNodeId: string;
   totalDurationMs: number;
 };
+export function getFlowCanvasDiagnostics(result?: PivotResult | null, nodes?: FlowNode[], edges?: FlowEdge[], options?: {
+  groupBy?: 'type' | 'risk' | 'resource' | string;
+  canvasGroupBy?: 'type' | 'risk' | 'resource' | string;
+  slowestLimit?: number;
+}): {
+  trace: ReturnType<typeof getFlowExecutionTrace>;
+  failedNodes: Array<{
+    id: string;
+    label: string;
+    index: number;
+    message: string;
+    code: string;
+    durationMs: number;
+  }>;
+  slowestNodes: Array<{
+    id: string;
+    label: string;
+    index: number;
+    durationMs: number;
+    status: 'idle' | 'executed' | 'failed' | 'skipped';
+  }>;
+  crossGroupEdges: Array<{
+    id: string;
+    from: string;
+    to: string;
+    fromGroup: string;
+    toGroup: string;
+    condition: string | Record<string, unknown>;
+    active: boolean;
+    failed: boolean;
+  }>;
+  failedCrossGroupEdges: Array<{
+    id: string;
+    from: string;
+    to: string;
+    fromGroup: string;
+    toGroup: string;
+    condition: string | Record<string, unknown>;
+    active: boolean;
+    failed: boolean;
+  }>;
+  firstFailedNode: null | {
+    id: string;
+    label: string;
+    index: number;
+    message: string;
+    code: string;
+    durationMs: number;
+  };
+  slowestNode: null | {
+    id: string;
+    label: string;
+    index: number;
+    durationMs: number;
+    status: 'idle' | 'executed' | 'failed' | 'skipped';
+  };
+};
 export function getFlowNodeMatches(nodes?: FlowNode[], keyword?: string): { active: boolean; matchedIds: Set<string>; count: number };
 export function getFlowNodeAdjacency(nodeId?: string, edges?: FlowEdge[]): { active: boolean; relatedEdgeIds: Set<string>; relatedNodeIds: Set<string> };
 export function renderNodeInspectorToHTML(node?: FlowNode | null, options?: { editable?: boolean }): string;

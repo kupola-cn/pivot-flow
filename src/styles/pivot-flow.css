@@ -403,6 +403,48 @@
   overflow-wrap: anywhere;
 }
 
+.flow-canvas__failed-list {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--status-error-default);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-8);
+  min-width: 0;
+  padding: var(--spacer-8);
+}
+
+.flow-canvas__failed-list strong {
+  color: var(--status-error-default);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-canvas__failed-list ol {
+  display: grid;
+  gap: var(--spacer-6);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.flow-canvas__failed-list button {
+  background: var(--status-error-surface-l1);
+  border: 1px solid var(--status-error-default);
+  border-radius: var(--radius-4);
+  color: var(--text-default);
+  cursor: pointer;
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+  padding: var(--spacer-6) var(--spacer-8);
+  text-align: left;
+}
+
+.flow-canvas__failed-list small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  overflow-wrap: anywhere;
+}
+
 .flow-canvas__summary span,
 .flow-node__meta em {
   background: var(--bg-overlay-l1);

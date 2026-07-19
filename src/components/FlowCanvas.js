@@ -15,6 +15,9 @@ export function renderFlowCanvasToHTML(flow, options = {}) {
 
   const layout = createFlowCanvasLayout(nodes, edges);
   const trace = getFlowExecutionTrace(options.result ?? options.preview, nodes, edges);
+  const diagnostics = getFlowCanvasDiagnostics(options.result ?? options.preview, nodes, edges, {
+    groupBy: options.groupBy || options.canvasGroupBy
+  });
   const nodeMatches = getFlowNodeMatches(nodes, options.nodeKeyword);
   const adjacency = getFlowNodeAdjacency(options.selectedNodeId, edges);
   const groups = groupFlowCanvasNodes(nodes, options.groupBy || options.canvasGroupBy);
@@ -33,7 +36,7 @@ export function renderFlowCanvasToHTML(flow, options = {}) {
     trace.skippedNodeIds.length > 0 ? `<span class="flow-canvas__summary-status flow-canvas__summary-status--skipped">${escapeHTML(trace.skippedNodeIds.length)} skipped</span>` : '',
     trace.totalDurationMs > 0 ? `<span>${escapeHTML(formatDuration(trace.totalDurationMs))} total</span>` : '',
     '</div>',
-    renderExecutionDiagnostics(trace, nodes),
+    renderExecutionDiagnostics(diagnostics),
     groups.active
       ? renderGroupedBoard(groups.groups, edges, options, trace.nodeStates, nodeMatches, adjacency, collapsedGroups)
       : renderBoard(layout.layers, options, trace.nodeStates, nodeMatches, adjacency),
@@ -374,53 +377,119 @@ export function getFlowExecutionTrace(result, nodes = [], edges = []) {
   };
 }
 
-function renderExecutionDiagnostics(trace, nodes) {
-  if (!trace.firstFailedNodeId && trace.totalDurationMs <= 0) {
+export function getFlowCanvasDiagnostics(result, nodes = [], edges = [], options = {}) {
+  const safeNodes = Array.isArray(nodes) ? nodes : [];
+  const safeEdges = Array.isArray(edges) ? edges : [];
+  const trace = getFlowExecutionTrace(result, safeNodes, safeEdges);
+  const nodeById = new Map(safeNodes.map((node, index) => [node.id, { node, index }]));
+  const failedNodes = trace.failedNodeIds.map((nodeId) => {
+    const entry = nodeById.get(nodeId);
+    const state = trace.nodeStates.get(nodeId);
+    return {
+      id: nodeId,
+      label: entry?.node?.label || nodeId,
+      index: entry?.index ?? -1,
+      message: state?.message || '',
+      code: state?.code || '',
+      durationMs: state?.durationMs || 0
+    };
+  });
+  const slowestNodes = safeNodes
+    .map((node, index) => {
+      const state = trace.nodeStates.get(node.id);
+      return {
+        id: node.id,
+        label: node.label || node.id,
+        index,
+        durationMs: state?.durationMs || 0,
+        status: state?.status || 'idle'
+      };
+    })
+    .filter((item) => item.durationMs > 0)
+    .sort((left, right) => right.durationMs - left.durationMs)
+    .slice(0, Number(options.slowestLimit || 3));
+  const groupBy = normalizeCanvasGroupBy(options.groupBy || options.canvasGroupBy);
+  const groupKeyByNodeId = new Map(safeNodes.map((node) => [node.id, groupBy ? getCanvasNodeGroupKey(node, groupBy) : '']));
+  const crossGroupEdges = groupBy
+    ? safeEdges
+      .filter((edge) => groupKeyByNodeId.has(edge.from) && groupKeyByNodeId.has(edge.to) && groupKeyByNodeId.get(edge.from) !== groupKeyByNodeId.get(edge.to))
+      .map((edge) => ({
+        id: edge.id || `${edge.from}->${edge.to}`,
+        from: edge.from || '',
+        to: edge.to || '',
+        fromGroup: groupKeyByNodeId.get(edge.from) || '',
+        toGroup: groupKeyByNodeId.get(edge.to) || '',
+        condition: edge.condition || 'success',
+        active: Boolean(trace.edgeStates.get(edge.id)?.active),
+        failed: Boolean(trace.edgeStates.get(edge.id)?.failed)
+      }))
+    : [];
+
+  return {
+    trace,
+    failedNodes,
+    slowestNodes,
+    crossGroupEdges,
+    failedCrossGroupEdges: crossGroupEdges.filter((edge) => edge.failed),
+    firstFailedNode: failedNodes[0] ?? null,
+    slowestNode: slowestNodes[0] ?? null
+  };
+}
+
+function renderExecutionDiagnostics(diagnostics) {
+  if (!diagnostics.firstFailedNode && !diagnostics.slowestNode && diagnostics.crossGroupEdges.length === 0) {
     return '';
   }
 
-  const failedNode = nodes.find((node) => node.id === trace.firstFailedNodeId);
-  const failedState = trace.firstFailedNodeId ? trace.nodeStates.get(trace.firstFailedNodeId) : null;
-  const slowest = getSlowestNodeState(trace.nodeStates, nodes);
-
   return [
     '<div class="flow-canvas__diagnostics">',
-    trace.firstFailedNodeId
+    diagnostics.firstFailedNode
       ? [
         '<span class="flow-canvas__diagnostic flow-canvas__diagnostic--failed">',
         `<strong>Failed node</strong>`,
-        `<small>${escapeHTML(failedNode?.label || trace.firstFailedNodeId)}${failedState?.message ? ` · ${escapeHTML(failedState.message)}` : ''}</small>`,
+        `<small>${escapeHTML(diagnostics.firstFailedNode.label)}${diagnostics.firstFailedNode.message ? ` · ${escapeHTML(diagnostics.firstFailedNode.message)}` : ''}</small>`,
         '</span>'
       ].join('')
       : '',
-    slowest
+    diagnostics.slowestNode
       ? [
         '<span class="flow-canvas__diagnostic">',
         '<strong>Slowest node</strong>',
-        `<small>${escapeHTML(slowest.label)} · ${escapeHTML(formatDuration(slowest.durationMs))}</small>`,
+        `<small>${escapeHTML(diagnostics.slowestNode.label)} · ${escapeHTML(formatDuration(diagnostics.slowestNode.durationMs))}</small>`,
         '</span>'
       ].join('')
+      : '',
+    diagnostics.crossGroupEdges.length > 0
+      ? [
+        '<span class="flow-canvas__diagnostic">',
+        '<strong>Cross-group edges</strong>',
+        `<small>${escapeHTML(diagnostics.crossGroupEdges.length)} total${diagnostics.failedCrossGroupEdges.length > 0 ? ` · ${escapeHTML(diagnostics.failedCrossGroupEdges.length)} failed path` : ''}</small>`,
+        '</span>'
+      ].join('')
+      : '',
+    diagnostics.failedNodes.length > 1
+      ? renderFailedNodeList(diagnostics.failedNodes)
       : '',
     '</div>'
   ].join('');
 }
 
-function getSlowestNodeState(nodeStates, nodes) {
-  let slowest = null;
-  for (const node of Array.isArray(nodes) ? nodes : []) {
-    const state = nodeStates.get(node.id);
-    if (!state?.durationMs) {
-      continue;
-    }
-    if (!slowest || state.durationMs > slowest.durationMs) {
-      slowest = {
-        id: node.id,
-        label: node.label || node.id,
-        durationMs: state.durationMs
-      };
-    }
-  }
-  return slowest;
+function renderFailedNodeList(failedNodes) {
+  return [
+    '<div class="flow-canvas__failed-list">',
+    '<strong>Failed nodes</strong>',
+    '<ol>',
+    ...failedNodes.map((node) => [
+      '<li>',
+      `<button type="button" data-flow-action="select-node" data-node-id="${escapeAttr(node.id)}">`,
+      `<span>${escapeHTML(node.label)}</span>`,
+      `<small>${escapeHTML([node.message || node.code, node.durationMs ? formatDuration(node.durationMs) : ''].filter(Boolean).join(' · '))}</small>`,
+      '</button>',
+      '</li>'
+    ].join('')),
+    '</ol>',
+    '</div>'
+  ].join('');
 }
 
 export function getFlowNodeMatches(nodes = [], keyword = '') {
