@@ -1360,6 +1360,10 @@ export function renderFlowRunPanelToHTML(result?: PivotResult | null, options?: 
   edges?: FlowEdge[];
   slowestLimit?: number;
 }): string;
+export function renderFlowSnapshotListToHTML(snapshots?: FlowSnapshot[], options?: {
+  canCreate?: boolean;
+  canRestore?: boolean;
+}): string;
 export function renderFlowCapabilityMatrixToHTML(flow?: FlowDefinition | null, runtime?: PivotRuntime): string;
 export function getFlowCapabilityRows(flow?: FlowDefinition | null, runtime?: PivotRuntime): Array<{
   nodeId?: string;

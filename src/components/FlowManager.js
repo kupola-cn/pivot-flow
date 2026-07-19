@@ -21,6 +21,7 @@ import { filterFlows, renderFlowListToHTML } from './FlowList.js';
 import { renderFlowPreviewToHTML } from './FlowPreview.js';
 import { renderFlowRunHistoryToHTML } from './FlowRunHistory.js';
 import { renderFlowRunPanelToHTML } from './FlowRunPanel.js';
+import { renderFlowSnapshotListToHTML } from './FlowSnapshotList.js';
 import { parseFlowTestSlots } from './FlowTestPanel.js';
 import { renderFlowTemplateListToHTML } from './FlowTemplateList.js';
 
@@ -62,10 +63,12 @@ export function FlowManager(options = {}) {
     preview: null,
     result: null,
     runs: [],
+    snapshots: [],
     runKeyword: '',
     runStatus: '',
     runDateRange: '',
     runsLoading: false,
+    snapshotsLoading: false,
     context: options.context ?? {},
     loading: false,
     error: ''
@@ -81,6 +84,7 @@ export function FlowManager(options = {}) {
       state.selectedFlowId = state.selectedFlowId || state.flows[0]?.id || '';
       state.selectedEdgeId = state.selectedEdgeId || getSelectedFlow(state)?.edges?.[0]?.id || '';
       state.runs = typeof flowStore.listRuns === 'function' ? await flowStore.listRuns(state.selectedFlowId) : [];
+      state.snapshots = typeof flowStore.listSnapshots === 'function' ? await flowStore.listSnapshots(state.selectedFlowId) : [];
       state.error = '';
     } catch (error) {
       state.error = error?.message || 'Failed to load flows.';
@@ -143,6 +147,15 @@ export function FlowManager(options = {}) {
       '<div>',
       '<div class="flow-panel-title">Run result</div>',
       renderFlowRunPanelToHTML(state.result, { flow }),
+      '</div>',
+      '<div>',
+      '<div class="flow-panel-title">Snapshots</div>',
+      state.snapshotsLoading
+        ? '<div class="flow-empty flow-empty--compact">Loading snapshots...</div>'
+        : renderFlowSnapshotListToHTML(state.snapshots, {
+          canCreate: Boolean(flow && typeof flowStore.createSnapshot === 'function'),
+          canRestore: typeof flowStore.restoreSnapshot === 'function'
+        }),
       '</div>',
       '<div>',
       '<div class="flow-panel-title">Run history</div>',
@@ -355,6 +368,32 @@ export function FlowManager(options = {}) {
       return [];
     } finally {
       state.runsLoading = false;
+      if (!options.silent) {
+        render();
+      }
+    }
+  };
+
+  const loadSnapshots = async (flowId = state.selectedFlowId, options = {}) => {
+    if (typeof flowStore.listSnapshots !== 'function') {
+      state.snapshots = [];
+      return [];
+    }
+
+    if (!options.silent) {
+      state.snapshotsLoading = true;
+      render();
+    }
+
+    try {
+      state.snapshots = await flowStore.listSnapshots(flowId);
+      state.error = '';
+      return state.snapshots;
+    } catch (error) {
+      state.error = error?.message || 'Failed to load flow snapshots.';
+      return [];
+    } finally {
+      state.snapshotsLoading = false;
       if (!options.silent) {
         render();
       }
@@ -576,6 +615,54 @@ export function FlowManager(options = {}) {
     state.result = null;
     state.error = '';
     render();
+  };
+
+  const createSelectedSnapshot = async () => {
+    const flow = getSelectedFlow(state);
+    if (!flow || typeof flowStore.createSnapshot !== 'function') {
+      state.error = 'Snapshot creation is not supported by the configured FlowStore.';
+      render();
+      return null;
+    }
+
+    try {
+      const snapshot = await flowStore.createSnapshot(flow.id, {
+        label: `Manual snapshot: ${flow.name || flow.id}`,
+        reason: 'manual'
+      });
+      state.error = '';
+      await loadSnapshots(flow.id, { silent: true });
+      render();
+      return snapshot;
+    } catch (error) {
+      state.error = error?.message || 'Failed to create flow snapshot.';
+      render();
+      return null;
+    }
+  };
+
+  const restoreSelectedSnapshot = async (snapshotId) => {
+    if (!snapshotId || typeof flowStore.restoreSnapshot !== 'function') {
+      state.error = 'Snapshot restore is not supported by the configured FlowStore.';
+      render();
+      return null;
+    }
+
+    try {
+      const restored = await flowStore.restoreSnapshot(snapshotId);
+      state.selectedFlowId = restored.id;
+      state.selectedNodeId = restored.nodes?.[0]?.id ?? '';
+      state.selectedEdgeId = restored.edges?.[0]?.id ?? '';
+      state.preview = null;
+      state.result = null;
+      state.error = '';
+      await refresh();
+      return restored;
+    } catch (error) {
+      state.error = error?.message || 'Failed to restore flow snapshot.';
+      render();
+      return null;
+    }
   };
 
   const createBlankFlow = async () => {
@@ -885,6 +972,7 @@ export function FlowManager(options = {}) {
       state.runDateRange = '';
       render();
       loadRuns(state.selectedFlowId);
+      loadSnapshots(state.selectedFlowId);
     }),
     on(target, 'click', '[data-flow-action="select-node"]', (e, el) => {
       state.selectedNodeId = el.dataset.nodeId;
@@ -986,6 +1074,12 @@ export function FlowManager(options = {}) {
     }),
     on(target, 'click', '[data-flow-action="reset-flow-edits"]', () => {
       resetSelectedEdits();
+    }),
+    on(target, 'click', '[data-flow-action="create-flow-snapshot"]', () => {
+      createSelectedSnapshot();
+    }),
+    on(target, 'click', '[data-flow-action="restore-flow-snapshot"]', (e, el) => {
+      restoreSelectedSnapshot(el.dataset.snapshotId);
     }),
     on(target, 'click', '[data-flow-action="create-flow"]', () => {
       createBlankFlow();

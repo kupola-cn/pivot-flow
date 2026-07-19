@@ -74,6 +74,7 @@ import {
   renderFlowRunPanelToHTML,
   renderFlowRunHistoryToHTML,
   renderFlowRunSummaryToHTML,
+  renderFlowSnapshotListToHTML,
   renderFlowAccessReportToHTML,
   renderFlowChangeReportToHTML,
   renderFlowImportReportToHTML,
@@ -543,6 +544,27 @@ test('versioned flow stores can disable automatic snapshots for selected actions
 
   assert.equal(snapshots.length, 1);
   assert.equal(snapshots[0].reason, 'before:publish');
+});
+
+test('renders flow snapshot lists with restore actions', () => {
+  const snapshot = createFlowSnapshot(createOrganizationFlow(), {
+    id: 'snapshot-render',
+    label: 'Before update',
+    reason: 'manual',
+    createdAt: '2026-07-19T14:00:00.000Z'
+  });
+  const html = renderFlowSnapshotListToHTML([snapshot], {
+    canCreate: true,
+    canRestore: true
+  });
+  const emptyHTML = renderFlowSnapshotListToHTML([]);
+
+  assert.match(html, /flow-snapshot-list/);
+  assert.match(html, /Before update/);
+  assert.match(html, /data-flow-action="create-flow-snapshot"/);
+  assert.match(html, /data-flow-action="restore-flow-snapshot"/);
+  assert.match(html, /data-snapshot-id="snapshot-render"/);
+  assert.match(emptyHTML, /No snapshots available/);
 });
 
 test('validates edge ids and conditions', () => {
