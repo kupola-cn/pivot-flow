@@ -369,6 +369,40 @@
   margin-bottom: var(--spacer-12);
 }
 
+.flow-canvas__diagnostics {
+  display: grid;
+  gap: var(--spacer-8);
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-bottom: var(--spacer-12);
+  min-width: 0;
+}
+
+.flow-canvas__diagnostic {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+  padding: var(--spacer-8);
+}
+
+.flow-canvas__diagnostic--failed {
+  background: var(--status-error-surface-l1);
+  border-color: var(--status-error-default);
+}
+
+.flow-canvas__diagnostic strong {
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-canvas__diagnostic small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  overflow-wrap: anywhere;
+}
+
 .flow-canvas__summary span,
 .flow-node__meta em {
   background: var(--bg-overlay-l1);
@@ -588,6 +622,15 @@
   height: 24px;
   justify-content: center;
   width: 24px;
+}
+
+.flow-node__diagnostic {
+  color: var(--text-secondary);
+  display: block;
+  font-size: var(--body-xs-font-size);
+  line-height: 1.5;
+  margin-top: var(--spacer-4);
+  overflow-wrap: anywhere;
 }
 
 .flow-node__meta {

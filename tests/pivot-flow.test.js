@@ -526,9 +526,9 @@ test('derives flow canvas execution trace from runtime node results', () => {
     ok: false,
     data: {
       nodes: [
-        { node: { id: 'first' }, result: { ok: true, data: {} } },
-        { node: { id: 'second' }, result: { ok: false, data: {} } },
-        { node: { id: 'fallback' }, result: { ok: true, data: {} } }
+        { node: { id: 'first' }, result: { ok: true, data: { durationMs: 12 } } },
+        { node: { id: 'second' }, result: { ok: false, message: 'Permission denied', durationMs: 45 } },
+        { node: { id: 'fallback' }, result: { ok: true, data: { elapsedMs: 8 } } }
       ]
     }
   };
@@ -539,10 +539,16 @@ test('derives flow canvas execution trace from runtime node results', () => {
   assert.equal(trace.firstFailedNodeId, 'second');
   assert.deepEqual(trace.executedNodeIds, ['first', 'fallback']);
   assert.deepEqual(trace.failedNodeIds, ['second']);
+  assert.equal(trace.totalDurationMs, 65);
+  assert.equal(trace.nodeStates.get('second').durationMs, 45);
+  assert.equal(trace.nodeStates.get('second').message, 'Permission denied');
   assert.equal(trace.edgeStates.get('edge-success').active, true);
   assert.equal(trace.edgeStates.get('edge-failure').failed, true);
   assert.match(html, /flow-node--failed/);
   assert.match(html, /failed path/);
+  assert.match(html, /Permission denied/);
+  assert.match(html, /65ms total/);
+  assert.match(html, /Slowest node/);
 });
 
 test('matches and highlights flow canvas nodes', () => {
@@ -604,6 +610,7 @@ test('groups and collapses flow canvas nodes', () => {
   assert.equal(groups.groups.some((group) => group.key === 'user'), true);
   assert.match(html, /flow-canvas__groups/);
   assert.match(html, /Resource: user/);
+  assert.match(html, /0 in · 1 out/);
   assert.match(html, /is-collapsed/);
   assert.match(html, /data-flow-action="toggle-canvas-group"/);
   assert.match(designerHTML, /data-flow-canvas-field="canvasGroupBy"/);

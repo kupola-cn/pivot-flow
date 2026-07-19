@@ -580,12 +580,19 @@ export function groupFlowCanvasNodes(nodes?: FlowNode[], groupBy?: 'type' | 'ris
   }>;
 };
 export function getFlowExecutionTrace(result?: PivotResult | null, nodes?: FlowNode[], edges?: FlowEdge[]): {
-  nodeStates: Map<string, { status: 'idle' | 'executed' | 'failed' | 'skipped'; result?: unknown }>;
+  nodeStates: Map<string, {
+    status: 'idle' | 'executed' | 'failed' | 'skipped';
+    result?: unknown;
+    durationMs?: number;
+    message?: string;
+    code?: string;
+  }>;
   edgeStates: Map<string, { active: boolean; failed: boolean; fromStatus: string; toStatus: string }>;
   executedNodeIds: string[];
   failedNodeIds: string[];
   skippedNodeIds: string[];
   firstFailedNodeId: string;
+  totalDurationMs: number;
 };
 export function getFlowNodeMatches(nodes?: FlowNode[], keyword?: string): { active: boolean; matchedIds: Set<string>; count: number };
 export function getFlowNodeAdjacency(nodeId?: string, edges?: FlowEdge[]): { active: boolean; relatedEdgeIds: Set<string>; relatedNodeIds: Set<string> };
