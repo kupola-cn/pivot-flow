@@ -14,6 +14,7 @@ import {
   createLocalIntentMapper,
   createMemoryFlowStore,
   createFlowRunner,
+  createFlowBatchSafetyReport,
   createFlowSafetyReport,
   createFlowCanvasLayout,
   filterFlows,
@@ -40,6 +41,7 @@ import {
   renderFlowDesignerToHTML,
   renderFlowEdgeEditorToHTML,
   renderFlowSafetyReportToHTML,
+  renderFlowBatchSafetyReportToHTML,
   renderFlowSettingsToHTML,
   renderFlowTestPanelToHTML,
   renderFlowTemplateListToHTML,
@@ -416,6 +418,63 @@ test('blocks publish safety report for missing capabilities and confirmations', 
   assert.match(report.warnings.join('\n'), /Sensitive slot should use manual source: phone/);
   assert.match(html, /Blocking issues/);
   assert.match(html, /Sensitive slots/);
+});
+
+test('creates batch publish safety reports for filtered flows', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'material.delete',
+    resource: 'material',
+    action: ActionType.DELETE,
+    risk: RiskLevel.HIGH,
+    permissions: ['material:catalog:delete'],
+    requiresConfirmation: true,
+    execute: () => ({})
+  });
+  runtime.registerCapability({
+    name: 'material.query',
+    resource: 'material',
+    action: ActionType.QUERY,
+    risk: RiskLevel.LOW,
+    permissions: ['material:catalog:query'],
+    execute: () => ({})
+  });
+  const queryFlow = createFlow({
+    id: 'query-flow',
+    name: 'Query flow',
+    status: 'draft',
+    nodes: [
+      { id: 'query', type: 'capability.run', capability: 'material.query', label: 'Query material' }
+    ]
+  });
+  const deleteFlow = createFlow({
+    id: 'delete-flow',
+    name: 'Delete flow',
+    status: 'draft',
+    nodes: [
+      { id: 'delete', type: 'capability.run', capability: 'material.delete', label: 'Delete material', requiresConfirmation: true }
+    ]
+  });
+  const unsafeFlow = createFlow({
+    id: 'unsafe-flow',
+    name: 'Unsafe flow',
+    status: 'draft',
+    nodes: [
+      { id: 'missing', type: 'capability.run', capability: 'role.remove', label: 'Remove role' }
+    ]
+  });
+
+  const report = createFlowBatchSafetyReport([queryFlow, deleteFlow, unsafeFlow], runtime);
+  const html = renderFlowBatchSafetyReportToHTML(report);
+
+  assert.equal(report.ok, false);
+  assert.equal(report.total, 3);
+  assert.equal(report.blockedCount, 1);
+  assert.equal(report.reviewCount, 2);
+  assert.match(report.blockingIssues.join('\n'), /Unsafe flow: Capability is not registered: role\.remove/);
+  assert.match(html, /Batch publish safety/);
+  assert.match(html, /Unsafe flow/);
+  assert.match(html, /Blocking issues/);
 });
 
 test('lays out flow canvas by edge dependencies', () => {

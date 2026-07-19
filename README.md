@@ -217,19 +217,24 @@ const payload = applyFlowTransform({
 
 ```js
 import {
+  createFlowBatchSafetyReport,
   createFlowSafetyReport,
+  renderFlowBatchSafetyReportToHTML,
   renderFlowSafetyReportToHTML
 } from '@kupola/pivot-flow';
 
 const report = createFlowSafetyReport(flow, runtime);
 document.querySelector('#safety').innerHTML = renderFlowSafetyReportToHTML(report);
 
+const batchReport = createFlowBatchSafetyReport(filteredFlows, runtime);
+document.querySelector('#batchSafety').innerHTML = renderFlowBatchSafetyReportToHTML(batchReport);
+
 if (!report.ok) {
   throw new Error(report.blockingIssues.join('; '));
 }
 ```
 
-`FlowManager` renders this report by default and blocks publish when the report has blocking issues. A `review` report can still be published from the frontend, but backend publish APIs must continue to enforce authorization and business rules.
+`FlowManager` renders single-flow and filtered-flow batch reports by default. It blocks publish when the report has blocking issues. A `review` report can still be published from the frontend, but backend publish APIs must continue to enforce authorization and business rules.
 
 ## UI Example
 

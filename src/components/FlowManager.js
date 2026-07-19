@@ -4,7 +4,7 @@ import { flowToPlan } from '../flow-to-plan.js';
 import { createFlowRunner } from '../flow-runner.js';
 import { createMemoryFlowStore } from '../flow-store.js';
 import { createLocalIntentMapper } from '../intent-mapper.js';
-import { createFlowSafetyReport, renderFlowSafetyReportToHTML } from '../flow-safety-report.js';
+import { createFlowBatchSafetyReport, createFlowSafetyReport, renderFlowBatchSafetyReportToHTML, renderFlowSafetyReportToHTML } from '../flow-safety-report.js';
 import { getDefaultCapabilityForNodeType } from '../node-types.js';
 import { escapeAttr, escapeHTML, on, resolveTarget, setHTML } from './dom.js';
 import { renderFlowAuditPanelToHTML } from './FlowAuditPanel.js';
@@ -127,6 +127,10 @@ export function FlowManager(options = {}) {
       '<div>',
       '<div class="flow-panel-title">Publish safety</div>',
       renderFlowSafetyReportToHTML(flow, options.runtime),
+      '</div>',
+      '<div>',
+      '<div class="flow-panel-title">Batch safety</div>',
+      renderFlowBatchSafetyReportToHTML(visibleFlows, options.runtime),
       '</div>',
       '</section>',
       '</section>'
@@ -337,13 +341,11 @@ export function FlowManager(options = {}) {
       return;
     }
 
-    for (const flow of flows) {
-      const safety = createFlowSafetyReport(flow, options.runtime);
-      if (!safety.ok) {
-        state.error = `Cannot publish filtered flows: ${flow.name || flow.id} has safety issues (${safety.blockingIssues.join('; ')})`;
-        render();
-        return;
-      }
+    const batchSafety = createFlowBatchSafetyReport(flows, options.runtime);
+    if (!batchSafety.ok) {
+      state.error = `Cannot publish filtered flows: ${batchSafety.summary} ${batchSafety.blockingIssues.slice(0, 5).join('; ')}`;
+      render();
+      return;
     }
 
     try {

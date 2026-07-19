@@ -934,7 +934,8 @@
   padding: 2px var(--spacer-4);
 }
 
-.flow-safety-report {
+.flow-safety-report,
+.flow-batch-safety-report {
   background: var(--bg-overlay-l1);
   border: 1px solid var(--border-neutral-l1);
   border-radius: var(--radius-4);
@@ -944,11 +945,13 @@
   padding: var(--spacer-10);
 }
 
-.flow-safety-report--blocked {
+.flow-safety-report--blocked,
+.flow-batch-safety-report--blocked {
   border-color: var(--status-error-default);
 }
 
-.flow-safety-report--review {
+.flow-safety-report--review,
+.flow-batch-safety-report--review {
   border-color: var(--status-warning-default);
 }
 
@@ -1010,7 +1013,8 @@
 .flow-safety-report__capabilities,
 .flow-safety-report__sensitive,
 .flow-safety-report__issues,
-.flow-safety-report__backend {
+.flow-safety-report__backend,
+.flow-batch-safety-report__flows {
   background: var(--bg-overlay-l2);
   border: 1px solid var(--border-neutral-l1);
   border-radius: var(--radius-4);
@@ -1056,20 +1060,23 @@
 .flow-safety-report__issues ul,
 .flow-safety-report__backend ul,
 .flow-safety-report__capabilities ol,
-.flow-safety-report__sensitive ol {
+.flow-safety-report__sensitive ol,
+.flow-batch-safety-report__flows ol {
   display: grid;
   gap: var(--spacer-6);
   margin: 0;
   padding-left: var(--spacer-16);
 }
 
-.flow-safety-report__capabilities li {
+.flow-safety-report__capabilities li,
+.flow-batch-safety-report__flows li {
   display: grid;
   gap: var(--spacer-4);
   min-width: 0;
 }
 
-.flow-safety-report__capabilities li > span:first-child {
+.flow-safety-report__capabilities li > span:first-child,
+.flow-batch-safety-report__flows li > span:first-child {
   display: grid;
   gap: var(--spacer-2);
   min-width: 0;

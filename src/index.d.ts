@@ -180,13 +180,35 @@ export interface FlowSafetyReport {
   blockingIssues: string[];
   warnings: string[];
 }
+export interface FlowBatchSafetyReport {
+  ok: boolean;
+  status: 'ready' | 'review' | 'blocked';
+  total: number;
+  readyCount: number;
+  reviewCount: number;
+  blockedCount: number;
+  riskCounts: Record<string, number>;
+  reports: FlowSafetyReport[];
+  blockingIssues: string[];
+  warnings: string[];
+  summary: string;
+}
 export function createFlowSafetyReport(flow?: FlowDefinition | null, source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
   runtime?: PivotRuntime;
   capabilities?: PivotCapability[];
 }): FlowSafetyReport;
+export function createFlowBatchSafetyReport(flows?: FlowDefinition[], source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+}): FlowBatchSafetyReport;
 export function renderFlowSafetyReportToHTML(reportOrFlow?: FlowSafetyReport | FlowDefinition | null, source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
   runtime?: PivotRuntime;
   capabilities?: PivotCapability[];
+}): string;
+export function renderFlowBatchSafetyReportToHTML(reportOrFlows?: FlowBatchSafetyReport | FlowDefinition[], source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+  maxWarnings?: number;
 }): string;
 export function flowToPlan(flow: FlowDefinition, input?: { prompt?: string; slots?: Record<string, unknown>; planId?: string }, context?: Record<string, unknown>): PivotPlan;
 export function resolveFlowParams(value: unknown, input?: Record<string, unknown>, context?: Record<string, unknown>): unknown;

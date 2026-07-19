@@ -64,6 +64,34 @@ export function createFlowSafetyReport(flow, source, options = {}) {
   };
 }
 
+export function createFlowBatchSafetyReport(flows = [], source, options = {}) {
+  const entries = (Array.isArray(flows) ? flows : [])
+    .map((flow) => createFlowSafetyReport(flow, source, options));
+  const blocked = entries.filter((entry) => entry.status === 'blocked');
+  const review = entries.filter((entry) => entry.status === 'review');
+  const ready = entries.filter((entry) => entry.status === 'ready');
+  const blockingIssues = entries.flatMap((entry) => entry.blockingIssues.map((issue) => `${entry.flowName || entry.flowId}: ${issue}`));
+  const warnings = entries.flatMap((entry) => entry.warnings.map((warning) => `${entry.flowName || entry.flowId}: ${warning}`));
+  const riskCounts = entries.reduce((output, entry) => {
+    output[entry.risk] = (output[entry.risk] ?? 0) + 1;
+    return output;
+  }, {});
+
+  return {
+    ok: blocked.length === 0,
+    status: blocked.length > 0 ? 'blocked' : review.length > 0 ? 'review' : 'ready',
+    total: entries.length,
+    readyCount: ready.length,
+    reviewCount: review.length,
+    blockedCount: blocked.length,
+    riskCounts,
+    reports: entries,
+    blockingIssues,
+    warnings,
+    summary: createBatchReportSummary(entries.length, blocked.length, review.length)
+  };
+}
+
 export function renderFlowSafetyReportToHTML(reportOrFlow, source, options = {}) {
   const report = isSafetyReport(reportOrFlow)
     ? reportOrFlow
@@ -94,6 +122,50 @@ export function renderFlowSafetyReportToHTML(reportOrFlow, source, options = {})
     renderSafetyCapabilities(report.capabilities),
     renderSensitiveSlots(report.sensitiveSlots),
     renderBackendRequirements(report.backendRequirements),
+    '</section>'
+  ].join('');
+}
+
+export function renderFlowBatchSafetyReportToHTML(reportOrFlows, source, options = {}) {
+  const report = isBatchSafetyReport(reportOrFlows)
+    ? reportOrFlows
+    : createFlowBatchSafetyReport(reportOrFlows, source, options);
+
+  if (report.total === 0) {
+    return '<div class="flow-empty flow-empty--compact">No flows selected for batch safety review.</div>';
+  }
+
+  return [
+    `<section class="flow-batch-safety-report flow-batch-safety-report--${escapeAttr(report.status)}">`,
+    '<div class="flow-safety-report__header">',
+    '<div>',
+    '<strong>Batch publish safety</strong>',
+    `<span>${escapeHTML(report.summary)}</span>`,
+    '</div>',
+    `<span class="flow-badge flow-badge--${escapeAttr(report.status === 'blocked' ? 'high' : report.status === 'review' ? 'medium' : 'low')}">${escapeHTML(report.status)}</span>`,
+    '</div>',
+    '<div class="flow-safety-report__summary">',
+    `<span><strong>${escapeHTML(report.total)}</strong><small>flows</small></span>`,
+    `<span><strong>${escapeHTML(report.readyCount)}</strong><small>ready</small></span>`,
+    `<span><strong>${escapeHTML(report.reviewCount)}</strong><small>review</small></span>`,
+    `<span><strong>${escapeHTML(report.blockedCount)}</strong><small>blocked</small></span>`,
+    '</div>',
+    renderSafetyIssues('Blocking issues', report.blockingIssues, 'error'),
+    renderSafetyIssues('Warnings', report.warnings.slice(0, Number(options.maxWarnings || 12)), 'warning'),
+    '<div class="flow-batch-safety-report__flows">',
+    '<strong>Flow results</strong>',
+    '<ol>',
+    ...report.reports.map((entry) => [
+      '<li>',
+      '<span>',
+      `<strong>${escapeHTML(entry.flowName || entry.flowId)}</strong>`,
+      `<small>${escapeHTML(entry.summary)}</small>`,
+      '</span>',
+      `<span class="flow-badge flow-badge--${escapeAttr(entry.status === 'blocked' ? 'high' : entry.status === 'review' ? 'medium' : 'low')}">${escapeHTML(entry.status)}</span>`,
+      '</li>'
+    ].join('')),
+    '</ol>',
+    '</div>',
     '</section>'
   ].join('');
 }
@@ -322,6 +394,16 @@ function createReportSummary(blockingCount, warningCount) {
   return 'No blocking publish safety issues were found.';
 }
 
+function createBatchReportSummary(total, blockedCount, reviewCount) {
+  if (blockedCount > 0) {
+    return `${blockedCount} of ${total} flow(s) have blocking publish safety issues.`;
+  }
+  if (reviewCount > 0) {
+    return `${reviewCount} of ${total} flow(s) require review before publish.`;
+  }
+  return `${total} flow(s) are ready for publish.`;
+}
+
 function getHighestRisk(flow, rows) {
   let risk = normalizeRisk(flow?.risk || RiskLevel.LOW);
   for (const row of rows) {
@@ -383,6 +465,10 @@ function inferActionFromCapability(capability = '') {
 
 function isSafetyReport(value) {
   return value && Array.isArray(value.checks) && Array.isArray(value.capabilities) && Array.isArray(value.backendRequirements);
+}
+
+function isBatchSafetyReport(value) {
+  return value && Array.isArray(value.reports) && typeof value.total === 'number' && Array.isArray(value.blockingIssues);
 }
 
 function escapeHTML(value) {
