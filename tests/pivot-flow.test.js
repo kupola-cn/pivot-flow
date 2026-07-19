@@ -5,6 +5,8 @@ import {
   createFlow,
   createAIFlowBuilderContext,
   createAIFlowProvider,
+  createAIFlowProviderMessages,
+  createAIFlowProviderRequest,
   createAIFlowDraft,
   createCapabilityManifestSummary,
   createFlowFromTemplate,
@@ -792,6 +794,33 @@ test('generates AI flow drafts through a provider without executing or publishin
   assert.equal(draft.flow.nodes[0].requiresConfirmation, true);
   assert.equal(draft.providerOutput, undefined);
   assert.equal(draft.diff.some((item) => item.path === 'status' && item.after === 'draft'), true);
+});
+
+test('creates AI provider request messages without executable capability functions', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'material.query',
+    resource: 'material',
+    action: ActionType.QUERY,
+    risk: RiskLevel.LOW,
+    description: '查询耗材',
+    execute: () => ({ list: [] })
+  });
+  const request = createAIFlowProviderRequest('查询耗材', runtime, {
+    metadata: { tenant: 'his-demo' }
+  });
+  const payload = createAIFlowProviderMessages('查询耗材', request.builderContext);
+  const userContent = JSON.parse(payload.messages[1].content);
+
+  assert.equal(request.prompt, '查询耗材');
+  assert.equal(request.responseContract.draftOnly, true);
+  assert.equal(request.capabilitySummary.capabilities[0].name, 'material.query');
+  assert.equal(request.capabilitySummary.capabilities[0].execute, undefined);
+  assert.equal(request.metadata.tenant, 'his-demo');
+  assert.equal(payload.responseFormat.type, 'json_object');
+  assert.match(payload.messages[0].content, /Return JSON only/);
+  assert.equal(userContent.capabilitySummary.capabilities[0].execute, undefined);
+  assert.equal(userContent.responseContract.draftOnly, true);
 });
 
 test('parses common AI provider JSON response shapes for flow drafts', () => {

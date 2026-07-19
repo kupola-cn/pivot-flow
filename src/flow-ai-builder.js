@@ -79,6 +79,63 @@ export function createAIFlowProvider(provider, options = {}) {
   throw new Error('AI Flow provider must be a function or an object with generate(request).');
 }
 
+export function createAIFlowProviderRequest(prompt = '', source, options = {}) {
+  const builderContext = isAIFlowBuilderContext(source)
+    ? source
+    : createAIFlowBuilderContext(source, options);
+
+  return {
+    prompt: String(prompt || ''),
+    builderContext,
+    capabilitySummary: builderContext.capabilitySummary,
+    safetyRules: builderContext.safetyRules,
+    flowShape: builderContext.flowShape,
+    responseContract: {
+      format: 'json',
+      root: '{ "prompt": string, "flow": FlowDefinition }',
+      draftOnly: true
+    },
+    metadata: isPlainObject(options.metadata) ? options.metadata : {},
+    signal: options.signal
+  };
+}
+
+export function createAIFlowProviderMessages(prompt = '', source, options = {}) {
+  const request = createAIFlowProviderRequest(prompt, source, options);
+  const system = options.systemMessage ?? [
+    'You are an AI Flow Builder for @kupola/pivot-flow.',
+    'Return JSON only. Do not return markdown, prose, code fences, URLs, or executable code.',
+    'Output shape: { "prompt": string, "flow": FlowDefinition }.',
+    'The flow status must be draft. Do not execute, publish, or invent capabilities.',
+    'Use only capabilities listed in capabilitySummary.capabilities.'
+  ].join('\n');
+  const userPayload = {
+    prompt: request.prompt,
+    safetyRules: request.safetyRules,
+    responseContract: request.responseContract,
+    flowShape: request.flowShape,
+    capabilitySummary: request.capabilitySummary,
+    metadata: request.metadata
+  };
+
+  return {
+    request,
+    responseFormat: {
+      type: 'json_object'
+    },
+    messages: [
+      {
+        role: 'system',
+        content: system
+      },
+      {
+        role: 'user',
+        content: JSON.stringify(userPayload, null, options.compact ? 0 : 2)
+      }
+    ]
+  };
+}
+
 export async function generateAIFlowDraft(prompt = '', options = {}) {
   const provider = createAIFlowProvider(options.provider, options.providerConfig ?? {});
   const source = options.capabilities ?? options.runtime;
@@ -88,15 +145,10 @@ export async function generateAIFlowDraft(prompt = '', options = {}) {
     includeSchemas: options.includeSchemas ?? options.builderOptions?.includeSchemas,
     maxDescriptionLength: options.maxDescriptionLength ?? options.builderOptions?.maxDescriptionLength
   });
-  const request = {
-    prompt: String(prompt || ''),
-    builderContext,
-    capabilitySummary: builderContext.capabilitySummary,
-    safetyRules: builderContext.safetyRules,
-    flowShape: builderContext.flowShape,
-    metadata: isPlainObject(options.metadata) ? options.metadata : {},
+  const request = createAIFlowProviderRequest(prompt, builderContext, {
+    metadata: options.metadata,
     signal: options.signal
-  };
+  });
   const providerOutput = await provider.generate(request, options.providerOptions ?? {});
   const structuredOutput = parseAIFlowProviderOutput(providerOutput, request.prompt);
   const draft = createAIFlowDraft(structuredOutput, options);
@@ -754,6 +806,13 @@ function clonePlainValue(value) {
   }
 
   return JSON.parse(JSON.stringify(value));
+}
+
+function isAIFlowBuilderContext(value) {
+  return isPlainObject(value)
+    && Array.isArray(value.safetyRules)
+    && isPlainObject(value.flowShape)
+    && isPlainObject(value.capabilitySummary);
 }
 
 function isPlainObject(value) {

@@ -264,6 +264,37 @@ export type AIFlowProviderLike =
 export function createAIFlowProvider(provider: AIFlowProviderLike, options?: {
   name?: string;
 }): Required<Pick<AIFlowProvider, 'name' | 'generate'>>;
+export function createAIFlowProviderRequest(prompt?: string, source?: PivotRuntime | PivotCapability[] | ReturnType<typeof createAIFlowBuilderContext>, options?: {
+  filter?: Record<string, unknown>;
+  includeSchemas?: boolean;
+  maxDescriptionLength?: number;
+  metadata?: Record<string, unknown>;
+  signal?: AbortSignal;
+}): AIFlowProviderRequest & {
+  responseContract: {
+    format: 'json';
+    root: string;
+    draftOnly: boolean;
+  };
+};
+export function createAIFlowProviderMessages(prompt?: string, source?: PivotRuntime | PivotCapability[] | ReturnType<typeof createAIFlowBuilderContext>, options?: {
+  filter?: Record<string, unknown>;
+  includeSchemas?: boolean;
+  maxDescriptionLength?: number;
+  metadata?: Record<string, unknown>;
+  signal?: AbortSignal;
+  systemMessage?: string;
+  compact?: boolean;
+}): {
+  request: ReturnType<typeof createAIFlowProviderRequest>;
+  responseFormat: {
+    type: 'json_object';
+  };
+  messages: Array<{
+    role: 'system' | 'user';
+    content: string;
+  }>;
+};
 export function parseAIFlowProviderOutput(output?: unknown, fallbackPrompt?: string): {
   prompt: string;
   flow: Partial<FlowDefinition>;

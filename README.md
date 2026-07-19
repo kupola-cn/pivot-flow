@@ -265,6 +265,8 @@ The designer uses a structured layered canvas rather than a freeform drag canvas
 import {
   createAIFlowBuilderContext,
   createAIFlowProvider,
+  createAIFlowProviderMessages,
+  createAIFlowProviderRequest,
   createAIFlowDraft,
   createCapabilityManifestSummary,
   diffAIFlowDraft,
@@ -286,6 +288,8 @@ const validation = validateAIFlowDraft(draft.flow, { runtime });
 const missing = getMissingFlowCapabilities(draft.flow, runtime);
 const diff = diffAIFlowDraft(aiStructuredOutput.flow, draft.flow);
 const previewHTML = renderAIFlowDraftPreviewToHTML(draft, { showDiff: true });
+
+const providerPayload = createAIFlowProviderMessages('删除耗材 TEST-001', runtime);
 
 const provider = createAIFlowProvider(async (request) => {
   const response = await fetch('/api/ai/flow-builder', {
@@ -314,6 +318,8 @@ AIFlowDraftReviewer({
 ```
 
 - `createAIFlowBuilderContext()` returns model-facing instructions, safety rules, expected Flow shape, and a sanitized capability summary.
+- `createAIFlowProviderRequest()` returns the canonical prompt, safety rules, response contract, and sanitized capability summary for a provider.
+- `createAIFlowProviderMessages()` returns generic chat-style messages plus a `json_object` response format hint for backend AI proxy implementations.
 - `createAIFlowProvider()` normalizes a project-owned AI adapter. The project can call any model API, but the provider must return structured JSON.
 - `generateAIFlowDraft()` sends a controlled builder request to the provider, parses the structured response, normalizes it as a draft, and validates it.
 - `parseAIFlowProviderOutput()` accepts common JSON response shapes, including raw JSON text, fenced JSON, `{ flow }`, `output_text`, and chat `choices[0].message.content`.
@@ -327,6 +333,34 @@ AIFlowDraftReviewer({
 - `validateAIFlowDraft()` checks that AI output stays as a draft, only references registered capabilities, and requires confirmation for high-risk or delete operations.
 
 The provider layer is intentionally generic. `pivot-flow` does not include OpenAI, Tongyi, Claude, or any other model SDK. Applications should call AI APIs through their own backend when secrets, tenant data, or audit requirements are involved. The backend should redact sensitive context, apply rate limits, and return only structured Flow JSON to the browser.
+
+Backend proxy shape:
+
+```js
+app.post('/api/ai/flow-builder', requireAdmin, async (req, res) => {
+  const { prompt, safetyRules, flowShape, capabilitySummary } = req.body;
+  const modelResult = await ai.chat({
+    messages: [
+      {
+        role: 'system',
+        content: 'Return JSON only: { "prompt": string, "flow": FlowDefinition }. Never execute or publish.'
+      },
+      {
+        role: 'user',
+        content: JSON.stringify({
+          prompt,
+          safetyRules,
+          flowShape,
+          capabilitySummary
+        })
+      }
+    ],
+    response_format: { type: 'json_object' }
+  });
+
+  res.json(modelResult);
+});
+```
 
 ## Security Boundary
 
