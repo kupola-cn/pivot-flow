@@ -415,6 +415,36 @@ export function createFlowEditSession(flow?: Partial<FlowDefinition>, options?: 
   capabilities?: unknown;
   runtime?: PivotRuntime;
 }): FlowEditSession;
+export interface FlowSnapshotStore {
+  list(flowId?: string): Promise<FlowSnapshot[]>;
+  get(id: string): Promise<FlowSnapshot | null>;
+  create(snapshot: FlowSnapshot): Promise<FlowSnapshot>;
+  remove(id: string): Promise<void>;
+  clear(flowId?: string): Promise<void>;
+}
+export interface VersionedFlowStore extends FlowStore {
+  snapshotStore: FlowSnapshotStore;
+  listSnapshots(flowId?: string): Promise<FlowSnapshot[]>;
+  getSnapshot(id: string): Promise<FlowSnapshot | null>;
+  createSnapshot(flowId: string, options?: {
+    id?: string;
+    label?: string;
+    reason?: string;
+    createdAt?: string;
+    createdBy?: string | Record<string, unknown>;
+    metadata?: Record<string, unknown>;
+  }): Promise<FlowSnapshot>;
+  restoreSnapshot(snapshotId: string, options?: Partial<FlowDefinition> & {
+    restoredAt?: string;
+  }): Promise<FlowDefinition>;
+}
+export function createMemoryFlowSnapshotStore(initialSnapshots?: FlowSnapshot[]): FlowSnapshotStore;
+export function createVersionedFlowStore(flowStore: FlowStore, options?: {
+  snapshotStore?: FlowSnapshotStore;
+  initialSnapshots?: FlowSnapshot[];
+  snapshotBefore?: Array<'update' | 'publish' | 'disable' | 'remove' | string>;
+  createdBy?: string | Record<string, unknown>;
+}): VersionedFlowStore;
 export interface FlowDataReference {
   source: 'node' | 'intent' | 'context';
   raw: string;

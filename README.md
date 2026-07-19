@@ -336,6 +336,26 @@ session.commit();
 
 The edit session is headless. It does not save to a server by itself; call your `FlowStore.update()` only after review and backend authorization.
 
+Use `createVersionedFlowStore()` when you want store operations to create snapshots automatically before destructive or lifecycle changes.
+
+```js
+import { createHttpFlowStore, createVersionedFlowStore } from '@kupola/pivot-flow';
+
+const flowStore = createVersionedFlowStore(createHttpFlowStore({
+  baseUrl: '/api/pivot-flows'
+}), {
+  createdBy: actor.id
+});
+
+await flowStore.update(flow.id, editedFlow);       // snapshots the previous flow first
+await flowStore.publish(flow.id);                  // snapshots before publish
+
+const snapshots = await flowStore.listSnapshots(flow.id);
+await flowStore.restoreSnapshot(snapshots[0].id);  // restores as a draft by default
+```
+
+The default snapshot store is in-memory. Production apps should pass a `snapshotStore` backed by their own API if snapshots must survive refreshes, devices, or deployments.
+
 ## Flow Templates
 
 Built-in templates provide common starting points for application flows. Templates create draft flows and still require project-specific capability registration, preview, publish checks, and backend authorization.

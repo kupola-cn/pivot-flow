@@ -14,6 +14,7 @@ import {
   canConnectFlowNodes,
   createLocalIntentMapper,
   createMemoryFlowStore,
+  createMemoryFlowSnapshotStore,
   createFlowRunner,
   createFlowRunHistorySummary,
   createFlowRunRecord,
@@ -23,6 +24,7 @@ import {
   createFlowChangeReport,
   createFlowEditSession,
   createFlowSnapshot,
+  createVersionedFlowStore,
   applyAIFlowDraftRepairPlan,
   createFlowBatchSafetyReport,
   createFlowSafetyReport,
@@ -489,6 +491,58 @@ test('memory store publishes and filters flows', async () => {
 
   assert.equal(published.length, 1);
   assert.equal(published[0].id, flow.id);
+});
+
+test('versioned flow stores snapshot before lifecycle changes', async () => {
+  const flow = createFlow({
+    ...createOrganizationFlow(),
+    status: 'draft'
+  });
+  const snapshotStore = createMemoryFlowSnapshotStore();
+  const baseStore = createMemoryFlowStore([flow]);
+  const store = createVersionedFlowStore(baseStore, {
+    snapshotStore,
+    createdBy: 'admin'
+  });
+
+  await store.update(flow.id, {
+    name: 'Updated organization flow'
+  });
+  await store.publish(flow.id);
+
+  const snapshots = await store.listSnapshots(flow.id);
+  const updateSnapshot = snapshots.find((item) => item.reason === 'before:update');
+
+  assert.equal(snapshots.length, 2);
+  assert.equal(snapshots.some((item) => item.reason === 'before:publish'), true);
+  assert.equal(Boolean(updateSnapshot), true);
+  assert.equal(updateSnapshot.flow.name, 'Create branch organization');
+
+  const restored = await store.restoreSnapshot(updateSnapshot.id, {
+    restoredAt: '2026-07-19T13:00:00.000Z'
+  });
+
+  assert.equal(restored.status, 'draft');
+  assert.equal(restored.publishedAt, null);
+  assert.equal(restored.metadata.restoredFromSnapshot, updateSnapshot.id);
+});
+
+test('versioned flow stores can disable automatic snapshots for selected actions', async () => {
+  const flow = createFlow({
+    ...createOrganizationFlow(),
+    status: 'draft'
+  });
+  const store = createVersionedFlowStore(createMemoryFlowStore([flow]), {
+    snapshotBefore: ['publish']
+  });
+
+  await store.update(flow.id, { name: 'No update snapshot' });
+  await store.publish(flow.id);
+
+  const snapshots = await store.listSnapshots(flow.id);
+
+  assert.equal(snapshots.length, 1);
+  assert.equal(snapshots[0].reason, 'before:publish');
 });
 
 test('validates edge ids and conditions', () => {

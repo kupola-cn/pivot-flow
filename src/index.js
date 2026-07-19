@@ -18,6 +18,7 @@ export * from './flow-graph-analysis.js';
 export * from './flow-import-export.js';
 export * from './flow-versioning.js';
 export * from './flow-edit-session.js';
+export * from './flow-version-store.js';
 
 export * from './components/FlowAssistantDrawer.js';
 export * from './components/FlowAuditPanel.js';
