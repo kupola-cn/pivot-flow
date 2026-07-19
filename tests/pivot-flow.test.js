@@ -17,6 +17,7 @@ import {
   createFlowBatchSafetyReport,
   createFlowSafetyReport,
   createFlowCanvasLayout,
+  createFlowVariableSources,
   createIntentClarificationPlan,
   analyzeFlowDataDependencies,
   explainIntentMatches,
@@ -56,6 +57,7 @@ import {
   renderFlowSettingsToHTML,
   renderFlowTestPanelToHTML,
   renderFlowTemplateListToHTML,
+  renderVariableMapperToHTML,
   recommendFlowCapabilities,
   renderAIFlowDraftPreviewToHTML,
   renderAIFlowDraftReviewToHTML,
@@ -877,6 +879,38 @@ test('renders editable node inspector controls', () => {
   assert.match(html, /data-flow-action="move-node-up"/);
   assert.match(html, /data-flow-action="remove-node"/);
   assert.match(html, /user\.create/);
+});
+
+test('creates variable mapper sources for selected node inputs', () => {
+  const flow = createFlow({
+    id: 'mapper-flow',
+    name: 'Mapper flow',
+    intent: {
+      slots: [
+        { name: 'organizationName', label: 'Organization name', required: true },
+        { name: 'parentName', label: 'Parent name' }
+      ]
+    },
+    nodes: [
+      { id: 'query-parent', type: 'capability.run', label: 'Query parent', capability: 'org.query' },
+      { id: 'create-child', type: 'capability.run', label: 'Create child', capability: 'org.create' },
+      { id: 'notify', type: 'message.show', label: 'Notify' }
+    ],
+    edges: [
+      { id: 'edge-1', from: 'query-parent', to: 'create-child' },
+      { id: 'edge-2', from: 'create-child', to: 'notify' }
+    ]
+  });
+
+  const sources = createFlowVariableSources(flow, 'create-child');
+  const html = renderVariableMapperToHTML({ flow, selectedNodeId: 'create-child' });
+
+  assert.equal(sources.some((source) => source.reference === 'intent.organizationName'), true);
+  assert.equal(sources.some((source) => source.reference === 'context.actor.id'), true);
+  assert.equal(sources.some((source) => source.reference === 'query-parent.data.id'), true);
+  assert.equal(sources.some((source) => source.reference === 'notify.data.id'), false);
+  assert.match(html, /data-flow-action="insert-variable-reference"/);
+  assert.match(html, /query-parent\.data\.id/);
 });
 
 test('renders condition and transform node configuration controls', () => {

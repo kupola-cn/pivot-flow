@@ -27,6 +27,7 @@ import {
   createLocalIntentMapper,
   createLocalStorageFlowStore,
   createFlowRunner,
+  createFlowVariableSources,
   createIntentClarificationPlan,
   explainIntentMatches,
   analyzeFlowDataDependencies,
@@ -35,6 +36,7 @@ import {
   renderIntentClarificationPlanToHTML,
   renderFlowDataDependenciesToHTML,
   renderIntentMatchExplanationToHTML,
+  renderVariableMapperToHTML,
   renderFlowRunSummaryToHTML,
   flowToPlan,
   FlowManager,
@@ -190,6 +192,20 @@ document.querySelector('#dependencies').innerHTML = renderFlowDataDependenciesTo
 The report identifies upstream dependencies, external intent/context references, missing nodes, self references, downstream references, and unconnected references that should be connected with edges. `FlowManager` renders the dependency report by default.
 
 This is a frontend modeling aid. Backend APIs must still enforce transaction boundaries, data integrity, authorization, and business invariants.
+
+## Variable Mapper
+
+`createFlowVariableSources()` and `renderVariableMapperToHTML()` help administrators insert safe parameter references without memorizing template syntax. The default designer shows intent slots, common runtime context values, and upstream node outputs for the selected node.
+
+```js
+const sources = createFlowVariableSources(flow, 'create-child');
+document.querySelector('#mapper').innerHTML = renderVariableMapperToHTML({
+  flow,
+  selectedNodeId: 'create-child'
+});
+```
+
+`FlowManager` handles the default `Insert` action by adding `{{reference}}` to the selected node params with a generated key.
 
 ## Run Diagnostics
 

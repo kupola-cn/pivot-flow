@@ -810,7 +810,19 @@ export function getFlowNodeAdjacency(nodeId?: string, edges?: FlowEdge[]): { act
 export function renderNodeInspectorToHTML(node?: FlowNode | null, options?: { editable?: boolean }): string;
 export function renderEditableNodeInspectorToHTML(node: FlowNode): string;
 export function renderNodePaletteToHTML(nodes?: unknown[]): string;
-export function renderVariableMapperToHTML(options?: Record<string, unknown>): string;
+export interface FlowVariableSource {
+  group: string;
+  label: string;
+  reference: string;
+  paramKey: string;
+  description: string;
+}
+export function createFlowVariableSources(flow?: FlowDefinition | null, selectedNodeId?: string): FlowVariableSource[];
+export function renderVariableMapperToHTML(options?: {
+  flow?: FlowDefinition | null;
+  selectedNodeId?: string;
+  sources?: Array<string | Partial<FlowVariableSource>>;
+}): string;
 export function renderIntentPatternEditorToHTML(flow?: FlowDefinition | null): string;
 export function renderFlowPreviewToHTML(preview?: PivotResult | null, options?: Record<string, unknown>): string;
 export function renderFlowRunPanelToHTML(result?: PivotResult | null, options?: {

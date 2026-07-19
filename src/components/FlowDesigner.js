@@ -44,7 +44,7 @@ export function renderFlowDesignerToHTML(flow, state = {}) {
     '</main>',
     '<aside class="flow-designer__inspector">',
     renderNodeInspectorToHTML(selectedNode, { editable: true }),
-    renderVariableMapperToHTML(),
+    renderVariableMapperToHTML({ flow, selectedNodeId: state.selectedNodeId }),
     renderIntentPatternEditorToHTML(flow),
     '</aside>',
     '</section>'

@@ -641,6 +641,26 @@ export function FlowManager(options = {}) {
     state.error = '';
   };
 
+  const insertVariableReference = (reference, paramKey) => {
+    const flow = getSelectedFlow(state);
+    const node = flow?.nodes?.find((item) => item.id === state.selectedNodeId);
+    if (!node) {
+      state.error = 'Select a node before inserting a variable reference.';
+      render();
+      return;
+    }
+
+    const key = createUniqueParamKey(node.params, paramKey || reference);
+    node.params = {
+      ...(isPlainObject(node.params) ? node.params : {}),
+      [key]: `{{${reference}}}`
+    };
+    state.preview = null;
+    state.result = null;
+    state.error = '';
+    render();
+  };
+
   const cleanups = [
     on(target, 'click', '[data-flow-action="select"]', (e, el) => {
       state.selectedFlowId = el.dataset.flowId;
@@ -750,6 +770,9 @@ export function FlowManager(options = {}) {
     }),
     on(target, 'click', '[data-flow-action="move-node-down"]', () => {
       moveSelectedNode('down');
+    }),
+    on(target, 'click', '[data-flow-action="insert-variable-reference"]', (e, el) => {
+      insertVariableReference(el.dataset.flowReference, el.dataset.flowParamKey);
     }),
     on(target, 'click', '[data-flow-action="add-edge"]', () => {
       addEdgeToSelected();
@@ -985,6 +1008,40 @@ function cssEscape(value) {
   }
 
   return String(value).replace(/["\\]/g, '\\$&');
+}
+
+function createUniqueParamKey(params, seed) {
+  const base = createParamKey(seed);
+  const existing = isPlainObject(params) ? params : {};
+  if (!Object.hasOwn(existing, base)) {
+    return base;
+  }
+
+  let index = 2;
+  while (Object.hasOwn(existing, `${base}${index}`)) {
+    index += 1;
+  }
+  return `${base}${index}`;
+}
+
+function createParamKey(value) {
+  const text = String(value || 'value')
+    .replace(/\{\{|\}\}/g, '')
+    .replace(/^intent\./, '')
+    .replace(/^context\./, '');
+  const parts = text.split(/[^a-zA-Z0-9]+/).filter(Boolean);
+  if (parts.length === 0) {
+    return 'value';
+  }
+  const [first, ...rest] = parts;
+  return [
+    first.charAt(0).toLowerCase() + first.slice(1),
+    ...rest.map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+  ].join('');
+}
+
+function isPlainObject(value) {
+  return Object.prototype.toString.call(value) === '[object Object]';
 }
 
 async function resolveContext(contextProvider) {

@@ -769,6 +769,54 @@
   gap: var(--spacer-8);
 }
 
+.flow-variable-mapper__list {
+  display: grid;
+  gap: var(--spacer-8);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.flow-variable-mapper__item {
+  align-items: center;
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-8);
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-width: 0;
+  padding: var(--spacer-8);
+}
+
+.flow-variable-mapper__item span {
+  display: grid;
+  gap: var(--spacer-4);
+  min-width: 0;
+}
+
+.flow-variable-mapper__item strong {
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-variable-mapper__item small,
+.flow-variable-mapper__hint {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-variable-mapper__item code {
+  background: var(--bg-base);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 3px 6px;
+}
+
 .flow-inspector__actions {
   flex-wrap: wrap;
 }
