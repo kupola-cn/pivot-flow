@@ -38,7 +38,7 @@ export function renderFlowDesignerToHTML(flow, state = {}) {
     renderFlowCanvasToHTML(flow, state),
     '</main>',
     '<aside class="flow-designer__inspector">',
-    renderNodeInspectorToHTML(selectedNode),
+    renderNodeInspectorToHTML(selectedNode, { editable: true }),
     renderVariableMapperToHTML(),
     renderIntentPatternEditorToHTML(flow),
     '</aside>',

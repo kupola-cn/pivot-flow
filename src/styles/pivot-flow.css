@@ -284,6 +284,18 @@
   gap: var(--spacer-6);
 }
 
+.flow-inspector__block .ds-textarea {
+  width: 100%;
+}
+
+.flow-check {
+  align-items: center;
+  color: var(--text-secondary);
+  display: inline-flex;
+  font-size: var(--body-xs-font-size);
+  gap: var(--spacer-8);
+}
+
 .flow-inspector pre,
 .flow-token-list code,
 .flow-match code {

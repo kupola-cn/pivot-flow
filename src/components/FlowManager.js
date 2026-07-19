@@ -295,6 +295,33 @@ export function FlowManager(options = {}) {
     flow[field] = value;
   };
 
+  const updateSelectedNodeField = (field, value, inputType) => {
+    const flow = getSelectedFlow(state);
+    const node = flow?.nodes?.find((item) => item.id === state.selectedNodeId);
+    if (!node || !field) {
+      return;
+    }
+
+    if (field === 'params') {
+      try {
+        node.params = value.trim() ? JSON.parse(value) : {};
+        state.error = '';
+      } catch (error) {
+        state.error = `Invalid node params JSON: ${error.message}`;
+      }
+      return;
+    }
+
+    if (inputType === 'checkbox') {
+      node[field] = Boolean(value);
+      state.error = '';
+      return;
+    }
+
+    node[field] = value;
+    state.error = '';
+  };
+
   const cleanups = [
     on(target, 'click', '[data-flow-action="select"]', (e, el) => {
       state.selectedFlowId = el.dataset.flowId;
@@ -348,6 +375,21 @@ export function FlowManager(options = {}) {
       state.preview = null;
       state.result = null;
       state.error = '';
+    }),
+    on(target, 'input', '[data-flow-node-field]', (e, el) => {
+      updateSelectedNodeField(el.dataset.flowNodeField, e.target.value, e.target.type);
+      state.preview = null;
+      state.result = null;
+    }),
+    on(target, 'change', '[data-flow-node-field]', (e, el) => {
+      updateSelectedNodeField(
+        el.dataset.flowNodeField,
+        e.target.type === 'checkbox' ? e.target.checked : e.target.value,
+        e.target.type
+      );
+      state.preview = null;
+      state.result = null;
+      render();
     }),
     on(target, 'click', '[data-flow-action="create-sample"]', async () => {
       const sample = await flowStore.create(createSampleFlow());

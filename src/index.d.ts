@@ -235,7 +235,8 @@ export function renderFlowTemplateListToHTML(templates?: FlowTemplate[], options
 export function renderFlowDesignerToHTML(flow?: FlowDefinition | null, state?: Record<string, unknown>): string;
 export function renderFlowSettingsToHTML(flow: FlowDefinition): string;
 export function renderFlowCanvasToHTML(flow?: FlowDefinition | null, options?: Record<string, unknown>): string;
-export function renderNodeInspectorToHTML(node?: FlowNode | null): string;
+export function renderNodeInspectorToHTML(node?: FlowNode | null, options?: { editable?: boolean }): string;
+export function renderEditableNodeInspectorToHTML(node: FlowNode): string;
 export function renderNodePaletteToHTML(nodes?: unknown[]): string;
 export function renderVariableMapperToHTML(options?: Record<string, unknown>): string;
 export function renderIntentPatternEditorToHTML(flow?: FlowDefinition | null): string;

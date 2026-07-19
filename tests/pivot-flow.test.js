@@ -10,6 +10,7 @@ import {
   createFlowRunner,
   flowToPlan,
   listFlowTemplates,
+  renderEditableNodeInspectorToHTML,
   renderFlowTemplateListToHTML,
   registerFlowFrontendCapabilities,
   validateFlow
@@ -181,6 +182,23 @@ test('renders flow template list actions', () => {
 
   assert.match(html, /data-flow-action="create-from-template"/);
   assert.match(html, /material\.delete-with-confirm/);
+});
+
+test('renders editable node inspector controls', () => {
+  const html = renderEditableNodeInspectorToHTML({
+    id: 'create-user',
+    type: 'capability.run',
+    label: 'Create user',
+    capability: 'user.create',
+    risk: 'medium',
+    requiresConfirmation: true,
+    params: { realName: '{{intent.realName}}' }
+  });
+
+  assert.match(html, /data-flow-node-field="label"/);
+  assert.match(html, /data-flow-node-field="capability"/);
+  assert.match(html, /data-flow-node-field="params"/);
+  assert.match(html, /user\.create/);
 });
 
 test('registers built-in frontend capabilities', async () => {

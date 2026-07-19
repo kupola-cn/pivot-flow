@@ -208,6 +208,7 @@ FlowAssistantDrawer({
 - create draft flows from built-in or custom templates
 - edit flow name, description, status, risk, examples, keywords, and patterns
 - add built-in nodes from the palette
+- edit node label, type, capability, risk, confirmation, and JSON params
 - save, publish, disable, or delete flows through the configured `FlowStore`
 - preview and execute the selected flow through the configured PIVOT runtime
 
