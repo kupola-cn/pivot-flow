@@ -57,6 +57,7 @@ export function renderFlowSettingsToHTML(flow) {
     renderTextarea('Examples', 'intent.examples', flow.intent?.examples?.join('\n') || ''),
     renderTextarea('Keywords', 'intent.keywords', flow.intent?.keywords?.join('\n') || ''),
     renderTextarea('Patterns', 'intent.patterns', flow.intent?.patterns?.join('\n') || ''),
+    renderTextarea('Slots JSON', 'intent.slots', JSON.stringify(flow.intent?.slots ?? [], null, 2), 6),
     '</div>',
     '<div class="flow-settings__actions">',
     '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-action="publish-flow">Publish</button>',
@@ -87,11 +88,11 @@ function renderSelect(label, field, value, options) {
   ].join('');
 }
 
-function renderTextarea(label, field, value) {
+function renderTextarea(label, field, value, rows = 3) {
   return [
     '<label class="flow-field flow-field--wide">',
     `<span>${escapeHTML(label)}</span>`,
-    `<textarea class="ds-textarea" rows="3" data-flow-field="${escapeAttr(field)}">${escapeHTML(value)}</textarea>`,
+    `<textarea class="ds-textarea" rows="${escapeAttr(rows)}" data-flow-field="${escapeAttr(field)}">${escapeHTML(value)}</textarea>`,
     '</label>'
   ].join('');
 }

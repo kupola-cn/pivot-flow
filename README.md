@@ -206,7 +206,7 @@ FlowAssistantDrawer({
 
 - create blank or sample flows
 - create draft flows from built-in or custom templates
-- edit flow name, description, status, risk, examples, keywords, and patterns
+- edit flow name, description, status, risk, examples, keywords, patterns, and slots
 - add built-in nodes from the palette
 - edit node label, type, capability, risk, confirmation, and JSON params
 - move or delete selected nodes

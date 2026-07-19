@@ -11,6 +11,7 @@ import {
   flowToPlan,
   listFlowTemplates,
   renderEditableNodeInspectorToHTML,
+  renderFlowSettingsToHTML,
   renderFlowTemplateListToHTML,
   registerFlowFrontendCapabilities,
   validateFlow
@@ -201,6 +202,13 @@ test('renders editable node inspector controls', () => {
   assert.match(html, /data-flow-action="move-node-up"/);
   assert.match(html, /data-flow-action="remove-node"/);
   assert.match(html, /user\.create/);
+});
+
+test('renders editable flow settings with slot configuration', () => {
+  const html = renderFlowSettingsToHTML(createOrganizationFlow());
+
+  assert.match(html, /data-flow-field="intent\.slots"/);
+  assert.match(html, /organizationName/);
 });
 
 test('registers built-in frontend capabilities', async () => {

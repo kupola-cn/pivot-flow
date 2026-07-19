@@ -324,10 +324,29 @@ export function FlowManager(options = {}) {
         ...(flow.intent ?? {}),
         [key]: parseListInput(value)
       };
+      state.error = '';
+      return;
+    }
+
+    if (field === 'intent.slots') {
+      try {
+        const slots = value.trim() ? JSON.parse(value) : [];
+        if (!Array.isArray(slots)) {
+          throw new Error('Slots must be an array.');
+        }
+        flow.intent = {
+          ...(flow.intent ?? {}),
+          slots
+        };
+        state.error = '';
+      } catch (error) {
+        state.error = `Invalid intent slots JSON: ${error.message}`;
+      }
       return;
     }
 
     flow[field] = value;
+    state.error = '';
   };
 
   const updateSelectedNodeField = (field, value, inputType) => {
