@@ -113,7 +113,7 @@
   border-radius: var(--radius-4);
   display: grid;
   gap: var(--spacer-10);
-  grid-template-columns: minmax(220px, 1fr) minmax(180px, 240px) auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(180px, 240px) minmax(160px, 220px) auto;
   min-width: 0;
   padding: var(--spacer-10);
 }
@@ -405,6 +405,72 @@
   grid-auto-columns: minmax(220px, 260px);
   grid-auto-flow: column;
   min-width: max-content;
+}
+
+.flow-canvas__groups {
+  display: grid;
+  gap: var(--spacer-12);
+  min-width: 0;
+}
+
+.flow-canvas__group {
+  background: color-mix(in srgb, var(--bg-overlay-l1) 88%, transparent);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-10);
+  min-width: 0;
+  padding: var(--spacer-10);
+}
+
+.flow-canvas__group.is-collapsed {
+  background: var(--bg-overlay-l1);
+}
+
+.flow-canvas__group .flow-canvas__board {
+  overflow: auto;
+}
+
+.flow-canvas__group-title {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--text-default);
+  cursor: pointer;
+  display: flex;
+  gap: var(--spacer-8);
+  justify-content: space-between;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.flow-canvas__group-title > span {
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+}
+
+.flow-canvas__group-title strong {
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-canvas__group-title small {
+  color: var(--text-tertiary);
+  font-size: var(--body-xs-font-size);
+  overflow-wrap: anywhere;
+}
+
+.flow-canvas__group-title em {
+  background: var(--bg-brand-overlay);
+  border-radius: 999px;
+  color: var(--text-brand);
+  flex: 0 0 auto;
+  font-size: var(--body-xs-font-size);
+  font-style: normal;
+  line-height: 1;
+  padding: 4px 8px;
 }
 
 .flow-canvas__layer {

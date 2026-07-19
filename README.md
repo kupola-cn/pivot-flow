@@ -264,6 +264,7 @@ FlowAssistantDrawer({
 - edit node label, type, capability, risk, confirmation, and JSON params
 - inspect a layered flow canvas generated from nodes and edges
 - search canvas nodes, locate a node from a compact selector, and highlight nodes related to the current selection
+- group canvas nodes by type, risk, or resource, then collapse groups while inspecting large flows
 - configure condition node JSON and transform node schemas
 - move or delete selected nodes
 - add, edit, and delete edges between nodes

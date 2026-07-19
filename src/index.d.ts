@@ -533,10 +533,29 @@ export function groupFlowTemplates(templates?: FlowTemplate[]): Array<{ key: str
 export function renderFlowDesignerToHTML(flow?: FlowDefinition | null, state?: Record<string, unknown>): string;
 export function renderFlowSettingsToHTML(flow: FlowDefinition): string;
 export function renderFlowEdgeEditorToHTML(flow: FlowDefinition, state?: Record<string, unknown>): string;
-export function renderFlowCanvasToHTML(flow?: FlowDefinition | null, options?: Record<string, unknown>): string;
+export function renderFlowCanvasToHTML(flow?: FlowDefinition | null, options?: {
+  preview?: PivotResult | null;
+  result?: PivotResult | null;
+  nodeKeyword?: string;
+  selectedNodeId?: string;
+  selectedEdgeId?: string;
+  groupBy?: 'type' | 'risk' | 'resource' | string;
+  canvasGroupBy?: 'type' | 'risk' | 'resource' | string;
+  collapsedGroups?: string[] | Set<string> | string;
+  collapsedCanvasGroups?: string[] | Set<string> | string;
+}): string;
 export function createFlowCanvasLayout(nodes?: FlowNode[], edges?: FlowEdge[]): {
   layers: Array<Array<{ node: FlowNode; index: number }>>;
   layerById: Map<string, number>;
+};
+export function groupFlowCanvasNodes(nodes?: FlowNode[], groupBy?: 'type' | 'risk' | 'resource' | string): {
+  active: boolean;
+  groupBy: string;
+  groups: Array<{
+    key: string;
+    label: string;
+    nodes: Array<{ node: FlowNode; index: number }>;
+  }>;
 };
 export function getFlowExecutionTrace(result?: PivotResult | null, nodes?: FlowNode[], edges?: FlowEdge[]): {
   nodeStates: Map<string, { status: 'idle' | 'executed' | 'failed' | 'skipped'; result?: unknown }>;

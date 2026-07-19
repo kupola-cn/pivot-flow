@@ -30,6 +30,7 @@ import {
   getFlowNodeMatches,
   getFlowRisk,
   groupFlowTemplates,
+  groupFlowCanvasNodes,
   groupFlows,
   generateAIFlowDraft,
   parseAIFlowProviderOutput,
@@ -513,6 +514,41 @@ test('matches and highlights flow canvas nodes', () => {
   assert.equal(adjacency.relatedNodeIds.has('message'), true);
   assert.match(html, /is-matched/);
   assert.match(html, /is-related/);
+});
+
+test('groups and collapses flow canvas nodes', () => {
+  const flow = createFlow({
+    id: 'canvas-group-flow',
+    name: 'Canvas group flow',
+    nodes: [
+      { id: 'resolve-user', type: 'capability.run', capability: 'user.resolve', label: 'Resolve user' },
+      { id: 'assign-role', type: 'capability.run', capability: 'user.assignRoles', label: 'Assign role' },
+      { id: 'show-message', type: 'message.show', label: 'Show message' }
+    ],
+    edges: [
+      { id: 'edge-1', from: 'resolve-user', to: 'assign-role', condition: 'success' },
+      { id: 'edge-2', from: 'assign-role', to: 'show-message', condition: 'success' }
+    ]
+  });
+
+  const groups = groupFlowCanvasNodes(flow.nodes, 'resource');
+  const html = renderFlowCanvasToHTML(flow, {
+    canvasGroupBy: 'resource',
+    collapsedCanvasGroups: ['user']
+  });
+  const designerHTML = renderFlowDesignerToHTML(flow, {
+    canvasGroupBy: 'risk',
+    collapsedCanvasGroups: ['low']
+  });
+
+  assert.equal(groups.active, true);
+  assert.equal(groups.groups.some((group) => group.key === 'user'), true);
+  assert.match(html, /flow-canvas__groups/);
+  assert.match(html, /Resource: user/);
+  assert.match(html, /is-collapsed/);
+  assert.match(html, /data-flow-action="toggle-canvas-group"/);
+  assert.match(designerHTML, /data-flow-canvas-field="canvasGroupBy"/);
+  assert.match(designerHTML, /Collapse|Expand/);
 });
 
 test('renders canvas node locate and failed-node jump controls', () => {

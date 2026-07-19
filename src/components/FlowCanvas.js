@@ -17,6 +17,8 @@ export function renderFlowCanvasToHTML(flow, options = {}) {
   const trace = getFlowExecutionTrace(options.result ?? options.preview, nodes, edges);
   const nodeMatches = getFlowNodeMatches(nodes, options.nodeKeyword);
   const adjacency = getFlowNodeAdjacency(options.selectedNodeId, edges);
+  const groups = groupFlowCanvasNodes(nodes, options.groupBy || options.canvasGroupBy);
+  const collapsedGroups = normalizeCollapsedGroups(options.collapsedGroups ?? options.collapsedCanvasGroups);
 
   return [
     '<div class="flow-canvas">',
@@ -24,13 +26,15 @@ export function renderFlowCanvasToHTML(flow, options = {}) {
     `<span>${escapeHTML(nodes.length)} nodes</span>`,
     `<span>${escapeHTML(edges.length)} edges</span>`,
     `<span>${escapeHTML(layout.layers.length)} layers</span>`,
+    groups.active ? `<span>${escapeHTML(groups.groups.length)} groups</span>` : '',
+    collapsedGroups.size > 0 ? `<span>${escapeHTML(collapsedGroups.size)} collapsed</span>` : '',
     trace.executedNodeIds.length > 0 ? `<span class="flow-canvas__summary-status flow-canvas__summary-status--executed">${escapeHTML(trace.executedNodeIds.length)} executed</span>` : '',
     trace.failedNodeIds.length > 0 ? `<span class="flow-canvas__summary-status flow-canvas__summary-status--failed">${escapeHTML(trace.failedNodeIds.length)} failed</span>` : '',
     trace.skippedNodeIds.length > 0 ? `<span class="flow-canvas__summary-status flow-canvas__summary-status--skipped">${escapeHTML(trace.skippedNodeIds.length)} skipped</span>` : '',
     '</div>',
-    '<div class="flow-canvas__board">',
-    ...layout.layers.map((layer, index) => renderLayer(layer, index, options, trace.nodeStates, nodeMatches, adjacency)),
-    '</div>',
+    groups.active
+      ? renderGroupedBoard(groups.groups, edges, options, trace.nodeStates, nodeMatches, adjacency, collapsedGroups)
+      : renderBoard(layout.layers, options, trace.nodeStates, nodeMatches, adjacency),
     renderEdgeRail(edges, options, trace.edgeStates, adjacency),
     '</div>'
   ].join('');
@@ -91,6 +95,86 @@ export function createFlowCanvasLayout(nodes = [], edges = []) {
   };
 }
 
+export function groupFlowCanvasNodes(nodes = [], groupBy = '') {
+  const mode = normalizeCanvasGroupBy(groupBy);
+  const indexedNodes = (Array.isArray(nodes) ? nodes : []).map((node, index) => ({ node, index }));
+  if (!mode) {
+    return {
+      active: false,
+      groupBy: '',
+      groups: [
+        {
+          key: '',
+          label: '',
+          nodes: indexedNodes
+        }
+      ]
+    };
+  }
+
+  const groups = new Map();
+  for (const item of indexedNodes) {
+    const key = getCanvasNodeGroupKey(item.node, mode);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        label: getCanvasGroupLabel(key, mode),
+        nodes: []
+      });
+    }
+    groups.get(key).nodes.push(item);
+  }
+
+  return {
+    active: true,
+    groupBy: mode,
+    groups: Array.from(groups.values())
+  };
+}
+
+function renderBoard(layers, options, nodeStates, nodeMatches, adjacency) {
+  return [
+    '<div class="flow-canvas__board">',
+    ...layers.map((layer, index) => renderLayer(layer, index, options, nodeStates, nodeMatches, adjacency)),
+    '</div>'
+  ].join('');
+}
+
+function renderGroupedBoard(groups, edges, options, nodeStates, nodeMatches, adjacency, collapsedGroups) {
+  return [
+    '<div class="flow-canvas__groups">',
+    ...groups.map((group) => renderNodeGroup(group, edges, options, nodeStates, nodeMatches, adjacency, collapsedGroups)),
+    '</div>'
+  ].join('');
+}
+
+function renderNodeGroup(group, edges, options, nodeStates, nodeMatches, adjacency, collapsedGroups) {
+  const collapsed = collapsedGroups.has(group.key);
+  const groupNodeIds = new Set(group.nodes.map((item) => item.node.id));
+  const groupEdges = edges.filter((edge) => groupNodeIds.has(edge.from) && groupNodeIds.has(edge.to));
+  const layout = createFlowCanvasLayout(group.nodes.map((item) => item.node), groupEdges);
+
+  return [
+    `<section class="flow-canvas__group${collapsed ? ' is-collapsed' : ''}" data-canvas-group-key="${escapeAttr(group.key)}">`,
+    '<button type="button" class="flow-canvas__group-title" data-flow-action="toggle-canvas-group" data-canvas-group-key="',
+    escapeAttr(group.key),
+    '">',
+    '<span>',
+    `<strong>${escapeHTML(group.label)}</strong>`,
+    `<small>${escapeHTML(group.nodes.length)} node${group.nodes.length === 1 ? '' : 's'} · ${escapeHTML(groupEdges.length)} internal edge${groupEdges.length === 1 ? '' : 's'}</small>`,
+    '</span>',
+    `<em>${collapsed ? 'Expand' : 'Collapse'}</em>`,
+    '</button>',
+    collapsed
+      ? ''
+      : renderBoard(layout.layers.map((layer) => layer.map((item) => {
+        const original = group.nodes.find((entry) => entry.node.id === item.node.id);
+        return original ?? item;
+      })), options, nodeStates, nodeMatches, adjacency),
+    '</section>'
+  ].join('');
+}
+
 function renderLayer(layer, index, options, nodeStates, nodeMatches, adjacency) {
   return [
     '<section class="flow-canvas__layer">',
@@ -103,6 +187,58 @@ function renderLayer(layer, index, options, nodeStates, nodeMatches, adjacency) 
     '</ol>',
     '</section>'
   ].join('');
+}
+
+function normalizeCanvasGroupBy(value) {
+  const groupBy = String(value || '').trim();
+  return ['type', 'risk', 'resource'].includes(groupBy) ? groupBy : '';
+}
+
+function normalizeCollapsedGroups(value) {
+  if (value instanceof Set) {
+    return new Set(Array.from(value).map(String));
+  }
+  if (Array.isArray(value)) {
+    return new Set(value.map(String));
+  }
+  if (typeof value === 'string' && value.trim()) {
+    return new Set(value.split(',').map((item) => item.trim()).filter(Boolean));
+  }
+  return new Set();
+}
+
+function getCanvasNodeGroupKey(node, mode) {
+  if (node?.ui?.group || node?.metadata?.group || node?.group) {
+    return String(node.ui?.group || node.metadata?.group || node.group);
+  }
+  if (mode === 'type') {
+    return String(node?.type || 'unknown');
+  }
+  if (mode === 'risk') {
+    return String(node?.risk || 'low');
+  }
+  if (mode === 'resource') {
+    const capability = getFlowNodeCapability(node);
+    const parts = capability ? capability.split('.') : [];
+    return parts.length > 1 ? parts.slice(0, -1).join('.') : node?.type || 'frontend';
+  }
+  return 'default';
+}
+
+function getCanvasGroupLabel(key, mode) {
+  if (!key) {
+    return 'Default';
+  }
+  if (mode === 'risk') {
+    return `${key} risk`;
+  }
+  if (mode === 'resource') {
+    return `Resource: ${key}`;
+  }
+  if (mode === 'type') {
+    return `Type: ${key}`;
+  }
+  return key;
 }
 
 export function renderNodeCard(node, index, options = {}, nodeState = null, nodeMatches = null, adjacency = null) {

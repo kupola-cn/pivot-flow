@@ -2,7 +2,7 @@ import { flowToPlan } from '../flow-to-plan.js';
 import { validateFlow } from '../flow-validation.js';
 import { FLOW_RISK_LEVELS, FLOW_STATUS } from '../node-types.js';
 import { escapeAttr, escapeHTML, on, resolveTarget, setHTML } from './dom.js';
-import { getFlowExecutionTrace, getFlowNodeMatches, renderFlowCanvasToHTML } from './FlowCanvas.js';
+import { getFlowExecutionTrace, getFlowNodeMatches, groupFlowCanvasNodes, renderFlowCanvasToHTML } from './FlowCanvas.js';
 import { renderIntentPatternEditorToHTML } from './IntentPatternEditor.js';
 import { renderNodeInspectorToHTML } from './NodeInspector.js';
 import { renderNodePaletteToHTML } from './NodePalette.js';
@@ -56,6 +56,8 @@ function renderCanvasControlsToHTML(flow, state, nodeMatches) {
   const trace = getFlowExecutionTrace(state.result ?? state.preview, nodes, flow?.edges ?? []);
   const selectedNode = nodes.find((node) => node.id === state.selectedNodeId) ?? null;
   const firstFailedNode = nodes.find((node) => node.id === trace.firstFailedNodeId) ?? null;
+  const groups = groupFlowCanvasNodes(nodes, state.canvasGroupBy);
+  const collapsedGroups = Array.isArray(state.collapsedCanvasGroups) ? state.collapsedCanvasGroups : [];
 
   return [
     '<section class="flow-canvas-controls">',
@@ -68,6 +70,10 @@ function renderCanvasControlsToHTML(flow, state, nodeMatches) {
     '<span>Locate node</span>',
     `<select class="ds-select ds-select--sm" data-flow-canvas-field="selectedNodeId">${renderNodeOptions(nodes, state.selectedNodeId)}</select>`,
     '</label>',
+    '<label class="flow-field">',
+    '<span>Group canvas</span>',
+    `<select class="ds-select ds-select--sm" data-flow-canvas-field="canvasGroupBy">${renderCanvasGroupOptions(state.canvasGroupBy)}</select>`,
+    '</label>',
     '<div class="flow-canvas-controls__meta">',
     nodeMatches.active
       ? `<span>${escapeHTML(nodeMatches.count)} matched</span>`
@@ -77,6 +83,15 @@ function renderCanvasControlsToHTML(flow, state, nodeMatches) {
       : '<span>No node selected</span>',
     firstFailedNode
       ? `<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-action="focus-failed-node">Failed node</button>`
+      : '',
+    groups.active
+      ? `<span>${escapeHTML(groups.groups.length)} groups</span>`
+      : '',
+    groups.active && collapsedGroups.length > 0
+      ? '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="expand-canvas-groups">Expand groups</button>'
+      : '',
+    groups.active && collapsedGroups.length === 0
+      ? '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="collapse-canvas-groups">Collapse groups</button>'
       : '',
     state.nodeKeyword
       ? '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="clear-node-search">Clear</button>'
@@ -211,12 +226,28 @@ function renderConditionOptions(value) {
   ].join('')).join('');
 }
 
+function renderCanvasGroupOptions(value = '') {
+  const options = [
+    ['', 'None'],
+    ['type', 'Type'],
+    ['risk', 'Risk'],
+    ['resource', 'Resource']
+  ];
+  return options.map(([key, label]) => [
+    `<option value="${escapeAttr(key)}"${key === value ? ' selected' : ''}>`,
+    escapeHTML(label),
+    '</option>'
+  ].join('')).join('');
+}
+
 export function FlowDesigner(options = {}) {
   const target = resolveTarget(options.target);
   const state = {
     flow: options.flow ?? null,
     selectedNodeId: options.flow?.nodes?.[0]?.id ?? '',
-    nodeKeyword: ''
+    nodeKeyword: '',
+    canvasGroupBy: '',
+    collapsedCanvasGroups: []
   };
 
   const render = () => {
@@ -242,6 +273,19 @@ export function FlowDesigner(options = {}) {
       state.nodeKeyword = '';
       render();
     }),
+    on(target, 'click', '[data-flow-action="toggle-canvas-group"]', (e, el) => {
+      toggleCanvasGroup(state, el.dataset.canvasGroupKey);
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="collapse-canvas-groups"]', () => {
+      const groups = groupFlowCanvasNodes(state.flow?.nodes ?? [], state.canvasGroupBy);
+      state.collapsedCanvasGroups = groups.groups.map((group) => group.key);
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="expand-canvas-groups"]', () => {
+      state.collapsedCanvasGroups = [];
+      render();
+    }),
     on(target, 'input', '[data-flow-canvas-field]', (e, el) => {
       if (el.dataset.flowCanvasField === 'nodeKeyword') {
         state.nodeKeyword = e.target.value;
@@ -253,6 +297,11 @@ export function FlowDesigner(options = {}) {
         state.selectedNodeId = e.target.value;
         render();
         scrollSelectedNodeIntoView(target, state.selectedNodeId);
+      }
+      if (el.dataset.flowCanvasField === 'canvasGroupBy') {
+        state.canvasGroupBy = e.target.value;
+        state.collapsedCanvasGroups = [];
+        render();
       }
     }),
     on(target, 'click', '[data-flow-action="preview"]', () => {
@@ -271,6 +320,8 @@ export function FlowDesigner(options = {}) {
       state.flow = nextFlow;
       state.selectedNodeId = nextFlow?.nodes?.[0]?.id ?? '';
       state.nodeKeyword = '';
+      state.canvasGroupBy = '';
+      state.collapsedCanvasGroups = [];
       render();
     },
     destroy() {
@@ -278,6 +329,20 @@ export function FlowDesigner(options = {}) {
       target.innerHTML = '';
     }
   };
+}
+
+function toggleCanvasGroup(state, key) {
+  const groupKey = String(key || '');
+  if (!groupKey) {
+    return;
+  }
+  const current = new Set(Array.isArray(state.collapsedCanvasGroups) ? state.collapsedCanvasGroups : []);
+  if (current.has(groupKey)) {
+    current.delete(groupKey);
+  } else {
+    current.add(groupKey);
+  }
+  state.collapsedCanvasGroups = Array.from(current);
 }
 
 function getSelectedNode(flow, selectedNodeId) {

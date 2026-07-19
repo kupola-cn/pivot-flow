@@ -9,7 +9,7 @@ import { getDefaultCapabilityForNodeType } from '../node-types.js';
 import { escapeAttr, escapeHTML, on, resolveTarget, setHTML } from './dom.js';
 import { renderFlowAuditPanelToHTML } from './FlowAuditPanel.js';
 import { renderFlowCapabilityMatrixToHTML } from './FlowCapabilityMatrix.js';
-import { getFlowExecutionTrace } from './FlowCanvas.js';
+import { getFlowExecutionTrace, groupFlowCanvasNodes } from './FlowCanvas.js';
 import { renderFlowDesignerToHTML } from './FlowDesigner.js';
 import { filterFlows, renderFlowListToHTML } from './FlowList.js';
 import { renderFlowPreviewToHTML } from './FlowPreview.js';
@@ -37,6 +37,8 @@ export function FlowManager(options = {}) {
     selectedNodeId: '',
     selectedEdgeId: '',
     nodeKeyword: '',
+    canvasGroupBy: '',
+    collapsedCanvasGroups: [],
     listKeyword: '',
     listStatus: '',
     listRisk: '',
@@ -628,6 +630,8 @@ export function FlowManager(options = {}) {
       state.selectedNodeId = '';
       state.selectedEdgeId = '';
       state.nodeKeyword = '';
+      state.canvasGroupBy = '';
+      state.collapsedCanvasGroups = [];
       state.testPrompt = getSelectedFlow(state)?.intent?.examples?.[0] ?? getSelectedFlow(state)?.name ?? '';
       state.testSlotsText = '{}';
       state.testMatch = null;
@@ -657,6 +661,20 @@ export function FlowManager(options = {}) {
     }),
     on(target, 'click', '[data-flow-action="clear-node-search"]', () => {
       state.nodeKeyword = '';
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="toggle-canvas-group"]', (e, el) => {
+      toggleCanvasGroup(state, el.dataset.canvasGroupKey);
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="collapse-canvas-groups"]', () => {
+      const flow = getSelectedFlow(state);
+      const groups = groupFlowCanvasNodes(flow?.nodes ?? [], state.canvasGroupBy);
+      state.collapsedCanvasGroups = groups.groups.map((group) => group.key);
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="expand-canvas-groups"]', () => {
+      state.collapsedCanvasGroups = [];
       render();
     }),
     on(target, 'click', '[data-flow-action="focus-failed-node"]', () => {
@@ -782,6 +800,11 @@ export function FlowManager(options = {}) {
         render();
         scrollSelectedNodeIntoView(target, state.selectedNodeId);
       }
+      if (el.dataset.flowCanvasField === 'canvasGroupBy') {
+        state.canvasGroupBy = e.target.value;
+        state.collapsedCanvasGroups = [];
+        render();
+      }
     }),
     on(target, 'change', '[data-flow-list-filter]', (e, el) => {
       if (el.dataset.flowListFilter === 'status') {
@@ -808,6 +831,8 @@ export function FlowManager(options = {}) {
       state.testMissingSlots = [];
       state.preview = null;
       state.result = null;
+      state.canvasGroupBy = '';
+      state.collapsedCanvasGroups = [];
       await refresh();
     })
   ];
@@ -822,6 +847,20 @@ export function FlowManager(options = {}) {
       target.innerHTML = '';
     }
   };
+}
+
+function toggleCanvasGroup(state, key) {
+  const groupKey = String(key || '');
+  if (!groupKey) {
+    return;
+  }
+  const current = new Set(Array.isArray(state.collapsedCanvasGroups) ? state.collapsedCanvasGroups : []);
+  if (current.has(groupKey)) {
+    current.delete(groupKey);
+  } else {
+    current.add(groupKey);
+  }
+  state.collapsedCanvasGroups = Array.from(current);
 }
 
 function parseListInput(value) {
