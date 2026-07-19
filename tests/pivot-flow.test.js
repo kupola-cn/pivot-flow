@@ -40,6 +40,7 @@ import {
   getFlowExecutionTrace,
   getMissingFlowCapabilities,
   getFlowNodeAdjacency,
+  getFlowNodeNeighborhood,
   getFlowNodeMatches,
   getFlowRisk,
   getFlowRunSummary,
@@ -60,6 +61,7 @@ import {
   renderFlowRunHistoryToHTML,
   renderFlowRunSummaryToHTML,
   renderFlowAccessReportToHTML,
+  renderFlowNodeNeighborhoodToHTML,
   renderFlowSafetyReportToHTML,
   renderFlowDataDependenciesToHTML,
   renderIntentClarificationPlanToHTML,
@@ -733,6 +735,37 @@ test('lays out flow canvas by edge dependencies', () => {
   assert.match(html, /flow-canvas__board/);
   assert.match(html, /Layer 3/);
   assert.match(html, /flow-canvas__edge-rail/);
+});
+
+test('analyzes selected flow node neighborhood', () => {
+  const flow = createFlow({
+    id: 'node-neighborhood-flow',
+    name: 'Node neighborhood flow',
+    nodes: [
+      { id: 'resolve-org', type: 'capability.run', capability: 'org.query', label: 'Resolve org' },
+      { id: 'resolve-role', type: 'capability.run', capability: 'role.resolve', label: 'Resolve role' },
+      { id: 'create-user', type: 'capability.run', capability: 'user.create', label: 'Create user', risk: 'medium' },
+      { id: 'assign-role', type: 'capability.run', capability: 'user.assignRoles', label: 'Assign role' },
+      { id: 'notify', type: 'message.show', label: 'Notify' }
+    ],
+    edges: [
+      { id: 'edge-org', from: 'resolve-org', to: 'create-user', condition: 'success' },
+      { id: 'edge-role', from: 'resolve-role', to: 'assign-role', condition: 'success' },
+      { id: 'edge-create', from: 'create-user', to: 'assign-role', condition: 'success' },
+      { id: 'edge-notify', from: 'assign-role', to: 'notify', condition: 'success' }
+    ]
+  });
+
+  const report = getFlowNodeNeighborhood(flow, 'assign-role', { depth: 2 });
+  const html = renderFlowNodeNeighborhoodToHTML(report);
+
+  assert.equal(report.ok, true);
+  assert.deepEqual(report.upstream.nodeIds, ['resolve-role', 'create-user', 'resolve-org']);
+  assert.deepEqual(report.downstream.nodeIds, ['notify']);
+  assert.equal(report.relatedEdgeIds.length, 4);
+  assert.match(html, /Node neighborhood|Upstream|Downstream/);
+  assert.match(html, /Create user/);
+  assert.match(renderFlowNodeNeighborhoodToHTML(flow, ''), /Select a node/);
 });
 
 test('derives flow canvas execution trace from runtime node results', () => {

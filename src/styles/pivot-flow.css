@@ -9,6 +9,7 @@
 .flow-intent-explain,
 .flow-intent-clarify,
 .flow-dependency-report,
+.flow-node-neighborhood,
 .flow-access-report,
 .flow-safety-report {
   color: var(--text-default);
@@ -1899,6 +1900,85 @@
 }
 
 .flow-access-report__rows li > span:first-child {
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+}
+
+.flow-node-neighborhood {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-10);
+  min-width: 0;
+  padding: var(--spacer-10);
+}
+
+.flow-node-neighborhood__header {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.flow-node-neighborhood__header > div {
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+}
+
+.flow-node-neighborhood__header strong,
+.flow-node-neighborhood__group > strong {
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-node-neighborhood__header span,
+.flow-node-neighborhood small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.flow-node-neighborhood__summary {
+  display: grid;
+  gap: var(--spacer-8);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.flow-node-neighborhood__summary span,
+.flow-node-neighborhood__group {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-8);
+  min-width: 0;
+  padding: var(--spacer-8);
+}
+
+.flow-node-neighborhood__summary strong {
+  color: var(--text-default);
+  font-size: var(--body-sm-font-size);
+}
+
+.flow-node-neighborhood__group ol {
+  display: grid;
+  gap: var(--spacer-6);
+  margin: 0;
+  padding-left: var(--spacer-16);
+}
+
+.flow-node-neighborhood__group li {
+  display: grid;
+  gap: var(--spacer-4);
+  min-width: 0;
+}
+
+.flow-node-neighborhood__group li > span:first-child {
   display: grid;
   gap: var(--spacer-2);
   min-width: 0;

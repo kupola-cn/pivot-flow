@@ -7,6 +7,7 @@ import { createFlowRunner } from '../flow-runner.js';
 import { createMemoryFlowStore } from '../flow-store.js';
 import { createIntentClarificationPlan, createLocalIntentMapper } from '../intent-mapper.js';
 import { createFlowAccessReport, renderFlowAccessReportToHTML } from '../flow-access-report.js';
+import { renderFlowNodeNeighborhoodToHTML } from '../flow-graph-analysis.js';
 import { createFlowBatchSafetyReport, createFlowSafetyReport, renderFlowBatchSafetyReportToHTML, renderFlowSafetyReportToHTML } from '../flow-safety-report.js';
 import { renderFlowDataDependenciesToHTML } from '../flow-dependencies.js';
 import { getDefaultCapabilityForNodeType } from '../node-types.js';
@@ -160,6 +161,10 @@ export function FlowManager(options = {}) {
       '<div>',
       '<div class="flow-panel-title">Data dependencies</div>',
       renderFlowDataDependenciesToHTML(flow),
+      '</div>',
+      '<div>',
+      '<div class="flow-panel-title">Node context</div>',
+      renderFlowNodeNeighborhoodToHTML(flow, state.selectedNodeId, { depth: 2 }),
       '</div>',
       '<div>',
       '<div class="flow-panel-title">Publish safety</div>',

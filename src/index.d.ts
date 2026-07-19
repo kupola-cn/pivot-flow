@@ -219,6 +219,37 @@ export interface FlowDataDependencyReport {
 export function analyzeFlowDataDependencies(flow?: FlowDefinition | null): FlowDataDependencyReport;
 export function extractFlowDataReferences(value?: unknown, path?: string): FlowDataReference[];
 export function renderFlowDataDependenciesToHTML(reportOrFlow?: FlowDataDependencyReport | FlowDefinition | null): string;
+export interface FlowNodeNeighborhoodReport {
+  ok: boolean;
+  flowId: string;
+  flowName: string;
+  nodeId: string;
+  node: FlowNode | null;
+  depth: number;
+  upstream: {
+    nodeIds: string[];
+    edgeIds: string[];
+    nodes: FlowNode[];
+    edges: FlowEdge[];
+  };
+  downstream: {
+    nodeIds: string[];
+    edgeIds: string[];
+    nodes: FlowNode[];
+    edges: FlowEdge[];
+  };
+  relatedNodeIds: string[];
+  relatedEdgeIds: string[];
+  relatedNodes: FlowNode[];
+  relatedEdges: FlowEdge[];
+  summary: string;
+}
+export function getFlowNodeNeighborhood(flow?: FlowDefinition | null, nodeId?: string, options?: {
+  depth?: number;
+}): FlowNodeNeighborhoodReport;
+export function renderFlowNodeNeighborhoodToHTML(flowOrReport?: FlowDefinition | FlowNodeNeighborhoodReport | null, nodeId?: string, options?: {
+  depth?: number;
+}): string;
 export interface FlowAccessRow {
   id: string;
   source: 'flow' | 'node' | string;

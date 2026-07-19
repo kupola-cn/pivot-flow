@@ -373,6 +373,7 @@ FlowAssistantDrawer({
 - search canvas nodes, locate a node from a compact selector, and highlight nodes related to the current selection
 - group canvas nodes by type, risk, or resource, then collapse groups while inspecting large flows
 - adjust canvas zoom, switch between comfortable and compact density, and show a minimap for large flows
+- inspect selected node upstream/downstream context with `getFlowNodeNeighborhood()` and `renderFlowNodeNeighborhoodToHTML()`
 - inspect canvas execution diagnostics including failed node summary, node duration, result message snippets, and cross-group edge counts
 - configure condition node JSON and transform node schemas
 - move or delete selected nodes
