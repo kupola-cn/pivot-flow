@@ -109,6 +109,40 @@ export interface IntentMapper {
   match(prompt: string, flows: FlowDefinition[], options?: { includeDraft?: boolean }): FlowMatchResult;
 }
 
+export interface FlowIntentRuleScore {
+  status: 'matched' | 'similar' | 'missed' | 'invalid' | 'extracted' | 'missing';
+  score?: number;
+  overlap?: number;
+  name?: string;
+  label?: string;
+  value?: unknown;
+}
+
+export interface FlowIntentMatchExplanation extends FlowMatch {
+  eligible: boolean;
+  status: string;
+  passedThreshold: boolean;
+  rank?: number;
+  details: {
+    examples: FlowIntentRuleScore[];
+    keywords: FlowIntentRuleScore[];
+    patterns: FlowIntentRuleScore[];
+    slots: FlowIntentRuleScore[];
+    missingSlots: FlowIntentRuleScore[];
+    missingPenalty: number;
+    minConfidence: number;
+  };
+}
+
+export interface FlowIntentMatchExplanationResult {
+  ok: boolean;
+  prompt: string;
+  minConfidence: number;
+  best: FlowIntentMatchExplanation | null;
+  matches: FlowIntentMatchExplanation[];
+  candidates: FlowIntentMatchExplanation[];
+}
+
 export interface FlowStore {
   list(query?: { status?: FlowStatus; keyword?: string }): Promise<FlowDefinition[]>;
   get(id: string): Promise<FlowDefinition | null>;
@@ -216,6 +250,25 @@ export function evaluateFlowCondition(condition: unknown, input?: Record<string,
 export function applyFlowTransform(mapping?: Record<string, unknown>, input?: Record<string, unknown>, context?: Record<string, unknown>): unknown;
 export function compareValues(left: unknown, operator: string, right?: unknown): boolean;
 export function createLocalIntentMapper(options?: { minConfidence?: number }): IntentMapper;
+export function scoreFlow(prompt: string, normalizedPrompt: string, flow: FlowDefinition): FlowMatch & {
+  explanation: FlowIntentMatchExplanation;
+};
+export function explainFlowIntentMatch(prompt?: string, flow?: FlowDefinition, options?: {
+  minConfidence?: number;
+  includeDraft?: boolean;
+}): FlowIntentMatchExplanation;
+export function explainIntentMatches(prompt?: string, flows?: FlowDefinition[], options?: {
+  minConfidence?: number;
+  includeDraft?: boolean;
+  includeIneligible?: boolean;
+  limit?: number;
+}): FlowIntentMatchExplanationResult;
+export function renderIntentMatchExplanationToHTML(explanationOrPrompt?: FlowIntentMatchExplanationResult | FlowIntentMatchExplanation | string, flows?: FlowDefinition[], options?: {
+  minConfidence?: number;
+  includeDraft?: boolean;
+  includeIneligible?: boolean;
+  limit?: number;
+}): string;
 export function createMemoryFlowStore(initialFlows?: FlowDefinition[]): FlowStore;
 export function createLocalStorageFlowStore(options?: { key?: string; runKey?: string; storage?: Storage; initialFlows?: FlowDefinition[] }): FlowStore;
 export function createHttpFlowStore(options?: {

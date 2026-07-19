@@ -27,8 +27,10 @@ import {
   createLocalIntentMapper,
   createLocalStorageFlowStore,
   createFlowRunner,
+  explainIntentMatches,
   getFlowRunSummary,
   registerFlowFrontendCapabilities,
+  renderIntentMatchExplanationToHTML,
   renderFlowRunSummaryToHTML,
   flowToPlan,
   FlowManager,
@@ -150,6 +152,20 @@ slots: [
   }
 ]
 ```
+
+## Intent Match Explanation
+
+Local intent matching is rule-based and explainable. Use `explainIntentMatches()` to inspect why a prompt matched a Flow, including examples, keywords, patterns, extracted slots, missing required slots, confidence, and draft eligibility.
+
+```js
+const explanation = explainIntentMatches('在集团下增加分机构 C', flows, {
+  includeIneligible: true
+});
+
+document.querySelector('#intentExplain').innerHTML = renderIntentMatchExplanationToHTML(explanation);
+```
+
+This helps operators understand whether a command matched because of a keyword, a regex pattern, a similar example, or extracted parameters. It is still only the matching layer; preview, confirmation, PIVOT policies, and backend authorization remain required before execution.
 
 ## Run Diagnostics
 

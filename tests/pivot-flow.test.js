@@ -17,6 +17,7 @@ import {
   createFlowBatchSafetyReport,
   createFlowSafetyReport,
   createFlowCanvasLayout,
+  explainIntentMatches,
   filterFlows,
   applyFlowTransform,
   evaluateFlowCondition,
@@ -45,6 +46,7 @@ import {
   renderFlowRunPanelToHTML,
   renderFlowRunSummaryToHTML,
   renderFlowSafetyReportToHTML,
+  renderIntentMatchExplanationToHTML,
   renderFlowBatchSafetyReportToHTML,
   renderFlowSettingsToHTML,
   renderFlowTestPanelToHTML,
@@ -104,6 +106,33 @@ test('matches natural language intent to a published flow', () => {
   assert.equal(match.best.flow.id, 'org-create');
   assert.equal(match.best.slots.organizationName, 'C');
   assert.equal(match.best.slots.parentId, 'group-root');
+});
+
+test('explains local intent matching evidence and eligibility', () => {
+  const flow = createOrganizationFlow();
+  const draft = createFlow({
+    id: 'draft-user-create',
+    name: 'Draft create user',
+    status: 'draft',
+    intent: {
+      keywords: ['增加', '用户']
+    }
+  });
+
+  const explanation = explainIntentMatches('在集团下增加分机构 C', [flow, draft], {
+    includeIneligible: true
+  });
+  const html = renderIntentMatchExplanationToHTML(explanation);
+
+  assert.equal(explanation.ok, true);
+  assert.equal(explanation.best.flow.id, 'org-create');
+  assert.equal(explanation.candidates.length, 2);
+  assert.equal(explanation.candidates.find((item) => item.flow.id === 'draft-user-create').eligible, false);
+  assert.equal(explanation.best.details.keywords.filter((item) => item.status === 'matched').length, 3);
+  assert.equal(explanation.best.details.slots[0].name, 'organizationName');
+  assert.match(explanation.best.reasons.join('\n'), /matched keyword/);
+  assert.match(html, /Intent match explanation/);
+  assert.match(html, /organizationName: C/);
 });
 
 test('normalizes sensitive manual slots for secure input rendering', () => {
