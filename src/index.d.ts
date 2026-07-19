@@ -130,6 +130,48 @@ export function resolveFlowParams(value: unknown, input?: Record<string, unknown
 export function createLocalIntentMapper(options?: { minConfidence?: number }): IntentMapper;
 export function createMemoryFlowStore(initialFlows?: FlowDefinition[]): FlowStore;
 export function createLocalStorageFlowStore(options?: { key?: string; runKey?: string; storage?: Storage; initialFlows?: FlowDefinition[] }): FlowStore;
+export function createFlowRunner(options: {
+  runtime: PivotRuntime;
+  flowStore?: FlowStore;
+  flows?: FlowDefinition[];
+  intentMapper?: IntentMapper;
+  contextProvider?: () => Record<string, unknown> | Promise<Record<string, unknown>>;
+  context?: Record<string, unknown>;
+}): {
+  runtime: PivotRuntime;
+  flowStore: FlowStore;
+  intentMapper: IntentMapper;
+  match(prompt: string, options?: Record<string, unknown>): Promise<{
+    ok: boolean;
+    prompt: string;
+    match: FlowMatch | null;
+    matches: FlowMatch[];
+    message: string;
+  }>;
+  preview(prompt: string, input?: Record<string, unknown>): Promise<{
+    ok: boolean;
+    stage: string;
+    prompt: string;
+    message: string;
+    match: FlowMatch | null;
+    matches?: FlowMatch[];
+    missingSlots?: FlowSlot[];
+    plan?: PivotPlan;
+    context?: Record<string, unknown>;
+    preview?: PivotResult;
+  }>;
+  execute(prompt: string, input?: Record<string, unknown>): Promise<{
+    ok: boolean;
+    stage: string;
+    prompt: string;
+    message: string;
+    match: FlowMatch | null;
+    plan?: PivotPlan;
+    context?: Record<string, unknown>;
+    preview?: PivotResult;
+    result?: PivotResult;
+  }>;
+};
 
 export const FLOW_FRONTEND_CAPABILITIES: {
   MESSAGE_SHOW: 'message.show';

@@ -26,6 +26,7 @@ import {
   createFlow,
   createLocalIntentMapper,
   createLocalStorageFlowStore,
+  createFlowRunner,
   registerFlowFrontendCapabilities,
   flowToPlan,
   FlowManager,
@@ -93,6 +94,27 @@ const mapper = createLocalIntentMapper();
 const match = mapper.match('在集团下增加分机构 C', [flow]).best;
 const plan = flowToPlan(match.flow, { prompt: match.prompt, slots: match.slots });
 const preview = await runtime.previewPlan(plan, { actor: { permissions: ['system:org:create'] } });
+```
+
+## Headless Runner
+
+Use `createFlowRunner()` when you need the intent-to-execution pipeline without using the bundled drawer UI.
+
+```js
+const runner = createFlowRunner({
+  runtime,
+  flowStore,
+  intentMapper: createLocalIntentMapper(),
+  contextProvider: () => ({
+    actor: {
+      id: 'admin',
+      permissions: ['system:org:create']
+    }
+  })
+});
+
+const preview = await runner.preview('在集团下增加分机构 C');
+const result = await runner.execute('在集团下增加分机构 C');
 ```
 
 ## UI Example

@@ -5,6 +5,7 @@ import {
   createFlow,
   createLocalIntentMapper,
   createMemoryFlowStore,
+  createFlowRunner,
   flowToPlan,
   registerFlowFrontendCapabilities,
   validateFlow
@@ -157,4 +158,69 @@ test('registers built-in frontend capabilities', async () => {
     ['table', 'organizations'],
     ['message', 'done']
   ]);
+});
+
+test('runs a flow with FlowRunner', async () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'org.create',
+    resource: 'organization',
+    action: ActionType.CREATE,
+    risk: RiskLevel.MEDIUM,
+    paramsSchema: {
+      name: { type: 'string', required: true },
+      parentId: { type: 'string', required: true }
+    },
+    permissions: [],
+    execute: ({ params }) => ({ id: 'org-002', ...params })
+  });
+
+  const flowStore = createMemoryFlowStore([createOrganizationFlow()]);
+  const runner = createFlowRunner({ runtime, flowStore });
+  const preview = await runner.preview('在集团下增加分机构 C');
+
+  assert.equal(preview.ok, true);
+  assert.equal(preview.plan.nodes[0].capability, 'org.create');
+
+  const execution = await runner.execute('在集团下增加分机构 C');
+  assert.equal(execution.ok, true);
+  assert.equal(execution.result.data.nodes[0].result.data.name, 'C');
+
+  const runs = await flowStore.listRuns('org-create');
+  assert.equal(runs.length, 1);
+  assert.equal(runs[0].ok, true);
+});
+
+test('FlowRunner blocks preview when required slots are missing', async () => {
+  const runtime = createPivotRuntime();
+  const flow = createFlow({
+    id: 'missing-slot-flow',
+    name: 'Missing slot flow',
+    status: 'published',
+    intent: {
+      examples: ['创建'],
+      keywords: ['创建'],
+      slots: [
+        { name: 'name', type: 'string', required: true }
+      ]
+    },
+    nodes: [
+      {
+        id: 'noop',
+        type: 'message.show',
+        params: { message: '{{intent.name}}' }
+      }
+    ]
+  });
+  registerFlowFrontendCapabilities(runtime);
+
+  const runner = createFlowRunner({
+    runtime,
+    flowStore: createMemoryFlowStore([flow])
+  });
+  const preview = await runner.preview('创建');
+
+  assert.equal(preview.ok, false);
+  assert.equal(preview.stage, 'slots');
+  assert.equal(preview.missingSlots[0].name, 'name');
 });

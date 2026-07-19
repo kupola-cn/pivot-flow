@@ -1,6 +1,6 @@
 import { createLocalIntentMapper } from '../intent-mapper.js';
-import { flowToPlan } from '../flow-to-plan.js';
 import { createMemoryFlowStore } from '../flow-store.js';
+import { createFlowRunner } from '../flow-runner.js';
 import { createElement, escapeHTML, on } from './dom.js';
 import { renderFlowPreviewToHTML } from './FlowPreview.js';
 import { renderFlowRunPanelToHTML } from './FlowRunPanel.js';
@@ -11,6 +11,14 @@ export function FlowAssistantDrawer(options = {}) {
     : options.trigger;
   const flowStore = options.flowStore ?? createMemoryFlowStore(options.flows ?? []);
   const intentMapper = options.intentMapper ?? createLocalIntentMapper();
+  const runner = options.runtime
+    ? createFlowRunner({
+      runtime: options.runtime,
+      flowStore,
+      intentMapper,
+      contextProvider: options.contextProvider
+    })
+    : null;
   const state = {
     open: false,
     prompt: '',
@@ -60,61 +68,53 @@ export function FlowAssistantDrawer(options = {}) {
   };
 
   const matchPrompt = async () => {
-    const flows = await flowStore.list();
-    const matchResult = intentMapper.match(state.prompt, flows);
-    state.match = matchResult.best;
-    state.preview = null;
-    state.result = null;
-    state.error = matchResult.best ? '' : 'No published flow matched this intent.';
-    render();
-    return state.match;
-  };
-
-  const previewMatch = async () => {
-    if (!options.runtime) {
+    if (!runner) {
       state.error = 'PIVOT runtime is required.';
       render();
       return null;
     }
 
-    const match = state.match ?? await matchPrompt();
-    if (!match) {
+    const matchResult = await runner.match(state.prompt);
+    state.match = matchResult.match;
+    state.preview = null;
+    state.result = null;
+    state.error = matchResult.match ? '' : matchResult.message;
+    render();
+    return state.match;
+  };
+
+  const previewMatch = async () => {
+    if (!runner) {
+      state.error = 'PIVOT runtime is required.';
+      render();
       return null;
     }
 
-    const context = await resolveContext(options.contextProvider);
-    const plan = flowToPlan(match.flow, {
-      prompt: state.prompt,
-      slots: match.slots
-    }, context);
-    state.preview = await options.runtime.previewPlan(plan, context);
+    const previewResult = await runner.preview(state.prompt, {
+      match: state.match
+    });
+    state.match = previewResult.match;
+    state.preview = previewResult.preview ?? null;
     state.result = null;
-    state.error = '';
+    state.error = previewResult.ok ? '' : previewResult.message;
     render();
-    return { match, plan, context };
+    return previewResult;
   };
 
   const executeMatch = async () => {
-    const prepared = await previewMatch();
-    if (!prepared) {
-      return;
-    }
-
-    if (!state.preview?.ok) {
-      state.result = state.preview;
+    if (!runner) {
+      state.error = 'PIVOT runtime is required.';
       render();
       return;
     }
 
-    state.result = await options.runtime.executePlan(prepared.plan, prepared.context);
-    if (typeof flowStore.recordRun === 'function') {
-      await flowStore.recordRun({
-        flowId: prepared.match.flow.id,
-        prompt: state.prompt,
-        ok: state.result.ok,
-        message: state.result.message
-      });
-    }
+    const execution = await runner.execute(state.prompt, {
+      match: state.match
+    });
+    state.match = execution.match;
+    state.preview = execution.preview ?? null;
+    state.result = execution.result ?? execution.preview ?? null;
+    state.error = execution.ok ? '' : execution.message;
     render();
   };
 
@@ -183,11 +183,4 @@ function renderMatch(match) {
     '</div>',
     '</section>'
   ].join('');
-}
-
-async function resolveContext(contextProvider) {
-  if (typeof contextProvider === 'function') {
-    return await contextProvider();
-  }
-  return {};
 }
