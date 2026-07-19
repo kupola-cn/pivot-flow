@@ -87,6 +87,51 @@ export function createAIFlowDraft(input = {}, options = {}) {
   };
 }
 
+export function recommendFlowCapabilities(prompt = '', source, options = {}) {
+  const capabilities = createCapabilityManifestSummary(source, options).capabilities;
+  const query = String(prompt || '').trim().toLowerCase();
+  const tokens = createSearchTokens(query);
+  const limit = Math.max(1, Number(options.limit || 8));
+
+  return capabilities
+    .map((capability) => ({
+      capability,
+      score: scoreCapability(capability, query, tokens),
+      reasons: getCapabilityRecommendationReasons(capability, query, tokens)
+    }))
+    .filter((item) => item.score > 0)
+    .sort((left, right) => right.score - left.score || left.capability.name.localeCompare(right.capability.name))
+    .slice(0, limit);
+}
+
+export function renderAIFlowDraftPreviewToHTML(draftResult, options = {}) {
+  const flow = draftResult?.flow ?? draftResult;
+  const validation = draftResult?.validation ?? validateAIFlowDraft(flow, options);
+  const nodes = Array.isArray(flow?.nodes) ? flow.nodes : [];
+  const status = validation.valid ? 'valid draft' : 'blocked';
+
+  return [
+    '<section class="flow-ai-draft-preview">',
+    '<div class="flow-ai-draft-preview__header">',
+    '<div>',
+    `<strong>${escapeHTML(flow?.name || flow?.id || 'AI Flow draft')}</strong>`,
+    `<span>${escapeHTML(flow?.description || flow?.id || '')}</span>`,
+    '</div>',
+    `<span class="flow-badge flow-badge--${validation.valid ? 'low' : 'high'}">${escapeHTML(status)}</span>`,
+    '</div>',
+    validation.errors.length > 0
+      ? `<div class="flow-alert flow-alert--error">${escapeHTML(validation.errors.join('; '))}</div>`
+      : '',
+    '<ol class="flow-ai-draft-preview__nodes">',
+    ...nodes.map((node, index) => renderDraftNode(node, index)),
+    '</ol>',
+    options.showJSON
+      ? `<pre>${escapeHTML(JSON.stringify(flow, null, 2))}</pre>`
+      : '',
+    '</section>'
+  ].join('');
+}
+
 export function createCapabilityManifestSummary(source, options = {}) {
   const capabilities = normalizeCapabilities(source, options.filter)
     .map((capability) => summarizeCapability(capability, options));
@@ -143,6 +188,22 @@ export function validateAIFlowDraft(flow, options = {}) {
   };
 }
 
+function renderDraftNode(node, index) {
+  return [
+    '<li class="flow-ai-draft-preview__node">',
+    '<span class="flow-node__index">',
+    escapeHTML(index + 1),
+    '</span>',
+    '<span>',
+    `<strong>${escapeHTML(node?.label || node?.id || `Node ${index + 1}`)}</strong>`,
+    `<small>${escapeHTML([node?.type, getFlowNodeCapability(node)].filter(Boolean).join(' · '))}</small>`,
+    '</span>',
+    `<span class="flow-badge flow-badge--${escapeAttr(node?.risk || 'low')}">${escapeHTML(node?.risk || 'low')}</span>`,
+    node?.requiresConfirmation ? '<em>confirm</em>' : '',
+    '</li>'
+  ].join('');
+}
+
 function normalizeAIFlowNode(node, index, capabilityByName) {
   const safeNode = isPlainObject(node) ? node : {};
   const type = safeNode.type || (safeNode.capability ? FLOW_NODE_TYPES.CAPABILITY_RUN : FLOW_NODE_TYPES.MESSAGE_SHOW);
@@ -160,6 +221,79 @@ function normalizeAIFlowNode(node, index, capabilityByName) {
     requiresConfirmation: Boolean(safeNode.requiresConfirmation || requiresHumanConfirmation({ ...safeNode, risk }, capability)),
     params: isPlainObject(safeNode.params) ? safeNode.params : {}
   };
+}
+
+function scoreCapability(capability, query, tokens) {
+  if (!query) {
+    return 0;
+  }
+
+  const haystack = getCapabilitySearchText(capability);
+  let score = 0;
+  if (haystack.includes(query)) {
+    score += 12;
+  }
+  if (capability.resource && query.includes(capability.resource)) {
+    score += 4;
+  }
+  if (capability.action && query.includes(capability.action)) {
+    score += 4;
+  }
+  for (const token of tokens) {
+    if (haystack.includes(token)) {
+      score += token.length > 1 ? 3 : 1;
+    }
+  }
+  if (capability.risk === RiskLevel.HIGH || capability.risk === RiskLevel.CRITICAL) {
+    score -= 1;
+  }
+  return score;
+}
+
+function getCapabilityRecommendationReasons(capability, query, tokens) {
+  const haystack = getCapabilitySearchText(capability);
+  const reasons = [];
+  if (query && haystack.includes(query)) {
+    reasons.push('full prompt match');
+  }
+  if (query && capability.resource && query.includes(capability.resource)) {
+    reasons.push(`resource: ${capability.resource}`);
+  }
+  if (query && capability.action && query.includes(capability.action)) {
+    reasons.push(`action: ${capability.action}`);
+  }
+  for (const token of tokens) {
+    if (token.length > 1 && haystack.includes(token)) {
+      reasons.push(`keyword: ${token}`);
+    }
+  }
+  return Array.from(new Set(reasons));
+}
+
+function getCapabilitySearchText(capability) {
+  return [
+    capability.name,
+    capability.resource,
+    capability.action,
+    capability.risk,
+    capability.description,
+    ...(capability.permissions ?? []),
+    ...(capability.tags ?? [])
+  ].filter(Boolean).join(' ').toLowerCase();
+}
+
+function createSearchTokens(query) {
+  const normalized = String(query || '').trim().toLowerCase();
+  if (!normalized) {
+    return [];
+  }
+
+  const words = normalized.split(/[\s,，。；;:：]+/).filter(Boolean);
+  return Array.from(new Set([
+    normalized,
+    ...words,
+    ...words.flatMap((word) => word.split(/[._/-]+/)).filter(Boolean)
+  ]));
 }
 
 function summarizeCapability(capability, options = {}) {
@@ -240,4 +374,17 @@ function clonePlainValue(value) {
 
 function isPlainObject(value) {
   return Object.prototype.toString.call(value) === '[object Object]';
+}
+
+function escapeHTML(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function escapeAttr(value) {
+  return escapeHTML(value);
 }

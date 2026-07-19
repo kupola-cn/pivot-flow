@@ -255,6 +255,22 @@ export function createAIFlowDraft(input?: Partial<FlowDefinition> | { prompt?: s
   validation: ReturnType<typeof validateAIFlowDraft>;
   capabilitySummary: ReturnType<typeof createCapabilityManifestSummary>;
 };
+export function recommendFlowCapabilities(prompt?: string, source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
+  filter?: Record<string, unknown>;
+  includeSchemas?: boolean;
+  maxDescriptionLength?: number;
+  limit?: number;
+}): Array<{
+  capability: Record<string, unknown>;
+  score: number;
+  reasons: string[];
+}>;
+export function renderAIFlowDraftPreviewToHTML(draftResult?: FlowDefinition | ReturnType<typeof createAIFlowDraft>, options?: {
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+  allowPublished?: boolean;
+  showJSON?: boolean;
+}): string;
 export function createCapabilityManifestSummary(source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
   filter?: Record<string, unknown>;
   includeSchemas?: boolean;

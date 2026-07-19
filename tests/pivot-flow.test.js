@@ -32,6 +32,8 @@ import {
   renderFlowSettingsToHTML,
   renderFlowTestPanelToHTML,
   renderFlowTemplateListToHTML,
+  recommendFlowCapabilities,
+  renderAIFlowDraftPreviewToHTML,
   parseFlowTestSlots,
   registerFlowFrontendCapabilities,
   validateAIFlowDraft,
@@ -732,6 +734,48 @@ test('creates safe AI flow builder context and draft from structured output', ()
   assert.equal(draft.flow.metadata.aiGenerated, true);
   assert.equal(draft.flow.nodes[0].risk, 'high');
   assert.equal(draft.flow.nodes[0].requiresConfirmation, true);
+});
+
+test('recommends capabilities and renders AI flow draft preview safely', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'material.delete',
+    resource: 'material',
+    action: ActionType.DELETE,
+    risk: RiskLevel.HIGH,
+    description: '删除耗材',
+    permissions: ['material:catalog:delete'],
+    execute: () => ({ deleted: true })
+  });
+  runtime.registerCapability({
+    name: 'user.query',
+    resource: 'user',
+    action: ActionType.QUERY,
+    risk: RiskLevel.LOW,
+    description: '查询用户',
+    execute: () => ({})
+  });
+  const draft = createAIFlowDraft({
+    flow: {
+      id: 'ai-safe-preview',
+      name: '<script>alert(1)</script>',
+      nodes: [
+        {
+          id: 'delete-material',
+          type: 'capability.run',
+          capability: 'material.delete'
+        }
+      ]
+    }
+  }, { runtime });
+  const recommendations = recommendFlowCapabilities('删除耗材', runtime);
+  const html = renderAIFlowDraftPreviewToHTML(draft, { showJSON: true });
+
+  assert.equal(recommendations[0].capability.name, 'material.delete');
+  assert.match(recommendations[0].reasons.join('\n'), /keyword|full prompt/);
+  assert.match(html, /flow-ai-draft-preview/);
+  assert.match(html, /material\.delete/);
+  assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
 });
 
 function jsonResponse(payload, init = {}) {

@@ -867,6 +867,93 @@
   padding: 2px var(--spacer-4);
 }
 
+.flow-ai-draft-preview {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-10);
+  min-width: 0;
+  padding: var(--spacer-12);
+}
+
+.flow-ai-draft-preview__header,
+.flow-ai-draft-preview__node {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-8);
+  min-width: 0;
+}
+
+.flow-ai-draft-preview__header {
+  justify-content: space-between;
+}
+
+.flow-ai-draft-preview__header > div,
+.flow-ai-draft-preview__node > span:nth-child(2) {
+  display: grid;
+  gap: var(--spacer-4);
+  min-width: 0;
+}
+
+.flow-ai-draft-preview__header strong,
+.flow-ai-draft-preview__node strong {
+  color: var(--text-default);
+  font-size: var(--body-sm-font-size);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flow-ai-draft-preview__header span,
+.flow-ai-draft-preview__node small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  overflow-wrap: anywhere;
+}
+
+.flow-ai-draft-preview__nodes {
+  display: grid;
+  gap: var(--spacer-8);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.flow-ai-draft-preview__node {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  padding: var(--spacer-10);
+}
+
+.flow-ai-draft-preview__node > span:nth-child(2) {
+  flex: 1 1 auto;
+}
+
+.flow-ai-draft-preview__node em {
+  background: var(--bg-brand-overlay);
+  border-radius: 999px;
+  color: var(--text-brand);
+  font-size: var(--body-xs-font-size);
+  font-style: normal;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.flow-ai-draft-preview pre {
+  background: var(--bg-base);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+  margin: 0;
+  max-height: 280px;
+  overflow: auto;
+  padding: var(--spacer-10);
+  white-space: pre-wrap;
+}
+
 @media (max-width: 1180px) {
   .flow-manager__grid,
   .flow-designer,
