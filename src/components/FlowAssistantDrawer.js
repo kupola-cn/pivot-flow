@@ -1,4 +1,4 @@
-import { createLocalIntentMapper } from '../intent-mapper.js';
+import { createLocalIntentMapper, renderIntentClarificationPlanToHTML } from '../intent-mapper.js';
 import { createMemoryFlowStore } from '../flow-store.js';
 import { createFlowRunner } from '../flow-runner.js';
 import { createElement, escapeAttr, escapeHTML, on } from './dom.js';
@@ -25,6 +25,7 @@ export function FlowAssistantDrawer(options = {}) {
     match: null,
     missingSlots: [],
     slotValues: {},
+    clarification: null,
     preview: null,
     result: null,
     error: ''
@@ -60,6 +61,7 @@ export function FlowAssistantDrawer(options = {}) {
       '</div>',
       state.error ? `<div class="flow-alert flow-alert--error">${escapeHTML(state.error)}</div>` : '',
       renderMatch(state.match),
+      renderClarification(state.clarification),
       renderMissingSlots(state.missingSlots, state.slotValues),
       '<div class="flow-panel-title">Preview</div>',
       renderFlowPreviewToHTML(state.preview),
@@ -79,6 +81,7 @@ export function FlowAssistantDrawer(options = {}) {
 
     const matchResult = await runner.match(state.prompt);
     state.match = matchResult.match;
+    state.clarification = matchResult.clarification ?? null;
     state.preview = null;
     state.result = null;
     state.missingSlots = matchResult.match?.missingSlots ?? [];
@@ -100,6 +103,7 @@ export function FlowAssistantDrawer(options = {}) {
       slots: state.slotValues
     });
     state.match = previewResult.match;
+    state.clarification = previewResult.clarification ?? null;
     state.missingSlots = previewResult.missingSlots ?? [];
     state.slotValues = { ...state.slotValues, ...(previewResult.slots ?? {}) };
     state.preview = previewResult.preview ?? null;
@@ -121,6 +125,7 @@ export function FlowAssistantDrawer(options = {}) {
       slots: state.slotValues
     });
     state.match = execution.match;
+    state.clarification = execution.clarification ?? null;
     state.missingSlots = execution.missingSlots ?? [];
     state.slotValues = { ...state.slotValues, ...(execution.slots ?? {}) };
     state.preview = execution.preview ?? null;
@@ -156,12 +161,14 @@ export function FlowAssistantDrawer(options = {}) {
       state.match = null;
       state.missingSlots = [];
       state.slotValues = {};
+      state.clarification = null;
       state.preview = null;
       state.result = null;
       state.error = '';
     }),
     on(root, 'input', '[data-flow-slot]', (e, el) => {
       state.slotValues[el.dataset.flowSlot] = e.target.value;
+      state.clarification = null;
       state.preview = null;
       state.result = null;
       state.error = '';
@@ -185,6 +192,13 @@ export function FlowAssistantDrawer(options = {}) {
       root.remove();
     }
   };
+}
+
+function renderClarification(clarification) {
+  if (!clarification?.needed) {
+    return '';
+  }
+  return renderIntentClarificationPlanToHTML(clarification);
 }
 
 function renderMissingSlots(missingSlots = [], slotValues = {}) {

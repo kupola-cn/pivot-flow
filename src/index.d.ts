@@ -318,6 +318,7 @@ export function createFlowRunner(options: {
     prompt: string;
     match: FlowMatch | null;
     matches: FlowMatch[];
+    clarification?: FlowIntentClarificationPlan;
     message: string;
   }>;
   preview(prompt: string, input?: Record<string, unknown>): Promise<{
@@ -329,6 +330,7 @@ export function createFlowRunner(options: {
     matches?: FlowMatch[];
     missingSlots?: FlowSlot[];
     slots?: Record<string, unknown>;
+    clarification?: FlowIntentClarificationPlan;
     plan?: PivotPlan;
     context?: Record<string, unknown>;
     preview?: PivotResult;
@@ -341,6 +343,7 @@ export function createFlowRunner(options: {
     match: FlowMatch | null;
     missingSlots?: FlowSlot[];
     slots?: Record<string, unknown>;
+    clarification?: FlowIntentClarificationPlan;
     plan?: PivotPlan;
     context?: Record<string, unknown>;
     preview?: PivotResult;

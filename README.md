@@ -174,6 +174,8 @@ This helps operators understand whether a command matched because of a keyword, 
 
 `createIntentClarificationPlan()` returns a structured next step when the prompt has no strong match, multiple close matches, or missing required slots. Applications can render the default HTML or turn the returned questions into their own multi-step form.
 
+`FlowAssistantDrawer` and the `FlowManager` test panel render clarification hints by default when a command is ambiguous or missing required parameters.
+
 ## Run Diagnostics
 
 Use `getFlowRunSummary()` when a page needs a compact business-facing summary of a preview or execution result. The summary normalizes node status, failed nodes, node duration, result messages, result codes, and recommended checks.

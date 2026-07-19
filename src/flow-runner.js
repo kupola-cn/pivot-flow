@@ -1,6 +1,6 @@
 import { flowToPlan } from './flow-to-plan.js';
 import { createMemoryFlowStore } from './flow-store.js';
-import { createLocalIntentMapper } from './intent-mapper.js';
+import { createIntentClarificationPlan, createLocalIntentMapper } from './intent-mapper.js';
 
 export function createFlowRunner(options = {}) {
   const runtime = options.runtime;
@@ -23,11 +23,19 @@ export function createFlowRunner(options = {}) {
   const match = async (prompt, matchOptions = {}) => {
     const flows = await flowStore.list(matchOptions.query ?? {});
     const matchResult = intentMapper.match(prompt, flows, matchOptions);
+    const clarification = createIntentClarificationPlan({
+      ok: matchResult.ok,
+      prompt,
+      best: matchResult.best,
+      matches: matchResult.matches ?? [],
+      candidates: matchResult.matches ?? []
+    }, matchOptions.clarification ?? {});
     return {
       ok: matchResult.ok,
       prompt,
       match: matchResult.best,
       matches: matchResult.matches,
+      clarification,
       message: matchResult.ok ? 'Flow matched.' : 'No published flow matched this intent.'
     };
   };
@@ -59,7 +67,8 @@ export function createFlowRunner(options = {}) {
         message: matched.message,
         match: null,
         matches: matched.matches ?? [],
-        missingSlots: []
+        missingSlots: [],
+        clarification: matched.clarification ?? createIntentClarificationPlan(matched)
       };
     }
 
@@ -78,7 +87,15 @@ export function createFlowRunner(options = {}) {
         match: matched.match,
         matches: matched.matches ?? [],
         missingSlots,
-        slots: mergedSlots
+        slots: mergedSlots,
+        clarification: createIntentClarificationPlan({
+          ...matched,
+          best: {
+            ...matched.match,
+            missingSlots
+          },
+          matches: (matched.matches ?? []).map((entry) => entry === matched.match ? { ...entry, missingSlots } : entry)
+        })
       };
     }
 
@@ -97,6 +114,14 @@ export function createFlowRunner(options = {}) {
       matches: matched.matches ?? [],
       missingSlots: [],
       slots: mergedSlots,
+      clarification: createIntentClarificationPlan({
+        ...matched,
+        best: {
+          ...matched.match,
+          missingSlots: []
+        },
+        matches: (matched.matches ?? []).map((entry) => entry === matched.match ? { ...entry, missingSlots: [] } : entry)
+      }),
       plan: prepared.plan,
       context: prepared.context,
       preview: previewResult

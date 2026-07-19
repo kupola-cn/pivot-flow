@@ -1,4 +1,5 @@
 import { escapeHTML, formatJson } from './dom.js';
+import { renderIntentClarificationPlanToHTML } from '../intent-mapper.js';
 
 export function renderFlowTestPanelToHTML(state = {}) {
   return [
@@ -24,14 +25,17 @@ export function renderFlowTestPanelToHTML(state = {}) {
     `<textarea class="ds-textarea" rows="3" data-flow-test-field="slots">${escapeHTML(state.testSlotsText ?? '{}')}</textarea>`,
     '</label>',
     '</div>',
-    renderTestMatch(state.testMatch, state.testMissingSlots),
+    renderTestMatch(state.testMatch, state.testMissingSlots, state.testClarification),
     '</section>'
   ].join('');
 }
 
-function renderTestMatch(match, missingSlots = []) {
+function renderTestMatch(match, missingSlots = [], clarification = null) {
   if (!match) {
-    return '<div class="flow-empty flow-empty--compact">Run match to inspect intent routing.</div>';
+    return [
+      '<div class="flow-empty flow-empty--compact">Run match to inspect intent routing.</div>',
+      clarification?.needed ? renderIntentClarificationPlanToHTML(clarification) : ''
+    ].join('');
   }
 
   return [
@@ -50,12 +54,14 @@ function renderTestMatch(match, missingSlots = []) {
         '</div>'
       ].join('')
       : '',
+    clarification?.needed ? renderIntentClarificationPlanToHTML(clarification) : '',
     '<details class="flow-test-match__details">',
     '<summary>Match details</summary>',
     `<pre>${escapeHTML(formatJson({
       flowId: match.flow?.id,
       slots: match.slots ?? {},
       missingSlots: missingSlots ?? [],
+      clarification: clarification ?? null,
       reasons: match.reasons ?? []
     }))}</pre>`,
     '</details>',

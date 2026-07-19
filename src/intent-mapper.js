@@ -398,11 +398,12 @@ function formatFactValue(value) {
 
 function normalizeIntentExplanation(value) {
   if (value?.candidates || value?.matches || value?.best !== undefined) {
+    const best = value.best ?? value.match ?? null;
     return {
       ok: Boolean(value.ok),
-      prompt: value.prompt || value.best?.prompt || '',
+      prompt: value.prompt || best?.prompt || '',
       minConfidence: value.minConfidence ?? 0.2,
-      best: value.best ?? null,
+      best,
       matches: value.matches ?? [],
       candidates: value.candidates ?? value.matches ?? []
     };

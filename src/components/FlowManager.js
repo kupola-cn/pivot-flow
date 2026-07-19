@@ -3,7 +3,7 @@ import { createFlowFromTemplate, listFlowTemplates } from '../flow-templates.js'
 import { flowToPlan } from '../flow-to-plan.js';
 import { createFlowRunner } from '../flow-runner.js';
 import { createMemoryFlowStore } from '../flow-store.js';
-import { createLocalIntentMapper } from '../intent-mapper.js';
+import { createIntentClarificationPlan, createLocalIntentMapper } from '../intent-mapper.js';
 import { createFlowBatchSafetyReport, createFlowSafetyReport, renderFlowBatchSafetyReportToHTML, renderFlowSafetyReportToHTML } from '../flow-safety-report.js';
 import { getDefaultCapabilityForNodeType } from '../node-types.js';
 import { escapeAttr, escapeHTML, on, resolveTarget, setHTML } from './dom.js';
@@ -47,6 +47,7 @@ export function FlowManager(options = {}) {
     testSlotsText: '{}',
     testMatch: null,
     testMissingSlots: [],
+    testClarification: null,
     preview: null,
     result: null,
     loading: false,
@@ -114,7 +115,7 @@ export function FlowManager(options = {}) {
       '</div>',
       '<div>',
       '<div class="flow-panel-title">Run result</div>',
-      renderFlowRunPanelToHTML(state.result),
+      renderFlowRunPanelToHTML(state.result, { flow }),
       '</div>',
       '<div>',
       '<div class="flow-panel-title">Audit</div>',
@@ -180,6 +181,13 @@ export function FlowManager(options = {}) {
     const matchResult = intentMapper.match(prompt, flow ? [flow] : [], { includeDraft: true });
     state.testMatch = matchResult.best;
     state.testMissingSlots = matchResult.best?.missingSlots ?? [];
+    state.testClarification = createIntentClarificationPlan({
+      ok: matchResult.ok,
+      prompt,
+      best: matchResult.best,
+      matches: matchResult.matches ?? [],
+      candidates: matchResult.matches ?? []
+    });
     state.preview = null;
     state.result = null;
     state.error = matchResult.ok ? '' : 'Current flow did not match this prompt.';
@@ -213,6 +221,7 @@ export function FlowManager(options = {}) {
     });
     state.testMatch = previewResult.match;
     state.testMissingSlots = previewResult.missingSlots ?? [];
+    state.testClarification = previewResult.clarification ?? null;
     state.preview = previewResult.preview ?? null;
     state.result = null;
     state.error = previewResult.ok ? '' : previewResult.message;
@@ -246,6 +255,7 @@ export function FlowManager(options = {}) {
     });
     state.testMatch = execution.match;
     state.testMissingSlots = execution.missingSlots ?? [];
+    state.testClarification = execution.clarification ?? null;
     state.preview = execution.preview ?? null;
     state.result = execution.result ?? execution.preview ?? null;
     state.error = execution.ok ? '' : execution.message;
