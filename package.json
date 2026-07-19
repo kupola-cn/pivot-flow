@@ -1,0 +1,56 @@
+{
+  "name": "@kupola/pivot-flow",
+  "version": "0.1.0",
+  "description": "AI-native frontend business flow orchestration layer for Kupola PIVOT.",
+  "type": "module",
+  "main": "src/index.js",
+  "module": "src/index.js",
+  "types": "src/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./src/index.js",
+      "types": "./src/index.d.ts"
+    },
+    "./css": "./src/styles/pivot-flow.css"
+  },
+  "sideEffects": [
+    "*.css",
+    "src/styles/*.css"
+  ],
+  "files": [
+    "src/",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node --test",
+    "pack:check": "npm pack --dry-run"
+  },
+  "keywords": [
+    "kupola",
+    "pivot",
+    "pivot-flow",
+    "ai",
+    "intent",
+    "workflow",
+    "frontend",
+    "orchestration"
+  ],
+  "dependencies": {
+    "@kupola/kupola": "^2.0.7",
+    "@kupola/pivot": "^0.2.14"
+  },
+  "devDependencies": {},
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/kupola-cn/pivot-flow.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kupola-cn/pivot-flow/issues"
+  },
+  "homepage": "https://github.com/kupola-cn/pivot-flow#readme",
+  "publishConfig": {
+    "access": "public"
+  }
+}

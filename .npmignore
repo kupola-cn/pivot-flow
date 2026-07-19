@@ -1,0 +1,6 @@
+dgc/
+tests/
+examples/
+.git/
+.github/
+*.tgz

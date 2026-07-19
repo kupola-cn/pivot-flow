@@ -1,0 +1,397 @@
+.flow-manager,
+.flow-designer,
+.flow-assistant,
+.flow-preview,
+.flow-run-panel {
+  color: var(--text-default);
+  font-family: var(--font-family-base, inherit);
+}
+
+.flow-manager {
+  display: grid;
+  gap: var(--spacer-16);
+  min-width: 0;
+}
+
+.flow-manager__header,
+.flow-manager__actions,
+.flow-designer__toolbar,
+.flow-designer__actions,
+.flow-assistant__header,
+.flow-assistant__actions,
+.flow-list__button,
+.flow-node__button,
+.flow-inspector__field {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-8);
+  min-width: 0;
+}
+
+.flow-manager__header,
+.flow-designer__toolbar,
+.flow-assistant__header,
+.flow-list__button,
+.flow-node__button,
+.flow-inspector__field {
+  justify-content: space-between;
+}
+
+.flow-manager__header {
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  background: var(--bg-overlay-l1);
+  padding: var(--spacer-16);
+}
+
+.flow-manager__header h2,
+.flow-assistant__header h2 {
+  color: var(--text-default);
+  font-size: var(--heading-md-font-size);
+  margin: 0;
+}
+
+.flow-manager__header p,
+.flow-assistant__header p,
+.flow-muted {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  margin: var(--spacer-4) 0 0;
+}
+
+.flow-manager__grid {
+  display: grid;
+  gap: var(--spacer-16);
+  grid-template-columns: 280px minmax(0, 1fr);
+  min-width: 0;
+}
+
+.flow-manager__sidebar,
+.flow-manager__workspace,
+.flow-manager__runtime,
+.flow-palette,
+.flow-inspector,
+.flow-variable-mapper,
+.flow-intent-editor,
+.flow-match {
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  background: var(--bg-overlay-l1);
+  min-width: 0;
+  padding: var(--spacer-12);
+}
+
+.flow-manager__runtime {
+  display: grid;
+  gap: var(--spacer-16);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.flow-designer {
+  display: grid;
+  gap: var(--spacer-12);
+  grid-template-columns: 220px minmax(0, 1fr) 280px;
+  min-width: 0;
+}
+
+.flow-designer__main,
+.flow-designer__inspector {
+  display: grid;
+  gap: var(--spacer-12);
+  min-width: 0;
+}
+
+.flow-panel-title {
+  color: var(--text-default);
+  font-size: var(--body-sm-font-size);
+  font-weight: 700;
+}
+
+.flow-list,
+.flow-palette__list,
+.flow-canvas__nodes,
+.flow-token-list {
+  display: grid;
+  gap: var(--spacer-8);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.flow-list__button,
+.flow-node__button,
+.flow-node-type {
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  background: var(--bg-overlay-l2);
+  color: var(--text-default);
+  cursor: pointer;
+  padding: var(--spacer-10);
+  text-align: left;
+  width: 100%;
+}
+
+.flow-list__button:hover,
+.flow-node__button:hover,
+.flow-node-type:hover,
+.flow-list__item.is-active .flow-list__button,
+.flow-node.is-selected .flow-node__button {
+  border-color: var(--border-brand);
+  background: var(--bg-brand-overlay);
+}
+
+.flow-list__main,
+.flow-node__body,
+.flow-node-type {
+  display: grid;
+  gap: var(--spacer-4);
+  min-width: 0;
+}
+
+.flow-list__main strong,
+.flow-node__body strong {
+  color: var(--text-default);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flow-list__main small,
+.flow-node__body small,
+.flow-node-type small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  overflow-wrap: anywhere;
+}
+
+.flow-badge {
+  border-radius: 999px;
+  background: var(--bg-overlay-l2);
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  line-height: 1;
+  padding: 5px 8px;
+  white-space: nowrap;
+}
+
+.flow-badge--published,
+.flow-badge--low {
+  background: var(--status-success-surface-l1);
+  color: var(--status-success-default);
+}
+
+.flow-badge--draft,
+.flow-badge--medium {
+  background: var(--status-warning-surface-l1);
+  color: var(--status-warning-default);
+}
+
+.flow-badge--disabled,
+.flow-badge--archived,
+.flow-badge--high,
+.flow-badge--critical {
+  background: var(--status-error-surface-l1);
+  color: var(--status-error-default);
+}
+
+.flow-canvas {
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--border-neutral-l1) 45%, transparent) 1px, transparent 1px),
+    linear-gradient(0deg, color-mix(in srgb, var(--border-neutral-l1) 45%, transparent) 1px, transparent 1px),
+    var(--bg-overlay-l2);
+  background-size: 24px 24px;
+  min-height: 260px;
+  overflow: auto;
+  padding: var(--spacer-12);
+}
+
+.flow-node__index {
+  align-items: center;
+  background: var(--bg-brand-overlay);
+  border-radius: 999px;
+  color: var(--text-brand);
+  display: inline-flex;
+  flex: 0 0 auto;
+  font-size: var(--body-xs-font-size);
+  font-weight: 700;
+  height: 24px;
+  justify-content: center;
+  width: 24px;
+}
+
+.flow-inspector,
+.flow-variable-mapper,
+.flow-intent-editor {
+  display: grid;
+  gap: var(--spacer-10);
+}
+
+.flow-inspector__field {
+  border-bottom: 1px solid var(--border-neutral-l1);
+  padding-bottom: var(--spacer-8);
+}
+
+.flow-inspector__field span,
+.flow-inspector__block span,
+.flow-intent-editor__label {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-inspector__field strong {
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.flow-inspector__block {
+  display: grid;
+  gap: var(--spacer-6);
+}
+
+.flow-inspector pre,
+.flow-token-list code,
+.flow-match code {
+  border-radius: var(--radius-4);
+  background: var(--bg-base);
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+  margin: 0;
+  overflow: auto;
+  padding: var(--spacer-8);
+  white-space: pre-wrap;
+}
+
+.flow-empty {
+  border: 1px dashed var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  color: var(--text-secondary);
+  font-size: var(--body-sm-font-size);
+  padding: var(--spacer-12);
+  text-align: center;
+}
+
+.flow-empty--compact {
+  font-size: var(--body-xs-font-size);
+  padding: var(--spacer-8);
+}
+
+.flow-alert {
+  border-radius: var(--radius-4);
+  font-size: var(--body-sm-font-size);
+  padding: var(--spacer-10);
+}
+
+.flow-alert--error {
+  background: var(--status-error-surface-l1);
+  color: var(--status-error-default);
+}
+
+.flow-assistant {
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  z-index: 1000;
+}
+
+.flow-assistant.is-open {
+  pointer-events: auto;
+}
+
+.flow-assistant__backdrop {
+  background: rgba(0, 0, 0, 0.45);
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+  transition: opacity 160ms ease;
+}
+
+.flow-assistant.is-open .flow-assistant__backdrop {
+  opacity: 1;
+}
+
+.flow-assistant__drawer {
+  background: var(--bg-overlay-l1);
+  border-left: 1px solid var(--border-neutral-l1);
+  bottom: 0;
+  box-shadow: var(--shadow-lg);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  max-width: min(560px, 100vw);
+  position: absolute;
+  right: 0;
+  top: 0;
+  transform: translateX(100%);
+  transition: transform 180ms ease;
+  width: 560px;
+}
+
+.flow-assistant.is-open .flow-assistant__drawer {
+  transform: translateX(0);
+}
+
+.flow-assistant__header,
+.flow-assistant__body {
+  padding: var(--spacer-16);
+}
+
+.flow-assistant__header {
+  border-bottom: 1px solid var(--border-neutral-l1);
+}
+
+.flow-assistant__body {
+  display: grid;
+  gap: var(--spacer-12);
+  overflow: auto;
+}
+
+.flow-field {
+  display: grid;
+  gap: var(--spacer-6);
+}
+
+.flow-field span {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-assistant__input {
+  min-height: 112px;
+  resize: vertical;
+  width: 100%;
+}
+
+.flow-match {
+  display: grid;
+  gap: var(--spacer-8);
+}
+
+.flow-match strong {
+  color: var(--text-default);
+}
+
+.flow-match span {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+}
+
+@media (max-width: 1180px) {
+  .flow-manager__grid,
+  .flow-designer,
+  .flow-manager__runtime {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .flow-manager__header,
+  .flow-designer__toolbar,
+  .flow-assistant__header,
+  .flow-assistant__actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
