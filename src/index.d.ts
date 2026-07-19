@@ -180,6 +180,7 @@ export function createFlowNode(input?: Partial<FlowNode>): FlowNode;
 export function createFlowEdge(input?: Partial<FlowEdge>): FlowEdge;
 export function normalizeFlow(flow: Partial<FlowDefinition>): FlowDefinition;
 export function cloneFlow<T = unknown>(flow: T): T;
+export function duplicateFlow(flow?: Partial<FlowDefinition>, overrides?: Partial<FlowDefinition>): FlowDefinition;
 export function validateFlow(flow: FlowDefinition, options?: { capabilities?: unknown }): FlowValidationResult;
 export function canConnectFlowNodes(flow: FlowDefinition, from?: string, to?: string, options?: {
   edgeId?: string;

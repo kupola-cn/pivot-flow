@@ -1,4 +1,4 @@
-import { createFlow, createFlowEdge, createFlowNode } from '../flow-schema.js';
+import { createFlow, createFlowEdge, createFlowNode, duplicateFlow } from '../flow-schema.js';
 import { createFlowFromTemplate, listFlowTemplates } from '../flow-templates.js';
 import { flowToPlan } from '../flow-to-plan.js';
 import { canConnectFlowNodes } from '../flow-validation.js';
@@ -104,6 +104,7 @@ export function FlowManager(options = {}) {
       '<div class="flow-manager__actions">',
       '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-action="refresh">Refresh</button>',
       '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-action="create-flow">New flow</button>',
+      flow ? '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-action="duplicate-flow">Duplicate</button>' : '',
       '<button type="button" class="ds-btn ds-btn--brand ds-btn--sm" data-flow-action="create-sample">Sample flow</button>',
       '</div>',
       '</header>',
@@ -569,6 +570,30 @@ export function FlowManager(options = {}) {
     }
   };
 
+  const duplicateSelectedFlow = async () => {
+    const flow = getSelectedFlow(state);
+    if (!flow) {
+      return;
+    }
+
+    try {
+      const copy = await flowStore.create(duplicateFlow(flow));
+      state.selectedFlowId = copy.id;
+      state.selectedNodeId = copy.nodes?.[0]?.id ?? '';
+      state.selectedEdgeId = copy.edges?.[0]?.id ?? '';
+      state.testPrompt = copy.intent?.examples?.[0] ?? copy.name ?? '';
+      state.testMatch = null;
+      state.testMissingSlots = [];
+      state.preview = null;
+      state.result = null;
+      state.error = '';
+      await refresh();
+    } catch (error) {
+      state.error = error?.message || 'Failed to duplicate flow.';
+      render();
+    }
+  };
+
   const createTemplateFlow = async (templateId) => {
     const template = state.templates.find((item) => item.id === templateId);
     if (!template) {
@@ -928,6 +953,9 @@ export function FlowManager(options = {}) {
     }),
     on(target, 'click', '[data-flow-action="create-flow"]', () => {
       createBlankFlow();
+    }),
+    on(target, 'click', '[data-flow-action="duplicate-flow"]', () => {
+      duplicateSelectedFlow();
     }),
     on(target, 'click', '[data-flow-action="create-from-template"]', (e, el) => {
       createTemplateFlow(el.dataset.templateId);

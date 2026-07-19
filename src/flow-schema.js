@@ -95,6 +95,26 @@ export function cloneFlow(flow) {
   return JSON.parse(JSON.stringify(flow));
 }
 
+export function duplicateFlow(flow, overrides = {}) {
+  const source = cloneFlow(flow ?? {});
+  const now = new Date().toISOString();
+  return createFlow({
+    ...source,
+    ...overrides,
+    id: overrides.id ?? createId('flow'),
+    name: overrides.name ?? `${source.name || source.id || 'Flow'} copy`,
+    status: overrides.status ?? FLOW_STATUS.DRAFT,
+    createdAt: overrides.createdAt ?? now,
+    updatedAt: overrides.updatedAt ?? now,
+    publishedAt: overrides.publishedAt ?? null,
+    metadata: {
+      ...(isPlainObject(source.metadata) ? source.metadata : {}),
+      ...(isPlainObject(overrides.metadata) ? overrides.metadata : {}),
+      duplicatedFrom: source.id || ''
+    }
+  });
+}
+
 export function createId(prefix) {
   if (globalThis.crypto?.randomUUID) {
     return `${prefix}:${globalThis.crypto.randomUUID()}`;

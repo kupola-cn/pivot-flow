@@ -28,6 +28,7 @@ import {
   analyzeFlowDataDependencies,
   explainIntentMatches,
   extractFlowDataReferences,
+  duplicateFlow,
   filterFlows,
   applyFlowTransform,
   evaluateFlowCondition,
@@ -119,6 +120,31 @@ test('validates a published flow', () => {
   const validation = validateFlow(flow);
 
   assert.equal(validation.valid, true);
+});
+
+test('duplicates flows as draft copies', () => {
+  const source = createFlow({
+    id: 'published-flow',
+    name: 'Published flow',
+    status: 'published',
+    publishedAt: '2026-07-19T08:00:00.000Z',
+    nodes: [
+      { id: 'node-1', type: 'capability.run', capability: 'org.create' }
+    ],
+    metadata: {
+      owner: 'admin'
+    }
+  });
+
+  const copy = duplicateFlow(source);
+
+  assert.notEqual(copy.id, source.id);
+  assert.equal(copy.name, 'Published flow copy');
+  assert.equal(copy.status, 'draft');
+  assert.equal(copy.publishedAt, null);
+  assert.equal(copy.metadata.owner, 'admin');
+  assert.equal(copy.metadata.duplicatedFrom, 'published-flow');
+  assert.deepEqual(copy.nodes, source.nodes);
 });
 
 test('matches natural language intent to a published flow', () => {

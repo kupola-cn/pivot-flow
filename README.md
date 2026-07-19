@@ -365,6 +365,7 @@ FlowAssistantDrawer({
 
 - create blank or sample flows
 - create draft flows from built-in or custom templates grouped by business domain
+- duplicate an existing flow as a draft copy before changing it
 - search, filter, group, publish, and disable filtered flows in the manager sidebar
 - edit flow name, description, status, risk, examples, keywords, patterns, and slots
 - add built-in nodes from the palette
