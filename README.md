@@ -286,6 +286,32 @@ Imported flows are prepared as `draft` by default and `publishedAt` is cleared. 
 
 Importing a Flow never publishes, executes, or registers backend capabilities. It is only a configuration preparation step. Server APIs must still enforce authentication, authorization, schema validation, data permissions, and conflict checks when the imported configuration is saved or later published.
 
+## Snapshots And Change Review
+
+Use snapshots when administrators need a restore point before editing or publishing a Flow. Restoring a snapshot creates a draft by default and clears `publishedAt`.
+
+```js
+import {
+  createFlowChangeReport,
+  createFlowSnapshot,
+  renderFlowChangeReportToHTML,
+  restoreFlowSnapshot
+} from '@kupola/pivot-flow';
+
+const snapshot = createFlowSnapshot(currentFlow, {
+  label: 'Before role deletion update',
+  reason: 'publish review',
+  createdBy: actor.id
+});
+
+const restoredDraft = restoreFlowSnapshot(snapshot);
+
+const changeReport = createFlowChangeReport(currentFlow, editedFlow, { runtime });
+document.querySelector('#changeReport').innerHTML = renderFlowChangeReportToHTML(changeReport);
+```
+
+Change reports classify edits across intent rules, nodes, edges, permissions, lifecycle fields, and metadata. Capability, permission, risk, confirmation, and condition changes are marked as high-impact so they are visible before publish. The report validates the target Flow and blocks invalid definitions, but backend publish APIs must still enforce authorization, capability allowlists, data rules, and audit.
+
 ## Flow Templates
 
 Built-in templates provide common starting points for application flows. Templates create draft flows and still require project-specific capability registration, preview, publish checks, and backend authorization.

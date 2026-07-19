@@ -301,6 +301,73 @@ export function renderFlowImportReportToHTML(reportOrInput: FlowImportReport | s
   capabilities?: unknown;
   runtime?: PivotRuntime;
 }): string;
+export interface FlowSnapshot {
+  id: string;
+  flowId: string;
+  flowName: string;
+  version: string;
+  status: FlowStatus | string;
+  label: string;
+  reason: string;
+  createdAt: string;
+  createdBy: string | Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  flow: FlowDefinition;
+}
+export interface FlowChangeItem {
+  path: string;
+  type: 'added' | 'removed' | 'changed';
+  before: unknown;
+  after: unknown;
+  category: 'intent' | 'nodes' | 'edges' | 'permissions' | 'lifecycle' | 'metadata' | 'general' | string;
+  risk: 'low' | 'medium' | 'high';
+  label: string;
+}
+export interface FlowChangeReport {
+  ok: boolean;
+  status: 'ready' | 'review' | 'blocked';
+  beforeFlowId: string;
+  afterFlowId: string;
+  beforeFlowName: string;
+  afterFlowName: string;
+  total: number;
+  highImpactCount: number;
+  mediumImpactCount: number;
+  lowImpactCount: number;
+  categories: Record<string, number>;
+  changes: FlowChangeItem[];
+  validation: FlowValidationResult;
+  blockingIssues: string[];
+  warnings: string[];
+  summary: string;
+}
+export function createFlowSnapshot(flow?: Partial<FlowDefinition>, options?: {
+  id?: string;
+  label?: string;
+  reason?: string;
+  createdAt?: string;
+  createdBy?: string | Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+}): FlowSnapshot;
+export function restoreFlowSnapshot(snapshot?: FlowSnapshot | { flow?: Partial<FlowDefinition> } | Partial<FlowDefinition>, overrides?: Partial<FlowDefinition> & {
+  restoredAt?: string;
+}): FlowDefinition;
+export function diffFlows(before?: Partial<FlowDefinition>, after?: Partial<FlowDefinition>, options?: {
+  ignorePaths?: string[];
+  limit?: number;
+}): FlowChangeItem[];
+export function createFlowChangeReport(before?: Partial<FlowDefinition>, after?: Partial<FlowDefinition>, options?: {
+  ignorePaths?: string[];
+  limit?: number;
+  capabilities?: unknown;
+  runtime?: PivotRuntime;
+}): FlowChangeReport;
+export function renderFlowChangeReportToHTML(reportOrBefore?: FlowChangeReport | Partial<FlowDefinition>, after?: Partial<FlowDefinition>, options?: {
+  ignorePaths?: string[];
+  limit?: number;
+  capabilities?: unknown;
+  runtime?: PivotRuntime;
+}): string;
 export interface FlowDataReference {
   source: 'node' | 'intent' | 'context';
   raw: string;

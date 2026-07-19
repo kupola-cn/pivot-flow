@@ -11,6 +11,7 @@
 .flow-dependency-report,
 .flow-node-neighborhood,
 .flow-access-report,
+.flow-change-report,
 .flow-import-report,
 .flow-safety-report {
   color: var(--text-default);
@@ -2110,6 +2111,115 @@
   color: var(--status-error-default);
 }
 
+.flow-change-report {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-10);
+  min-width: 0;
+  padding: var(--spacer-10);
+}
+
+.flow-change-report--blocked {
+  border-color: var(--status-error-default);
+}
+
+.flow-change-report--review {
+  border-color: var(--status-warning-default);
+}
+
+.flow-change-report__header {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.flow-change-report__header > div,
+.flow-change-report__item > span:first-child {
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+}
+
+.flow-change-report__header strong,
+.flow-change-report__changes > strong,
+.flow-change-report__issues > strong,
+.flow-change-report__item strong {
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-change-report__header span,
+.flow-change-report small,
+.flow-change-report__issues li {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.flow-change-report__summary {
+  display: grid;
+  gap: var(--spacer-8);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.flow-change-report__summary span,
+.flow-change-report__changes,
+.flow-change-report__issues {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-8);
+  min-width: 0;
+  padding: var(--spacer-8);
+}
+
+.flow-change-report__summary strong {
+  color: var(--text-default);
+  font-size: var(--body-sm-font-size);
+}
+
+.flow-change-report__changes ol,
+.flow-change-report__issues ul {
+  display: grid;
+  gap: var(--spacer-6);
+  margin: 0;
+  padding-left: var(--spacer-16);
+}
+
+.flow-change-report__item {
+  display: grid;
+  gap: var(--spacer-4);
+  min-width: 0;
+}
+
+.flow-change-report__item em {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: 999px;
+  color: var(--text-tertiary);
+  font-size: var(--body-xs-font-size);
+  font-style: normal;
+  justify-self: start;
+  line-height: 1;
+  padding: 4px 8px;
+}
+
+.flow-change-report__item--medium em,
+.flow-change-report__issues--warning > strong {
+  color: var(--status-warning-default);
+}
+
+.flow-change-report__item--high em,
+.flow-change-report__issues--error > strong {
+  color: var(--status-error-default);
+}
+
 .flow-safety-report,
 .flow-batch-safety-report {
   background: var(--bg-overlay-l1);
@@ -2596,6 +2706,7 @@
   .flow-manager__runtime,
   .flow-canvas-controls,
   .flow-edge-form,
+  .flow-change-report__summary,
   .flow-import-report__summary,
   .flow-run-history__filters,
   .flow-safety-report__summary,

@@ -20,6 +20,8 @@ import {
   createFlowAccessReport,
   createFlowExportPayload,
   createFlowImportReport,
+  createFlowChangeReport,
+  createFlowSnapshot,
   applyAIFlowDraftRepairPlan,
   createFlowBatchSafetyReport,
   createFlowSafetyReport,
@@ -35,6 +37,7 @@ import {
   applyFlowTransform,
   evaluateFlowCondition,
   flowToPlan,
+  diffFlows,
   listFlowTemplates,
   diffAIFlowDraft,
   createAIFlowDraftRepairPlan,
@@ -69,6 +72,7 @@ import {
   renderFlowRunHistoryToHTML,
   renderFlowRunSummaryToHTML,
   renderFlowAccessReportToHTML,
+  renderFlowChangeReportToHTML,
   renderFlowImportReportToHTML,
   renderFlowNodeNeighborhoodToHTML,
   renderFlowSafetyReportToHTML,
@@ -81,6 +85,7 @@ import {
   renderFlowTestPanelToHTML,
   renderFlowTemplateListToHTML,
   renderVariableMapperToHTML,
+  restoreFlowSnapshot,
   recommendFlowCapabilities,
   renderAIFlowDraftPreviewToHTML,
   renderAIFlowBuilderPanelToHTML,
@@ -238,6 +243,71 @@ test('direct store imports detect existing ids before saving', async () => {
   assert.equal(result.createdCount, 1);
   assert.equal(flows.length, 2);
   assert.equal(flows.some((flow) => flow.id !== source.id && flow.metadata.originalId === source.id), true);
+});
+
+test('creates flow snapshots and restores them as drafts', () => {
+  const source = createOrganizationFlow();
+  const snapshot = createFlowSnapshot(source, {
+    id: 'snapshot-1',
+    label: 'Before update',
+    reason: 'publish review',
+    createdAt: '2026-07-19T10:00:00.000Z',
+    createdBy: 'admin'
+  });
+  const restored = restoreFlowSnapshot(snapshot, {
+    restoredAt: '2026-07-19T11:00:00.000Z'
+  });
+
+  assert.equal(snapshot.flowId, 'org-create');
+  assert.equal(snapshot.label, 'Before update');
+  assert.equal(snapshot.flow.status, 'published');
+  assert.equal(restored.status, 'draft');
+  assert.equal(restored.publishedAt, null);
+  assert.equal(restored.metadata.restoredFromSnapshot, 'snapshot-1');
+});
+
+test('reports high-impact flow changes before publish', () => {
+  const before = createOrganizationFlow();
+  const after = createFlow({
+    ...before,
+    permissions: ['flow:publish'],
+    nodes: [
+      {
+        ...before.nodes[0],
+        capability: 'org.delete',
+        risk: 'high',
+        requiresConfirmation: true
+      }
+    ]
+  });
+  const changes = diffFlows(before, after);
+  const report = createFlowChangeReport(before, after);
+  const html = renderFlowChangeReportToHTML(report);
+
+  assert.equal(changes.some((item) => item.path.includes('capability') && item.risk === 'high'), true);
+  assert.equal(report.ok, true);
+  assert.equal(report.status, 'review');
+  assert.equal(report.highImpactCount >= 2, true);
+  assert.equal(report.categories.nodes > 0, true);
+  assert.equal(html.includes('flow-change-report--review'), true);
+});
+
+test('blocks flow change reports when the target flow is invalid', () => {
+  const before = createOrganizationFlow();
+  const after = createFlow({
+    ...before,
+    nodes: [
+      {
+        ...before.nodes[0],
+        capability: ''
+      }
+    ]
+  });
+  const report = createFlowChangeReport(before, after);
+
+  assert.equal(report.ok, false);
+  assert.equal(report.status, 'blocked');
+  assert.equal(report.blockingIssues.some((item) => item.includes('capability is required')), true);
 });
 
 test('matches natural language intent to a published flow', () => {
