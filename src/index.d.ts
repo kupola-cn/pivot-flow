@@ -831,6 +831,7 @@ export function renderAIFlowDraftReviewToHTML(draftResult?: FlowDefinition | Ret
   showJSON?: boolean;
   showDiff?: boolean;
   showRepairPlan?: boolean;
+  canApplyRepair?: boolean;
   canSave?: boolean;
   title?: string;
   description?: string;
@@ -847,6 +848,7 @@ export function renderAIFlowBuilderPanelToHTML(state?: {
   capabilities?: PivotCapability[];
   showDiff?: boolean;
   showRepairPlan?: boolean;
+  canApplyRepair?: boolean;
 }): string;
 export function AIFlowBuilderPanel(options: {
   target: string | Element;
@@ -857,15 +859,19 @@ export function AIFlowBuilderPanel(options: {
   draftResult?: ReturnType<typeof createAIFlowDraft>;
   showDiff?: boolean;
   showRepairPlan?: boolean;
+  canApplyRepair?: boolean;
   savedMessage?: string;
   recommendationOptions?: Record<string, unknown>;
+  repairOptions?: Record<string, unknown>;
   onGenerated?: (draftResult: Awaited<ReturnType<typeof generateAIFlowDraft>>) => void | Promise<void>;
+  onRepairApplied?: (draftResult: ReturnType<typeof applyAIFlowDraftRepairPlan>) => void | Promise<void>;
   onSaveDraft?: (flow: FlowDefinition, draftResult: ReturnType<typeof createAIFlowDraft>) => unknown | Promise<unknown>;
   onSaved?: (saved: unknown, draftResult: ReturnType<typeof createAIFlowDraft>) => void | Promise<void>;
   onCancel?: () => void | Promise<void>;
 }): {
   element: Element;
   generate(prompt?: string): Promise<Awaited<ReturnType<typeof generateAIFlowDraft>> | null>;
+  applyRepair(): Promise<ReturnType<typeof applyAIFlowDraftRepairPlan> | null>;
   update(nextState?: Record<string, unknown>): void;
   destroy(): void;
 };
@@ -876,9 +882,13 @@ export function AIFlowDraftReviewer(options: {
   capabilities?: PivotCapability[];
   showJSON?: boolean;
   showDiff?: boolean;
+  showRepairPlan?: boolean;
+  canApplyRepair?: boolean;
   title?: string;
   description?: string;
   savedMessage?: string;
+  repairOptions?: Record<string, unknown>;
+  onRepairApplied?: (draftResult: ReturnType<typeof applyAIFlowDraftRepairPlan>) => void | Promise<void>;
   onSaveDraft?: (flow: FlowDefinition, draftResult: ReturnType<typeof createAIFlowDraft>) => unknown | Promise<unknown>;
   onSaved?: (saved: unknown, draftResult: ReturnType<typeof createAIFlowDraft>) => void | Promise<void>;
   onCancel?: () => void | Promise<void>;

@@ -1721,6 +1721,8 @@ test('applies safe AI flow draft repair replacements', () => {
   }, { runtime });
 
   const repaired = applyAIFlowDraftRepairPlan(draft, runtime);
+  const blockedHTML = renderAIFlowDraftReviewToHTML(draft, { runtime });
+  const repairedHTML = renderAIFlowDraftReviewToHTML(repaired, { runtime });
 
   assert.equal(repaired.applied.length, 1);
   assert.equal(repaired.applied[0].from, 'material.remove');
@@ -1732,6 +1734,9 @@ test('applies safe AI flow draft repair replacements', () => {
   assert.equal(repaired.ok, true);
   assert.equal(repaired.missingCapabilities.length, 0);
   assert.equal(repaired.originalRepairPlan.missingCount, 1);
+  assert.match(blockedHTML, /data-flow-ai-action="apply-repair"/);
+  assert.doesNotMatch(repairedHTML, /data-flow-ai-action="apply-repair"/);
+  assert.doesNotMatch(repairedHTML, /save-draft" disabled/);
 });
 
 test('creates registration checklist when no capability recommendation exists', () => {
@@ -1814,6 +1819,7 @@ test('renders AI flow draft review actions only for valid drafts', () => {
   assert.doesNotMatch(validHTML, /save-draft" disabled/);
   assert.match(validHTML, /Draft changes/);
   assert.match(blockedHTML, /data-flow-ai-action="save-draft" disabled/);
+  assert.match(blockedHTML, /data-flow-ai-action="apply-repair"/);
   assert.match(blockedHTML, /Missing capabilities/);
 });
 
@@ -1836,7 +1842,8 @@ test('renders AI flow builder panel with draft review and recommendations', () =
         {
           id: 'delete',
           type: 'capability.run',
-          capability: 'material.delete'
+          label: 'Remove material',
+          capability: 'material.remove'
         }
       ]
     }
@@ -1853,6 +1860,7 @@ test('renders AI flow builder panel with draft review and recommendations', () =
   assert.match(html, /Recommended capabilities/);
   assert.match(html, /Review AI Flow draft/);
   assert.match(html, /Save draft/);
+  assert.match(html, /data-flow-ai-action="apply-repair"/);
 });
 
 function jsonResponse(payload, init = {}) {

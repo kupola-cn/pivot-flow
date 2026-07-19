@@ -437,6 +437,8 @@ export function renderAIFlowDraftPreviewToHTML(draftResult, options = {}) {
 export function renderAIFlowDraftReviewToHTML(draftResult, options = {}) {
   const validation = draftResult?.validation ?? validateAIFlowDraft(draftResult?.flow ?? draftResult, options);
   const canSave = Boolean(validation.valid && options.canSave !== false);
+  const repairPlan = draftResult?.repairPlan ?? createAIFlowDraftRepairPlan(draftResult, options.capabilities ?? options.runtime, options);
+  const canApplyRepair = options.canApplyRepair !== false && repairPlan.actions?.some((item) => item.action === 'replace-capability');
   const title = options.title ?? 'Review AI Flow draft';
   const description = options.description ?? 'Review the generated draft before saving it. AI output is never executed or published from this step.';
 
@@ -451,6 +453,9 @@ export function renderAIFlowDraftReviewToHTML(draftResult, options = {}) {
     '</div>',
     renderAIFlowDraftPreviewToHTML(draftResult, { ...options, showDiff: options.showDiff ?? true }),
     '<div class="flow-ai-draft-review__actions">',
+    canApplyRepair
+      ? '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-ai-action="apply-repair">Apply repair suggestions</button>'
+      : '',
     `<button type="button" class="ds-btn ds-btn--brand ds-btn--sm" data-flow-ai-action="save-draft"${canSave ? '' : ' disabled'}>Save draft</button>`,
     '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-ai-action="cancel-draft">Cancel</button>',
     '</div>',
@@ -574,6 +579,24 @@ export function AIFlowBuilderPanel(options = {}) {
     }
   };
 
+  const applyRepair = async () => {
+    if (!state.draftResult) {
+      return null;
+    }
+
+    const repaired = applyAIFlowDraftRepairPlan(state.draftResult, options.capabilities ?? options.runtime, options.repairOptions ?? {});
+    state.draftResult = repaired;
+    state.message = repaired.applied.length > 0
+      ? `${repaired.applied.length} repair suggestion(s) applied. Review again before saving.`
+      : 'No repair suggestions were applied.';
+    state.error = '';
+    if (typeof options.onRepairApplied === 'function') {
+      await options.onRepairApplied(repaired);
+    }
+    render();
+    return repaired;
+  };
+
   const cleanups = [
     on(target, 'input', '[data-flow-ai-field="prompt"]', (e) => {
       state.prompt = e.target.value;
@@ -600,6 +623,9 @@ export function AIFlowBuilderPanel(options = {}) {
     on(target, 'click', '[data-flow-ai-action="save-draft"]', () => {
       saveDraft();
     }),
+    on(target, 'click', '[data-flow-ai-action="apply-repair"]', () => {
+      applyRepair();
+    }),
     on(target, 'click', '[data-flow-ai-action="cancel-draft"]', async () => {
       state.draftResult = null;
       state.message = '';
@@ -617,6 +643,9 @@ export function AIFlowBuilderPanel(options = {}) {
     async generate(prompt = state.prompt) {
       state.prompt = prompt;
       return await generateDraft();
+    },
+    async applyRepair() {
+      return await applyRepair();
     },
     update(nextState = {}) {
       Object.assign(state, nextState);
@@ -675,6 +704,21 @@ export function AIFlowDraftReviewer(options = {}) {
   };
 
   const cleanups = [
+    on(target, 'click', '[data-flow-ai-action="apply-repair"]', async () => {
+      if (!state.draftResult || state.saving) {
+        return;
+      }
+
+      const repaired = applyAIFlowDraftRepairPlan(state.draftResult, options.capabilities ?? options.runtime, options.repairOptions ?? {});
+      state.draftResult = repaired;
+      state.message = repaired.applied.length > 0
+        ? `${repaired.applied.length} repair suggestion(s) applied. Review again before saving.`
+        : 'No repair suggestions were applied.';
+      if (typeof options.onRepairApplied === 'function') {
+        await options.onRepairApplied(repaired);
+      }
+      render();
+    }),
     on(target, 'click', '[data-flow-ai-action="save-draft"]', async () => {
       if (!state.draftResult || state.saving || typeof options.onSaveDraft !== 'function') {
         return;

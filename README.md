@@ -475,8 +475,8 @@ AIFlowBuilderPanel({
 - `diffAIFlowDraft()` shows how the raw AI output changed during normalization, such as `published` becoming `draft` or high-risk confirmation being added.
 - `recommendFlowCapabilities()` ranks registered capabilities for a natural-language prompt.
 - `renderAIFlowDraftPreviewToHTML()` renders a safe draft preview with validation errors, nodes, risk, and confirmation state.
-- `renderAIFlowDraftReviewToHTML()` and `AIFlowDraftReviewer()` add a human review step before a draft is saved.
-- `renderAIFlowBuilderPanelToHTML()` and `AIFlowBuilderPanel()` provide a default prompt-to-draft UI that recommends capabilities, generates a draft, renders review output, and saves only through the project-provided `onSaveDraft`.
+- `renderAIFlowDraftReviewToHTML()` and `AIFlowDraftReviewer()` add a human review step before a draft is saved, including an optional apply-repair action for reviewed replacement suggestions.
+- `renderAIFlowBuilderPanelToHTML()` and `AIFlowBuilderPanel()` provide a default prompt-to-draft UI that recommends capabilities, generates a draft, can apply reviewed repair suggestions, renders review output, and saves only through the project-provided `onSaveDraft`.
 - `validateAIFlowDraft()` checks that AI output stays as a draft, only references registered capabilities, and requires confirmation for high-risk or delete operations.
 
 The provider layer is intentionally generic. `pivot-flow` does not include OpenAI, Tongyi, Claude, or any other model SDK. Applications should call AI APIs through their own backend when secrets, tenant data, or audit requirements are involved. The backend should redact sensitive context, apply rate limits, and return only structured Flow JSON to the browser.
