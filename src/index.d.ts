@@ -143,6 +143,18 @@ export interface FlowIntentMatchExplanationResult {
   candidates: FlowIntentMatchExplanation[];
 }
 
+export interface FlowIntentClarificationPlan {
+  needed: boolean;
+  reason: 'ready' | 'no-match' | 'ambiguous' | 'missing-slots';
+  prompt: string;
+  best: FlowIntentMatchExplanation | null;
+  candidates: FlowIntentMatchExplanation[];
+  missingSlots: FlowSlot[];
+  questions: string[];
+  suggestions: string[];
+  message: string;
+}
+
 export interface FlowStore {
   list(query?: { status?: FlowStatus; keyword?: string }): Promise<FlowDefinition[]>;
   get(id: string): Promise<FlowDefinition | null>;
@@ -268,6 +280,14 @@ export function renderIntentMatchExplanationToHTML(explanationOrPrompt?: FlowInt
   includeDraft?: boolean;
   includeIneligible?: boolean;
   limit?: number;
+}): string;
+export function createIntentClarificationPlan(matchOrExplanation?: FlowIntentMatchExplanationResult | FlowIntentMatchExplanation | FlowMatchResult | FlowMatch, options?: {
+  maxCandidates?: number;
+  ambiguityThreshold?: number;
+}): FlowIntentClarificationPlan;
+export function renderIntentClarificationPlanToHTML(planOrExplanation?: FlowIntentClarificationPlan | FlowIntentMatchExplanationResult | FlowIntentMatchExplanation | FlowMatchResult | FlowMatch, options?: {
+  maxCandidates?: number;
+  ambiguityThreshold?: number;
 }): string;
 export function createMemoryFlowStore(initialFlows?: FlowDefinition[]): FlowStore;
 export function createLocalStorageFlowStore(options?: { key?: string; runKey?: string; storage?: Storage; initialFlows?: FlowDefinition[] }): FlowStore;

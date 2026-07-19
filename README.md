@@ -27,9 +27,11 @@ import {
   createLocalIntentMapper,
   createLocalStorageFlowStore,
   createFlowRunner,
+  createIntentClarificationPlan,
   explainIntentMatches,
   getFlowRunSummary,
   registerFlowFrontendCapabilities,
+  renderIntentClarificationPlanToHTML,
   renderIntentMatchExplanationToHTML,
   renderFlowRunSummaryToHTML,
   flowToPlan,
@@ -163,9 +165,14 @@ const explanation = explainIntentMatches('在集团下增加分机构 C', flows,
 });
 
 document.querySelector('#intentExplain').innerHTML = renderIntentMatchExplanationToHTML(explanation);
+
+const clarification = createIntentClarificationPlan(explanation);
+document.querySelector('#intentClarify').innerHTML = renderIntentClarificationPlanToHTML(clarification);
 ```
 
 This helps operators understand whether a command matched because of a keyword, a regex pattern, a similar example, or extracted parameters. It is still only the matching layer; preview, confirmation, PIVOT policies, and backend authorization remain required before execution.
+
+`createIntentClarificationPlan()` returns a structured next step when the prompt has no strong match, multiple close matches, or missing required slots. Applications can render the default HTML or turn the returned questions into their own multi-step form.
 
 ## Run Diagnostics
 

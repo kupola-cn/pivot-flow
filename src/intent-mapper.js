@@ -186,6 +186,78 @@ export function renderIntentMatchExplanationToHTML(explanationOrPrompt, flows = 
   ].join('');
 }
 
+export function createIntentClarificationPlan(matchOrExplanation, options = {}) {
+  const explanation = normalizeIntentExplanation(matchOrExplanation);
+  const maxCandidates = Number(options.maxCandidates || 3);
+  const ambiguityThreshold = Number(options.ambiguityThreshold ?? 0.12);
+  const candidates = Array.isArray(explanation.candidates) ? explanation.candidates : [];
+  const matches = Array.isArray(explanation.matches) ? explanation.matches : [];
+  const best = explanation.best ?? matches[0] ?? null;
+  const second = matches[1] ?? null;
+  const missingSlots = best?.missingSlots ?? [];
+  const ambiguous = Boolean(best && second && Math.abs((best.confidence ?? 0) - (second.confidence ?? 0)) <= ambiguityThreshold);
+  const questions = [];
+  const suggestions = [];
+  let reason = 'ready';
+  let needed = false;
+
+  if (!best) {
+    needed = true;
+    reason = 'no-match';
+    questions.push('Choose the business flow you want to run or rephrase the intent with a more specific action and resource.');
+    suggestions.push(...candidates.slice(0, maxCandidates).map(formatCandidateSuggestion));
+  } else if (ambiguous) {
+    needed = true;
+    reason = 'ambiguous';
+    questions.push('Multiple flows look similar. Choose the exact flow before preview or execution.');
+    suggestions.push(...matches.slice(0, maxCandidates).map(formatCandidateSuggestion));
+  }
+
+  if (best && missingSlots.length > 0) {
+    needed = true;
+    reason = reason === 'ready' ? 'missing-slots' : reason;
+    for (const slot of missingSlots) {
+      questions.push(`Provide ${slot.label || slot.name}.`);
+    }
+  }
+
+  return {
+    needed,
+    reason,
+    prompt: explanation.prompt || best?.prompt || '',
+    best,
+    candidates: (needed ? (ambiguous ? matches : candidates) : matches).slice(0, maxCandidates),
+    missingSlots,
+    questions: Array.from(new Set(questions)),
+    suggestions: Array.from(new Set(suggestions)),
+    message: createClarificationMessage(reason, missingSlots)
+  };
+}
+
+export function renderIntentClarificationPlanToHTML(planOrExplanation, options = {}) {
+  const plan = isClarificationPlan(planOrExplanation)
+    ? planOrExplanation
+    : createIntentClarificationPlan(planOrExplanation, options);
+  if (!plan.needed) {
+    return '<div class="flow-empty flow-empty--compact">No clarification required.</div>';
+  }
+
+  return [
+    '<section class="flow-intent-clarify">',
+    '<div class="flow-intent-clarify__header">',
+    '<span>',
+    '<strong>Clarification required</strong>',
+    `<small>${escapeHTML(plan.message)}</small>`,
+    '</span>',
+    `<em>${escapeHTML(plan.reason)}</em>`,
+    '</div>',
+    renderClarificationList('Questions', plan.questions),
+    renderClarificationList('Candidates', plan.suggestions),
+    renderClarificationList('Missing parameters', plan.missingSlots.map((slot) => slot.label || slot.name)),
+    '</section>'
+  ].join('');
+}
+
 export function extractSlots(prompt, slots = []) {
   const output = {};
   const missing = [];
@@ -322,4 +394,72 @@ function formatFactValue(value) {
     return value;
   }
   return JSON.stringify(value);
+}
+
+function normalizeIntentExplanation(value) {
+  if (value?.candidates || value?.matches || value?.best !== undefined) {
+    return {
+      ok: Boolean(value.ok),
+      prompt: value.prompt || value.best?.prompt || '',
+      minConfidence: value.minConfidence ?? 0.2,
+      best: value.best ?? null,
+      matches: value.matches ?? [],
+      candidates: value.candidates ?? value.matches ?? []
+    };
+  }
+  if (value?.flow) {
+    return {
+      ok: Boolean(value.passedThreshold ?? value.confidence > 0),
+      prompt: value.prompt || '',
+      minConfidence: value.details?.minConfidence ?? 0.2,
+      best: value,
+      matches: [value],
+      candidates: [value]
+    };
+  }
+  return {
+    ok: false,
+    prompt: '',
+    minConfidence: 0.2,
+    best: null,
+    matches: [],
+    candidates: []
+  };
+}
+
+function formatCandidateSuggestion(candidate) {
+  const confidence = Math.round((candidate.confidence ?? 0) * 100);
+  return `${candidate.flow?.name || candidate.flow?.id || 'Untitled flow'} (${confidence}%)`;
+}
+
+function createClarificationMessage(reason, missingSlots) {
+  if (reason === 'no-match') {
+    return 'No published flow matched this intent strongly enough.';
+  }
+  if (reason === 'ambiguous') {
+    return 'Several flows have similar confidence.';
+  }
+  if (reason === 'missing-slots') {
+    return `${missingSlots.length} required parameter${missingSlots.length === 1 ? '' : 's'} missing.`;
+  }
+  return 'The intent can be previewed.';
+}
+
+function isClarificationPlan(value) {
+  return value && typeof value === 'object' && Array.isArray(value.questions) && typeof value.reason === 'string';
+}
+
+function renderClarificationList(title, items) {
+  const safeItems = Array.isArray(items) ? items.filter((item) => item !== undefined && item !== null && String(item).trim()) : [];
+  if (safeItems.length === 0) {
+    return '';
+  }
+  return [
+    '<div class="flow-intent-clarify__list">',
+    `<strong>${escapeHTML(title)}</strong>`,
+    '<ul>',
+    ...safeItems.map((item) => `<li>${escapeHTML(item)}</li>`),
+    '</ul>',
+    '</div>'
+  ].join('');
 }

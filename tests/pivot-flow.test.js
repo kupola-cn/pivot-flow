@@ -17,6 +17,7 @@ import {
   createFlowBatchSafetyReport,
   createFlowSafetyReport,
   createFlowCanvasLayout,
+  createIntentClarificationPlan,
   explainIntentMatches,
   filterFlows,
   applyFlowTransform,
@@ -46,6 +47,7 @@ import {
   renderFlowRunPanelToHTML,
   renderFlowRunSummaryToHTML,
   renderFlowSafetyReportToHTML,
+  renderIntentClarificationPlanToHTML,
   renderIntentMatchExplanationToHTML,
   renderFlowBatchSafetyReportToHTML,
   renderFlowSettingsToHTML,
@@ -133,6 +135,37 @@ test('explains local intent matching evidence and eligibility', () => {
   assert.match(explanation.best.reasons.join('\n'), /matched keyword/);
   assert.match(html, /Intent match explanation/);
   assert.match(html, /organizationName: C/);
+});
+
+test('creates clarification plans for missing slots and ambiguous matches', () => {
+  const flow = createOrganizationFlow();
+  const missingSlotExplanation = explainIntentMatches('在集团下增加分机构', [flow]);
+  const missingSlotPlan = createIntentClarificationPlan(missingSlotExplanation);
+  const missingSlotHTML = renderIntentClarificationPlanToHTML(missingSlotPlan);
+
+  assert.equal(missingSlotPlan.needed, true);
+  assert.equal(missingSlotPlan.reason, 'missing-slots');
+  assert.equal(missingSlotPlan.missingSlots[0].name, 'organizationName');
+  assert.match(missingSlotHTML, /Provide Organization name|Provide organizationName/);
+
+  const roleFlow = createFlow({
+    id: 'role-create',
+    name: 'Create role',
+    status: 'published',
+    intent: { keywords: ['增加'] }
+  });
+  const userFlow = createFlow({
+    id: 'user-create',
+    name: 'Create user',
+    status: 'published',
+    intent: { keywords: ['增加'] }
+  });
+  const ambiguousExplanation = explainIntentMatches('增加', [roleFlow, userFlow], { minConfidence: 0.1 });
+  const ambiguousPlan = createIntentClarificationPlan(ambiguousExplanation);
+
+  assert.equal(ambiguousPlan.needed, true);
+  assert.equal(ambiguousPlan.reason, 'ambiguous');
+  assert.equal(ambiguousPlan.suggestions.length, 2);
 });
 
 test('normalizes sensitive manual slots for secure input rendering', () => {

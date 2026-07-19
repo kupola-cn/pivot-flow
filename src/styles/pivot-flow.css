@@ -6,6 +6,7 @@
 .flow-run-summary,
 .flow-test-panel,
 .flow-intent-explain,
+.flow-intent-clarify,
 .flow-safety-report {
   color: var(--text-default);
   font-family: var(--font-family-base, inherit);
@@ -1067,6 +1068,71 @@
   color: var(--text-tertiary);
   font-size: var(--body-xs-font-size);
   font-weight: 600;
+}
+
+.flow-intent-clarify {
+  background: var(--status-warning-surface-l1);
+  border: 1px solid var(--status-warning-default);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-10);
+  min-width: 0;
+  padding: var(--spacer-12);
+}
+
+.flow-intent-clarify__header {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-12);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.flow-intent-clarify__header span {
+  display: grid;
+  gap: var(--spacer-4);
+  min-width: 0;
+}
+
+.flow-intent-clarify__header strong,
+.flow-intent-clarify__list > strong {
+  color: var(--text-default);
+  font-size: var(--body-sm-font-size);
+}
+
+.flow-intent-clarify__header small,
+.flow-intent-clarify__list li {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  overflow-wrap: anywhere;
+}
+
+.flow-intent-clarify__header em {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--status-warning-default);
+  border-radius: 999px;
+  color: var(--status-warning-default);
+  font-size: var(--body-xs-font-size);
+  font-style: normal;
+  line-height: 1;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.flow-intent-clarify__list {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-6);
+  padding: var(--spacer-10);
+}
+
+.flow-intent-clarify__list ul {
+  display: grid;
+  gap: var(--spacer-4);
+  margin: 0;
+  padding-left: var(--spacer-16);
 }
 
 .flow-assistant {
