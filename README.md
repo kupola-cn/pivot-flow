@@ -312,6 +312,30 @@ if (!report.ok) {
 
 `FlowManager` renders single-flow and filtered-flow batch reports by default. Batch reports include risk counts, highest risk, check summaries, blocked flows, review flows, and detailed issues. It blocks publish when the report has blocking issues. A `review` report can still be published from the frontend, but backend publish APIs must continue to enforce authorization and business rules.
 
+## Access Hints
+
+`createFlowAccessReport()` compares Flow-level and capability-level permission hints with the current actor permissions. `FlowManager` renders this report by default and blocks publish/execute interactions only when actor permissions are known and declared frontend permission hints are missing.
+
+```js
+import {
+  createFlowAccessReport,
+  renderFlowAccessReportToHTML
+} from '@kupola/pivot-flow';
+
+const access = createFlowAccessReport(flow, runtime, {
+  context: {
+    actor: {
+      id: 'admin',
+      permissions: ['system:org:create']
+    }
+  }
+});
+
+document.querySelector('#access').innerHTML = renderFlowAccessReportToHTML(access);
+```
+
+This is still a frontend safeguard only. Backend APIs must continue to enforce authentication, role permissions, data permissions, validation, transactions, and audit.
+
 ## UI Example
 
 ```js

@@ -5,6 +5,7 @@ import { canConnectFlowNodes } from '../flow-validation.js';
 import { createFlowRunner } from '../flow-runner.js';
 import { createMemoryFlowStore } from '../flow-store.js';
 import { createIntentClarificationPlan, createLocalIntentMapper } from '../intent-mapper.js';
+import { createFlowAccessReport, renderFlowAccessReportToHTML } from '../flow-access-report.js';
 import { createFlowBatchSafetyReport, createFlowSafetyReport, renderFlowBatchSafetyReportToHTML, renderFlowSafetyReportToHTML } from '../flow-safety-report.js';
 import { renderFlowDataDependenciesToHTML } from '../flow-dependencies.js';
 import { getDefaultCapabilityForNodeType } from '../node-types.js';
@@ -60,6 +61,7 @@ export function FlowManager(options = {}) {
     runKeyword: '',
     runStatus: '',
     runsLoading: false,
+    context: options.context ?? {},
     loading: false,
     error: ''
   };
@@ -69,6 +71,7 @@ export function FlowManager(options = {}) {
     render();
     try {
       state.flows = await flowStore.list();
+      state.context = await resolveContext(options.contextProvider, options.context);
       state.selectedFlowId = state.selectedFlowId || state.flows[0]?.id || '';
       state.selectedEdgeId = state.selectedEdgeId || getSelectedFlow(state)?.edges?.[0]?.id || '';
       state.runs = typeof flowStore.listRuns === 'function' ? await flowStore.listRuns(state.selectedFlowId) : [];
@@ -148,6 +151,10 @@ export function FlowManager(options = {}) {
       renderFlowCapabilityMatrixToHTML(flow, options.runtime),
       '</div>',
       '<div>',
+      '<div class="flow-panel-title">Access</div>',
+      renderFlowAccessReportToHTML(flow, options.runtime, { context: state.context }),
+      '</div>',
+      '<div>',
       '<div class="flow-panel-title">Data dependencies</div>',
       renderFlowDataDependenciesToHTML(flow),
       '</div>',
@@ -170,7 +177,8 @@ export function FlowManager(options = {}) {
       return;
     }
 
-    const context = await resolveContext(options.contextProvider);
+    const context = await resolveContext(options.contextProvider, options.context);
+    state.context = context;
     const plan = flowToPlan(flow, options.input ?? { prompt: flow.name, slots: {} }, context);
     state.preview = await options.runtime.previewPlan(plan, context);
     state.result = null;
@@ -183,7 +191,14 @@ export function FlowManager(options = {}) {
       return;
     }
 
-    const context = await resolveContext(options.contextProvider);
+    const context = await resolveContext(options.contextProvider, options.context);
+    state.context = context;
+    const access = createFlowAccessReport(flow, options.runtime, { context });
+    if (!access.ok) {
+      state.error = `Cannot execute flow: ${access.summary}`;
+      render();
+      return;
+    }
     const plan = flowToPlan(flow, options.input ?? { prompt: flow.name, slots: {} }, context);
     state.preview = await options.runtime.previewPlan(plan, context);
     if (state.preview.ok) {
@@ -273,6 +288,15 @@ export function FlowManager(options = {}) {
     const flow = getSelectedFlow(state);
     const matchEntry = state.testMatch ?? await matchTestPrompt();
     if (!matchEntry) {
+      return null;
+    }
+
+    const context = await resolveContext(options.contextProvider, options.context);
+    state.context = context;
+    const access = createFlowAccessReport(flow, options.runtime, { context });
+    if (!access.ok) {
+      state.error = `Cannot execute flow test: ${access.summary}`;
+      render();
       return null;
     }
 
@@ -383,6 +407,14 @@ export function FlowManager(options = {}) {
       render();
       return;
     }
+    const context = await resolveContext(options.contextProvider, options.context);
+    state.context = context;
+    const access = createFlowAccessReport(flow, options.runtime, { context });
+    if (!access.ok) {
+      state.error = `Cannot publish flow: ${access.summary}`;
+      render();
+      return;
+    }
 
     const saved = await saveSelected();
     if (!saved) {
@@ -431,6 +463,20 @@ export function FlowManager(options = {}) {
         `Cannot publish filtered flows: ${batchSafety.summary}`,
         blockedNames.length > 0 ? `Blocked flows: ${blockedNames.join(', ')}` : '',
         batchSafety.blockingIssues.slice(0, 3).join('; ')
+      ].filter(Boolean).join(' ');
+      render();
+      return;
+    }
+
+    const context = await resolveContext(options.contextProvider, options.context);
+    state.context = context;
+    const blockedAccess = flows
+      .map((flow) => createFlowAccessReport(flow, options.runtime, { context }))
+      .filter((report) => !report.ok);
+    if (blockedAccess.length > 0) {
+      state.error = [
+        `Cannot publish filtered flows: ${blockedAccess.length} flow(s) are missing frontend permission hints for the current actor.`,
+        blockedAccess.slice(0, 5).map((report) => `${report.flowName || report.flowId}: ${report.missingPermissions.join(', ')}`).join('; ')
       ].filter(Boolean).join(' ');
       render();
       return;
@@ -1195,11 +1241,11 @@ function isPlainObject(value) {
   return Object.prototype.toString.call(value) === '[object Object]';
 }
 
-async function resolveContext(contextProvider) {
+async function resolveContext(contextProvider, fallback = {}) {
   if (typeof contextProvider === 'function') {
     return await contextProvider();
   }
-  return {};
+  return fallback ?? {};
 }
 
 function createSampleFlow() {

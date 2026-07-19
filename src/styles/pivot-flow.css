@@ -9,6 +9,7 @@
 .flow-intent-explain,
 .flow-intent-clarify,
 .flow-dependency-report,
+.flow-access-report,
 .flow-safety-report {
   color: var(--text-default);
   font-family: var(--font-family-base, inherit);
@@ -1781,6 +1782,126 @@
   margin: 0 var(--spacer-4) var(--spacer-4) 0;
   overflow-wrap: anywhere;
   padding: 2px var(--spacer-4);
+}
+
+.flow-access-report {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-10);
+  min-width: 0;
+  padding: var(--spacer-10);
+}
+
+.flow-access-report--blocked {
+  border-color: var(--status-error-default);
+}
+
+.flow-access-report--review {
+  border-color: var(--status-warning-default);
+}
+
+.flow-access-report__header {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.flow-access-report__header > div {
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
+}
+
+.flow-access-report__header strong,
+.flow-access-report__permissions > strong,
+.flow-access-report__rows > strong,
+.flow-access-report__warnings > strong {
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-access-report__header span,
+.flow-access-report small,
+.flow-access-report__warnings li {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.flow-access-report__summary {
+  display: grid;
+  gap: var(--spacer-8);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.flow-access-report__summary span,
+.flow-access-report__permissions,
+.flow-access-report__rows,
+.flow-access-report__warnings {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-8);
+  min-width: 0;
+  padding: var(--spacer-8);
+}
+
+.flow-access-report__summary strong {
+  color: var(--text-default);
+  font-size: var(--body-sm-font-size);
+}
+
+.flow-access-report__summary small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-access-report__permissions--error {
+  border-color: var(--status-error-default);
+}
+
+.flow-access-report__permissions div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacer-6);
+  min-width: 0;
+}
+
+.flow-access-report code {
+  background: var(--bg-base);
+  border-radius: var(--radius-4);
+  color: var(--text-default);
+  display: inline-block;
+  font-size: var(--body-xs-font-size);
+  margin: 0 var(--spacer-4) var(--spacer-4) 0;
+  overflow-wrap: anywhere;
+  padding: 2px var(--spacer-4);
+}
+
+.flow-access-report__rows ol,
+.flow-access-report__warnings ul {
+  display: grid;
+  gap: var(--spacer-6);
+  margin: 0;
+  padding-left: var(--spacer-16);
+}
+
+.flow-access-report__rows li {
+  display: grid;
+  gap: var(--spacer-4);
+  min-width: 0;
+}
+
+.flow-access-report__rows li > span:first-child {
+  display: grid;
+  gap: var(--spacer-2);
+  min-width: 0;
 }
 
 .flow-safety-report,

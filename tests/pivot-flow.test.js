@@ -16,6 +16,7 @@ import {
   createMemoryFlowStore,
   createFlowRunner,
   createFlowRunHistorySummary,
+  createFlowAccessReport,
   createFlowBatchSafetyReport,
   createFlowSafetyReport,
   createFlowCanvasLayout,
@@ -45,6 +46,7 @@ import {
   groupFlows,
   generateAIFlowDraft,
   filterFlowRuns,
+  hasPermission,
   normalizeFlowCanvasViewport,
   parseAIFlowProviderOutput,
   renderEditableNodeInspectorToHTML,
@@ -55,6 +57,7 @@ import {
   renderFlowRunPanelToHTML,
   renderFlowRunHistoryToHTML,
   renderFlowRunSummaryToHTML,
+  renderFlowAccessReportToHTML,
   renderFlowSafetyReportToHTML,
   renderFlowDataDependenciesToHTML,
   renderIntentClarificationPlanToHTML,
@@ -531,6 +534,54 @@ test('creates and renders flow publish safety reports', () => {
   assert.match(html, /flow-safety-report/);
   assert.match(html, /Publish safety/);
   assert.match(html, /material:catalog:delete/);
+});
+
+test('creates frontend flow access reports from actor permissions', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'org.create',
+    resource: 'organization',
+    action: ActionType.CREATE,
+    risk: RiskLevel.MEDIUM,
+    permissions: ['system:org:create'],
+    execute: () => ({})
+  });
+  const flow = createFlow({
+    id: 'org-access',
+    name: 'Create org access',
+    permissions: ['flow:publish'],
+    nodes: [
+      { id: 'create-org', type: 'capability.run', capability: 'org.create', label: 'Create org' }
+    ]
+  });
+
+  const blocked = createFlowAccessReport(flow, runtime, {
+    context: {
+      actor: {
+        id: 'operator',
+        permissions: ['system:org:query']
+      }
+    }
+  });
+  const allowed = createFlowAccessReport(flow, runtime, {
+    context: {
+      actor: {
+        id: 'admin',
+        permissions: ['flow:publish', 'system:org:*']
+      }
+    }
+  });
+  const html = renderFlowAccessReportToHTML(blocked);
+
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.status, 'blocked');
+  assert.deepEqual(blocked.missingPermissions, ['flow:publish', 'system:org:create']);
+  assert.equal(allowed.ok, true);
+  assert.equal(allowed.status, 'review');
+  assert.equal(hasPermission(['system:*'], 'system:org:create'), true);
+  assert.match(html, /Access hints/);
+  assert.match(html, /Missing permissions/);
+  assert.match(html, /system:org:create/);
 });
 
 test('blocks publish safety report for missing capabilities and confirmations', () => {

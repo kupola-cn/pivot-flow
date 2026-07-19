@@ -219,6 +219,44 @@ export interface FlowDataDependencyReport {
 export function analyzeFlowDataDependencies(flow?: FlowDefinition | null): FlowDataDependencyReport;
 export function extractFlowDataReferences(value?: unknown, path?: string): FlowDataReference[];
 export function renderFlowDataDependenciesToHTML(reportOrFlow?: FlowDataDependencyReport | FlowDefinition | null): string;
+export interface FlowAccessRow {
+  id: string;
+  source: 'flow' | 'node' | string;
+  label: string;
+  nodeId: string;
+  capability: string;
+  permissions: string[];
+  missingPermissions: string[];
+  status: 'allowed' | 'blocked' | 'unknown';
+}
+export interface FlowAccessReport {
+  ok: boolean;
+  status: 'allowed' | 'review' | 'blocked';
+  flowId: string;
+  flowName: string;
+  actorId: string;
+  actorName: string;
+  actorKnown: boolean;
+  actorPermissions: string[];
+  requiredPermissions: string[];
+  missingPermissions: string[];
+  rows: FlowAccessRow[];
+  warnings: string[];
+  summary: string;
+}
+export function createFlowAccessReport(flow?: FlowDefinition | null, source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+  actor?: Record<string, unknown> & { permissions?: string[] };
+  context?: Record<string, unknown> & { actor?: Record<string, unknown> & { permissions?: string[] } };
+}): FlowAccessReport;
+export function renderFlowAccessReportToHTML(reportOrFlow?: FlowAccessReport | FlowDefinition | null, source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+  actor?: Record<string, unknown> & { permissions?: string[] };
+  context?: Record<string, unknown> & { actor?: Record<string, unknown> & { permissions?: string[] } };
+}): string;
+export function hasPermission(actorPermissions?: string[], requiredPermission?: string): boolean;
 export interface FlowSafetyCapabilityRow {
   nodeId: string;
   nodeLabel: string;
