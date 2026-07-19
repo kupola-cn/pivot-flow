@@ -19,6 +19,7 @@ import {
   createFlowCanvasLayout,
   createFlowVariableSources,
   createIntentClarificationPlan,
+  analyzeIntentConfig,
   analyzeFlowDataDependencies,
   explainIntentMatches,
   extractFlowDataReferences,
@@ -53,6 +54,7 @@ import {
   renderFlowDataDependenciesToHTML,
   renderIntentClarificationPlanToHTML,
   renderIntentMatchExplanationToHTML,
+  renderIntentPatternEditorToHTML,
   renderFlowBatchSafetyReportToHTML,
   renderFlowSettingsToHTML,
   renderFlowTestPanelToHTML,
@@ -911,6 +913,33 @@ test('creates variable mapper sources for selected node inputs', () => {
   assert.equal(sources.some((source) => source.reference === 'notify.data.id'), false);
   assert.match(html, /data-flow-action="insert-variable-reference"/);
   assert.match(html, /query-parent\.data\.id/);
+});
+
+test('analyzes and renders intent rule quality', () => {
+  const flow = createFlow({
+    id: 'intent-quality-flow',
+    name: 'Intent quality flow',
+    intent: {
+      keywords: ['创建'],
+      patterns: ['(?:broken'],
+      slots: [
+        { name: 'name', label: 'Name', required: true },
+        { name: 'password', label: 'Password', sensitive: true, source: 'intent' }
+      ]
+    }
+  });
+
+  const analysis = analyzeIntentConfig(flow);
+  const html = renderIntentPatternEditorToHTML(flow);
+
+  assert.equal(analysis.ok, false);
+  assert.equal(analysis.status, 'blocked');
+  assert.match(analysis.issues.join('\n'), /Invalid intent pattern/);
+  assert.match(analysis.warnings.join('\n'), /Required slot has no extraction source: name/);
+  assert.match(analysis.warnings.join('\n'), /Sensitive slot should use manual source: password/);
+  assert.match(html, /Intent patterns/);
+  assert.match(html, /flow-intent-editor__slots/);
+  assert.match(html, /Password/);
 });
 
 test('renders condition and transform node configuration controls', () => {

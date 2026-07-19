@@ -844,6 +844,116 @@
   text-align: right;
 }
 
+.flow-intent-editor__header {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-10);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.flow-intent-editor__header span {
+  display: grid;
+  gap: var(--spacer-4);
+  min-width: 0;
+}
+
+.flow-intent-editor__header small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-intent-editor__header em {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: 999px;
+  color: var(--text-tertiary);
+  font-size: var(--body-xs-font-size);
+  font-style: normal;
+  line-height: 1;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+.flow-intent-editor__stats {
+  display: grid;
+  gap: var(--spacer-8);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.flow-intent-editor__stats span {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-4);
+  padding: var(--spacer-8);
+}
+
+.flow-intent-editor__stats strong {
+  color: var(--text-default);
+  font-size: var(--body-md-font-size);
+}
+
+.flow-intent-editor__stats small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-intent-editor__issues {
+  display: grid;
+  gap: var(--spacer-6);
+}
+
+.flow-intent-editor__slots {
+  display: grid;
+  gap: var(--spacer-8);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.flow-intent-editor__slots li {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-6);
+  min-width: 0;
+  padding: var(--spacer-8);
+}
+
+.flow-intent-editor__slots span {
+  display: grid;
+  gap: var(--spacer-4);
+  min-width: 0;
+}
+
+.flow-intent-editor__slots strong {
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-intent-editor__slots small,
+.flow-intent-editor__slots em {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-intent-editor__slots em {
+  font-style: normal;
+}
+
+.flow-intent-editor__slots code {
+  background: var(--bg-base);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+  overflow-wrap: anywhere;
+  padding: 3px 6px;
+}
+
 .flow-inspector__block {
   display: grid;
   gap: var(--spacer-6);
@@ -897,6 +1007,11 @@
 .flow-alert--error {
   background: var(--status-error-surface-l1);
   color: var(--status-error-default);
+}
+
+.flow-alert--warning {
+  background: var(--status-warning-surface-l1);
+  color: var(--status-warning-default);
 }
 
 .flow-run-summary {

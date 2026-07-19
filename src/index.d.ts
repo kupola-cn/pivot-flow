@@ -823,6 +823,19 @@ export function renderVariableMapperToHTML(options?: {
   selectedNodeId?: string;
   sources?: Array<string | Partial<FlowVariableSource>>;
 }): string;
+export function analyzeIntentConfig(flow?: FlowDefinition | null): {
+  ok: boolean;
+  status: 'ready' | 'review' | 'blocked';
+  summary: string;
+  counts: {
+    examples: number;
+    keywords: number;
+    patterns: number;
+    slots: number;
+  };
+  issues: string[];
+  warnings: string[];
+};
 export function renderIntentPatternEditorToHTML(flow?: FlowDefinition | null): string;
 export function renderFlowPreviewToHTML(preview?: PivotResult | null, options?: Record<string, unknown>): string;
 export function renderFlowRunPanelToHTML(result?: PivotResult | null, options?: {

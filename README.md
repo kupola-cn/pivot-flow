@@ -29,6 +29,7 @@ import {
   createFlowRunner,
   createFlowVariableSources,
   createIntentClarificationPlan,
+  analyzeIntentConfig,
   explainIntentMatches,
   analyzeFlowDataDependencies,
   getFlowRunSummary,
@@ -36,6 +37,7 @@ import {
   renderIntentClarificationPlanToHTML,
   renderFlowDataDependenciesToHTML,
   renderIntentMatchExplanationToHTML,
+  renderIntentPatternEditorToHTML,
   renderVariableMapperToHTML,
   renderFlowRunSummaryToHTML,
   flowToPlan,
@@ -179,6 +181,8 @@ This helps operators understand whether a command matched because of a keyword, 
 `createIntentClarificationPlan()` returns a structured next step when the prompt has no strong match, multiple close matches, or missing required slots. Applications can render the default HTML or turn the returned questions into their own multi-step form.
 
 `FlowAssistantDrawer` and the `FlowManager` test panel render clarification hints by default when a command is ambiguous or missing required parameters.
+
+`analyzeIntentConfig()` and `renderIntentPatternEditorToHTML()` review rule quality for examples, keywords, regex patterns, slots, required extraction sources, and sensitive manual input. The default designer renders this as the Intent patterns side panel.
 
 ## Data Dependencies
 
