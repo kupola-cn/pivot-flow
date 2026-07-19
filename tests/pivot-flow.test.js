@@ -900,17 +900,23 @@ test('filters and renders flow run history', () => {
   ];
 
   const filtered = filterFlowRuns(runs, { flowId: 'org-create', status: 'failed', keyword: '角色' });
+  const recent = filterFlowRuns(runs, {
+    dateRange: '24h',
+    now: '2026-07-19T10:00:00.000Z'
+  });
   const summary = createFlowRunHistorySummary(runs, { flowId: 'org-create' });
-  const html = renderFlowRunHistoryToHTML(runs, { flowId: 'org-create', status: 'failed', keyword: '角色' });
+  const html = renderFlowRunHistoryToHTML(runs, { flowId: 'org-create', status: 'failed', keyword: '角色', dateRange: '24h' });
 
   assert.equal(filtered.length, 1);
   assert.equal(filtered[0].id, 'run-2');
+  assert.equal(recent.length, 2);
   assert.equal(summary.total, 2);
   assert.equal(summary.successCount, 1);
   assert.equal(summary.failedCount, 1);
   assert.equal(summary.latestStatus, 'failed');
   assert.match(html, /Run history/);
   assert.match(html, /data-flow-run-filter="keyword"/);
+  assert.match(html, /data-flow-run-filter="dateRange"/);
   assert.match(html, /删除角色 admin/);
   assert.match(html, /Forbidden/);
 });

@@ -1264,7 +1264,7 @@
 .flow-run-history__filters {
   display: grid;
   gap: var(--spacer-8);
-  grid-template-columns: minmax(160px, 1fr) minmax(110px, 140px) auto;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   min-width: 0;
 }
 

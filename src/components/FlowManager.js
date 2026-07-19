@@ -60,6 +60,7 @@ export function FlowManager(options = {}) {
     runs: [],
     runKeyword: '',
     runStatus: '',
+    runDateRange: '',
     runsLoading: false,
     context: options.context ?? {},
     loading: false,
@@ -139,7 +140,8 @@ export function FlowManager(options = {}) {
           flow,
           flowId: flow?.id,
           keyword: state.runKeyword,
-          status: state.runStatus
+          status: state.runStatus,
+          dateRange: state.runDateRange
         }),
       '</div>',
       '<div>',
@@ -819,6 +821,7 @@ export function FlowManager(options = {}) {
       state.result = null;
       state.runKeyword = '';
       state.runStatus = '';
+      state.runDateRange = '';
       render();
       loadRuns(state.selectedFlowId);
     }),
@@ -848,6 +851,7 @@ export function FlowManager(options = {}) {
     on(target, 'click', '[data-flow-action="clear-run-filters"]', () => {
       state.runKeyword = '';
       state.runStatus = '';
+      state.runDateRange = '';
       render();
     }),
     on(target, 'click', '[data-flow-action="toggle-canvas-group"]', (e, el) => {
@@ -1039,6 +1043,10 @@ export function FlowManager(options = {}) {
     on(target, 'change', '[data-flow-run-filter]', (e, el) => {
       if (el.dataset.flowRunFilter === 'status') {
         state.runStatus = e.target.value;
+        render();
+      }
+      if (el.dataset.flowRunFilter === 'dateRange') {
+        state.runDateRange = e.target.value;
         render();
       }
     }),

@@ -510,12 +510,18 @@ export function filterFlowRuns(runs?: Record<string, unknown>[], options?: {
   flowId?: string;
   keyword?: string;
   status?: 'success' | 'failed' | string;
+  dateRange?: '24h' | '7d' | '30d' | string;
+  range?: '24h' | '7d' | '30d' | string;
+  now?: number | string;
   limit?: number;
 }): Record<string, unknown>[];
 export function createFlowRunHistorySummary(runs?: Record<string, unknown>[], options?: {
   flowId?: string;
   keyword?: string;
   status?: 'success' | 'failed' | string;
+  dateRange?: '24h' | '7d' | '30d' | string;
+  range?: '24h' | '7d' | '30d' | string;
+  now?: number | string;
   limit?: number;
 }): FlowRunHistorySummary;
 export function renderFlowRunHistoryToHTML(runs?: Record<string, unknown>[], options?: {
@@ -524,6 +530,9 @@ export function renderFlowRunHistoryToHTML(runs?: Record<string, unknown>[], opt
   flowId?: string;
   keyword?: string;
   status?: 'success' | 'failed' | string;
+  dateRange?: '24h' | '7d' | '30d' | string;
+  range?: '24h' | '7d' | '30d' | string;
+  now?: number | string;
   limit?: number;
   title?: boolean;
   controls?: boolean;

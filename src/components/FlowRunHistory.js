@@ -4,9 +4,18 @@ import { escapeAttr, escapeHTML } from './dom.js';
 export function filterFlowRuns(runs = [], options = {}) {
   const keyword = String(options.keyword || '').trim().toLowerCase();
   const status = String(options.status || '').trim();
+  const dateRange = normalizeDateRange(options.dateRange ?? options.range);
+  const since = getDateRangeStart(dateRange, options.now);
   const limit = Number(options.limit || 0);
   const filtered = (Array.isArray(runs) ? runs : [])
     .filter((run) => !options.flowId || run.flowId === options.flowId)
+    .filter((run) => {
+      if (!since) {
+        return true;
+      }
+      const time = getRunTime(run);
+      return time > 0 && time >= since;
+    })
     .filter((run) => {
       if (!status) {
         return true;
@@ -92,7 +101,10 @@ function renderRunHistoryFilters(options) {
       ['failed', 'Failed']
     ].map(([value, label]) => `<option value="${escapeAttr(value)}"${status === value ? ' selected' : ''}>${escapeHTML(label)}</option>`),
     '</select>',
-    keyword || status ? '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="clear-run-filters">Clear</button>' : '',
+    '<select class="ds-select ds-select--sm" data-flow-run-filter="dateRange">',
+    ...renderDateRangeOptions(options.dateRange ?? options.range),
+    '</select>',
+    keyword || status || options.dateRange || options.range ? '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="clear-run-filters">Clear</button>' : '',
     '</div>'
   ].join('');
 }
@@ -118,6 +130,32 @@ function renderRunHistoryItem(run, options) {
 function getRunTime(run) {
   const value = Date.parse(run?.timestamp || run?.createdAt || '');
   return Number.isFinite(value) ? value : 0;
+}
+
+function normalizeDateRange(value) {
+  const range = String(value || '').trim();
+  return ['24h', '7d', '30d'].includes(range) ? range : '';
+}
+
+function getDateRangeStart(range, now = Date.now()) {
+  const current = typeof now === 'number' ? now : Date.parse(now);
+  const safeNow = Number.isFinite(current) ? current : Date.now();
+  const offsets = {
+    '24h': 24 * 60 * 60 * 1000,
+    '7d': 7 * 24 * 60 * 60 * 1000,
+    '30d': 30 * 24 * 60 * 60 * 1000
+  };
+  return offsets[range] ? safeNow - offsets[range] : 0;
+}
+
+function renderDateRangeOptions(value) {
+  const selected = normalizeDateRange(value);
+  return [
+    ['', 'All time'],
+    ['24h', 'Last 24h'],
+    ['7d', 'Last 7d'],
+    ['30d', 'Last 30d']
+  ].map(([range, label]) => `<option value="${escapeAttr(range)}"${selected === range ? ' selected' : ''}>${escapeHTML(label)}</option>`);
 }
 
 function formatRunTime(value) {
