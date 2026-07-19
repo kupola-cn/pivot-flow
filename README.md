@@ -117,6 +117,23 @@ const preview = await runner.preview('在集团下增加分机构 C');
 const result = await runner.execute('在集团下增加分机构 C');
 ```
 
+When a matched flow has required slots that cannot be extracted from the prompt, `preview()` returns `stage: 'slots'` with `missingSlots`. Pass the collected values back into the runner:
+
+```js
+const preview = await runner.preview('创建');
+
+if (preview.stage === 'slots') {
+  const confirmedPreview = await runner.preview('创建', {
+    match: preview.match,
+    slots: {
+      name: '张三'
+    }
+  });
+}
+```
+
+`FlowAssistantDrawer` uses the same mechanism and renders parameter inputs for missing required slots before preview or execution.
+
 ## UI Example
 
 ```js

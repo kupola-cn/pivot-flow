@@ -1,7 +1,7 @@
 import { createLocalIntentMapper } from '../intent-mapper.js';
 import { createMemoryFlowStore } from '../flow-store.js';
 import { createFlowRunner } from '../flow-runner.js';
-import { createElement, escapeHTML, on } from './dom.js';
+import { createElement, escapeAttr, escapeHTML, on } from './dom.js';
 import { renderFlowPreviewToHTML } from './FlowPreview.js';
 import { renderFlowRunPanelToHTML } from './FlowRunPanel.js';
 
@@ -23,6 +23,8 @@ export function FlowAssistantDrawer(options = {}) {
     open: false,
     prompt: '',
     match: null,
+    missingSlots: [],
+    slotValues: {},
     preview: null,
     result: null,
     error: ''
@@ -58,6 +60,7 @@ export function FlowAssistantDrawer(options = {}) {
       '</div>',
       state.error ? `<div class="flow-alert flow-alert--error">${escapeHTML(state.error)}</div>` : '',
       renderMatch(state.match),
+      renderMissingSlots(state.missingSlots, state.slotValues),
       '<div class="flow-panel-title">Preview</div>',
       renderFlowPreviewToHTML(state.preview),
       '<div class="flow-panel-title">Result</div>',
@@ -78,6 +81,8 @@ export function FlowAssistantDrawer(options = {}) {
     state.match = matchResult.match;
     state.preview = null;
     state.result = null;
+    state.missingSlots = matchResult.match?.missingSlots ?? [];
+    state.slotValues = { ...(matchResult.match?.slots ?? {}) };
     state.error = matchResult.match ? '' : matchResult.message;
     render();
     return state.match;
@@ -91,9 +96,12 @@ export function FlowAssistantDrawer(options = {}) {
     }
 
     const previewResult = await runner.preview(state.prompt, {
-      match: state.match
+      match: state.match,
+      slots: state.slotValues
     });
     state.match = previewResult.match;
+    state.missingSlots = previewResult.missingSlots ?? [];
+    state.slotValues = { ...state.slotValues, ...(previewResult.slots ?? {}) };
     state.preview = previewResult.preview ?? null;
     state.result = null;
     state.error = previewResult.ok ? '' : previewResult.message;
@@ -109,9 +117,12 @@ export function FlowAssistantDrawer(options = {}) {
     }
 
     const execution = await runner.execute(state.prompt, {
-      match: state.match
+      match: state.match,
+      slots: state.slotValues
     });
     state.match = execution.match;
+    state.missingSlots = execution.missingSlots ?? [];
+    state.slotValues = { ...state.slotValues, ...(execution.slots ?? {}) };
     state.preview = execution.preview ?? null;
     state.result = execution.result ?? execution.preview ?? null;
     state.error = execution.ok ? '' : execution.message;
@@ -143,6 +154,14 @@ export function FlowAssistantDrawer(options = {}) {
     on(root, 'input', '[data-flow-input="prompt"]', (e) => {
       state.prompt = e.target.value;
       state.match = null;
+      state.missingSlots = [];
+      state.slotValues = {};
+      state.preview = null;
+      state.result = null;
+      state.error = '';
+    }),
+    on(root, 'input', '[data-flow-slot]', (e, el) => {
+      state.slotValues[el.dataset.flowSlot] = e.target.value;
       state.preview = null;
       state.result = null;
       state.error = '';
@@ -166,6 +185,24 @@ export function FlowAssistantDrawer(options = {}) {
       root.remove();
     }
   };
+}
+
+function renderMissingSlots(missingSlots = [], slotValues = {}) {
+  if (!Array.isArray(missingSlots) || missingSlots.length === 0) {
+    return '';
+  }
+
+  return [
+    '<section class="flow-missing-slots">',
+    '<div class="flow-panel-title">Required parameters</div>',
+    ...missingSlots.map((slot) => [
+      '<label class="flow-field">',
+      `<span>${escapeHTML(slot.label || slot.name)}</span>`,
+      `<input class="ds-input" data-flow-slot="${escapeAttr(slot.name)}" value="${escapeAttr(slotValues[slot.name] ?? '')}" placeholder="${escapeAttr(slot.name)}">`,
+      '</label>'
+    ].join('')),
+    '</section>'
+  ].join('');
 }
 
 function renderMatch(match) {

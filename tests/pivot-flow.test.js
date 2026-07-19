@@ -223,4 +223,12 @@ test('FlowRunner blocks preview when required slots are missing', async () => {
   assert.equal(preview.ok, false);
   assert.equal(preview.stage, 'slots');
   assert.equal(preview.missingSlots[0].name, 'name');
+
+  const filledPreview = await runner.preview('创建', {
+    match: preview.match,
+    slots: { name: '张三' }
+  });
+
+  assert.equal(filledPreview.ok, true);
+  assert.equal(filledPreview.plan.nodes[0].params.message, '张三');
 });

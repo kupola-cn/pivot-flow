@@ -63,7 +63,13 @@ export function createFlowRunner(options = {}) {
       };
     }
 
-    if (Array.isArray(matched.match.missingSlots) && matched.match.missingSlots.length > 0) {
+    const mergedSlots = {
+      ...(matched.match.slots ?? {}),
+      ...(input.slots ?? {})
+    };
+    const missingSlots = getUnfilledMissingSlots(matched.match.missingSlots, mergedSlots);
+
+    if (missingSlots.length > 0) {
       return {
         ok: false,
         stage: 'slots',
@@ -71,11 +77,15 @@ export function createFlowRunner(options = {}) {
         message: 'Required flow slots are missing.',
         match: matched.match,
         matches: matched.matches ?? [],
-        missingSlots: matched.match.missingSlots
+        missingSlots,
+        slots: mergedSlots
       };
     }
 
-    const prepared = await createPlanFromMatch(matched.match, prompt, input);
+    const prepared = await createPlanFromMatch(matched.match, prompt, {
+      ...input,
+      slots: mergedSlots
+    });
     const previewResult = await runtime.previewPlan(prepared.plan, prepared.context);
 
     return {
@@ -86,6 +96,7 @@ export function createFlowRunner(options = {}) {
       match: matched.match,
       matches: matched.matches ?? [],
       missingSlots: [],
+      slots: mergedSlots,
       plan: prepared.plan,
       context: prepared.context,
       preview: previewResult
@@ -134,4 +145,15 @@ export function createFlowRunner(options = {}) {
     preview,
     execute
   };
+}
+
+export function getUnfilledMissingSlots(missingSlots = [], slots = {}) {
+  if (!Array.isArray(missingSlots) || missingSlots.length === 0) {
+    return [];
+  }
+
+  return missingSlots.filter((slot) => {
+    const value = slots?.[slot.name];
+    return value === undefined || value === null || value === '';
+  });
 }

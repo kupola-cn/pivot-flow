@@ -156,6 +156,7 @@ export function createFlowRunner(options: {
     match: FlowMatch | null;
     matches?: FlowMatch[];
     missingSlots?: FlowSlot[];
+    slots?: Record<string, unknown>;
     plan?: PivotPlan;
     context?: Record<string, unknown>;
     preview?: PivotResult;
@@ -166,12 +167,15 @@ export function createFlowRunner(options: {
     prompt: string;
     message: string;
     match: FlowMatch | null;
+    missingSlots?: FlowSlot[];
+    slots?: Record<string, unknown>;
     plan?: PivotPlan;
     context?: Record<string, unknown>;
     preview?: PivotResult;
     result?: PivotResult;
   }>;
 };
+export function getUnfilledMissingSlots(missingSlots?: FlowSlot[], slots?: Record<string, unknown>): FlowSlot[];
 
 export const FLOW_FRONTEND_CAPABILITIES: {
   MESSAGE_SHOW: 'message.show';

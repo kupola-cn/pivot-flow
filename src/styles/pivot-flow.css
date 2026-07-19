@@ -353,6 +353,10 @@
   gap: var(--spacer-6);
 }
 
+.flow-field .ds-input {
+  width: 100%;
+}
+
 .flow-field span {
   color: var(--text-secondary);
   font-size: var(--body-xs-font-size);
@@ -367,6 +371,15 @@
 .flow-match {
   display: grid;
   gap: var(--spacer-8);
+}
+
+.flow-missing-slots {
+  border: 1px solid var(--border-brand);
+  border-radius: var(--radius-4);
+  background: var(--bg-brand-overlay);
+  display: grid;
+  gap: var(--spacer-10);
+  padding: var(--spacer-12);
 }
 
 .flow-match strong {
