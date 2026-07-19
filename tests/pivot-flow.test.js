@@ -8,6 +8,7 @@ import {
   createLocalIntentMapper,
   createMemoryFlowStore,
   createFlowRunner,
+  createFlowCanvasLayout,
   applyFlowTransform,
   evaluateFlowCondition,
   flowToPlan,
@@ -15,6 +16,7 @@ import {
   getFlowCapabilityRows,
   renderEditableNodeInspectorToHTML,
   renderFlowCapabilityMatrixToHTML,
+  renderFlowCanvasToHTML,
   renderFlowEdgeEditorToHTML,
   renderFlowSettingsToHTML,
   renderFlowTestPanelToHTML,
@@ -250,6 +252,36 @@ test('renders flow capability dependency matrix', () => {
   assert.equal(rows[0].permissions[0], 'system:org:create');
   assert.match(html, /flow-capability-matrix/);
   assert.match(html, /system:org:create/);
+});
+
+test('lays out flow canvas by edge dependencies', () => {
+  const flow = createFlow({
+    id: 'create-user-with-role',
+    name: 'Create user with role',
+    status: 'published',
+    nodes: [
+      { id: 'resolve-org', type: 'capability.run', capability: 'org.query', label: 'Resolve org' },
+      { id: 'resolve-role', type: 'capability.run', capability: 'role.resolve', label: 'Resolve role' },
+      { id: 'create-user', type: 'capability.run', capability: 'user.create', label: 'Create user' },
+      { id: 'assign-role', type: 'capability.run', capability: 'user.assignRoles', label: 'Assign role' }
+    ],
+    edges: [
+      { from: 'resolve-org', to: 'create-user', condition: 'success' },
+      { from: 'resolve-role', to: 'assign-role', condition: 'success' },
+      { from: 'create-user', to: 'assign-role', condition: 'success' }
+    ]
+  });
+
+  const layout = createFlowCanvasLayout(flow.nodes, flow.edges);
+  const html = renderFlowCanvasToHTML(flow);
+
+  assert.equal(layout.layerById.get('resolve-org'), 0);
+  assert.equal(layout.layerById.get('resolve-role'), 0);
+  assert.equal(layout.layerById.get('create-user'), 1);
+  assert.equal(layout.layerById.get('assign-role'), 2);
+  assert.match(html, /flow-canvas__board/);
+  assert.match(html, /Layer 3/);
+  assert.match(html, /flow-canvas__edge-rail/);
 });
 
 test('renders editable node inspector controls', () => {

@@ -241,6 +241,10 @@ export function renderFlowDesignerToHTML(flow?: FlowDefinition | null, state?: R
 export function renderFlowSettingsToHTML(flow: FlowDefinition): string;
 export function renderFlowEdgeEditorToHTML(flow: FlowDefinition, state?: Record<string, unknown>): string;
 export function renderFlowCanvasToHTML(flow?: FlowDefinition | null, options?: Record<string, unknown>): string;
+export function createFlowCanvasLayout(nodes?: FlowNode[], edges?: FlowEdge[]): {
+  layers: Array<Array<{ node: FlowNode; index: number }>>;
+  layerById: Map<string, number>;
+};
 export function renderNodeInspectorToHTML(node?: FlowNode | null, options?: { editable?: boolean }): string;
 export function renderEditableNodeInspectorToHTML(node: FlowNode): string;
 export function renderNodePaletteToHTML(nodes?: unknown[]): string;

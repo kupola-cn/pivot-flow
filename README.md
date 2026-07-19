@@ -241,6 +241,7 @@ FlowAssistantDrawer({
 - edit flow name, description, status, risk, examples, keywords, patterns, and slots
 - add built-in nodes from the palette
 - edit node label, type, capability, risk, confirmation, and JSON params
+- inspect a layered flow canvas generated from nodes and edges
 - configure condition node JSON and transform node schemas
 - move or delete selected nodes
 - add, edit, and delete edges between nodes
@@ -249,6 +250,8 @@ FlowAssistantDrawer({
 - save, publish, disable, or delete flows through the configured `FlowStore`
 - preview and execute the selected flow through the configured PIVOT runtime
 - inspect capability dependencies, risk levels, confirmation requirements, and registered permissions for the selected flow
+
+The designer uses a structured layered canvas rather than a freeform drag canvas. This keeps the API stable while making dependencies, edge direction, risk, confirmation, and execution state easier to inspect.
 
 ## Security Boundary
 
