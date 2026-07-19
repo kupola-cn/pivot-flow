@@ -46,6 +46,9 @@ export function renderEditableNodeInspectorToHTML(node) {
     '<span>Params JSON</span>',
     `<textarea class="ds-textarea" rows="8" data-flow-node-field="params">${escapeHTML(formatJson(node.params ?? {}))}</textarea>`,
     '</label>',
+    node.type === FLOW_NODE_TYPES.CONDITION ? renderJsonTextarea('Condition JSON', 'condition', node.condition ?? {}) : '',
+    node.type === FLOW_NODE_TYPES.TRANSFORM ? renderJsonTextarea('Input schema JSON', 'inputSchema', node.inputSchema ?? {}) : '',
+    node.type === FLOW_NODE_TYPES.TRANSFORM ? renderJsonTextarea('Output schema JSON', 'outputSchema', node.outputSchema ?? {}) : '',
     '</div>'
   ].join('');
 }
@@ -93,6 +96,15 @@ function renderCheckbox(label, field, checked) {
     '<label class="flow-check">',
     `<input type="checkbox" data-flow-node-field="${escapeAttr(field)}"${checked ? ' checked' : ''}>`,
     `<span>${escapeHTML(label)}</span>`,
+    '</label>'
+  ].join('');
+}
+
+function renderJsonTextarea(label, field, value) {
+  return [
+    '<label class="flow-inspector__block">',
+    `<span>${escapeHTML(label)}</span>`,
+    `<textarea class="ds-textarea" rows="6" data-flow-node-field="${escapeAttr(field)}">${escapeHTML(formatJson(value))}</textarea>`,
     '</label>'
   ].join('');
 }

@@ -227,6 +227,51 @@ test('renders editable node inspector controls', () => {
   assert.match(html, /user\.create/);
 });
 
+test('renders condition and transform node configuration controls', () => {
+  const conditionHtml = renderEditableNodeInspectorToHTML({
+    id: 'check-stock',
+    type: 'condition',
+    label: 'Check stock',
+    condition: {
+      left: '{{intent.quantity}}',
+      operator: 'gt',
+      right: 0
+    }
+  });
+  const transformHtml = renderEditableNodeInspectorToHTML({
+    id: 'map-user',
+    type: 'transform',
+    label: 'Map user payload',
+    params: {
+      username: '{{intent.username}}'
+    },
+    inputSchema: { username: { type: 'string' } },
+    outputSchema: { payload: { type: 'object' } }
+  });
+
+  assert.match(conditionHtml, /data-flow-node-field="condition"/);
+  assert.match(conditionHtml, /Check stock/);
+  assert.match(transformHtml, /data-flow-node-field="inputSchema"/);
+  assert.match(transformHtml, /data-flow-node-field="outputSchema"/);
+});
+
+test('validates condition and transform node configuration', () => {
+  const flow = createFlow({
+    id: 'invalid-control-flow',
+    name: 'Invalid control flow',
+    status: 'draft',
+    nodes: [
+      { id: 'condition', type: 'condition', condition: null },
+      { id: 'transform', type: 'transform', params: [] }
+    ]
+  });
+  const validation = validateFlow(flow);
+
+  assert.equal(validation.valid, false);
+  assert.match(validation.errors.join('\n'), /Condition node requires a condition object: condition/);
+  assert.match(validation.errors.join('\n'), /Transform node params must be an object: transform/);
+});
+
 test('renders editable flow settings with slot configuration', () => {
   const html = renderFlowSettingsToHTML(createOrganizationFlow());
 

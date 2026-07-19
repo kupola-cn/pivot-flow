@@ -411,12 +411,12 @@ export function FlowManager(options = {}) {
       return;
     }
 
-    if (field === 'params') {
+    if (field === 'params' || field === 'condition' || field === 'inputSchema' || field === 'outputSchema') {
       try {
-        node.params = value.trim() ? JSON.parse(value) : {};
+        node[field] = value.trim() ? JSON.parse(value) : {};
         state.error = '';
       } catch (error) {
-        state.error = `Invalid node params JSON: ${error.message}`;
+        state.error = `Invalid node ${field} JSON: ${error.message}`;
       }
       return;
     }

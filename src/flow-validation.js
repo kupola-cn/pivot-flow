@@ -67,6 +67,14 @@ export function validateFlow(flow, options = {}) {
     if (knownCapabilities && capability && !knownCapabilities.has(capability)) {
       errors.push(`Flow node capability is not registered: ${capability}`);
     }
+
+    if (node.type === FLOW_NODE_TYPES.CONDITION && !isPlainObject(node.condition)) {
+      errors.push(`Condition node requires a condition object: ${node.id}`);
+    }
+
+    if (node.type === FLOW_NODE_TYPES.TRANSFORM && !isPlainObject(node.params)) {
+      errors.push(`Transform node params must be an object: ${node.id}`);
+    }
   }
 
   for (const edge of flow.edges) {

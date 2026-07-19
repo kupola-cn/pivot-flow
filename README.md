@@ -209,6 +209,7 @@ FlowAssistantDrawer({
 - edit flow name, description, status, risk, examples, keywords, patterns, and slots
 - add built-in nodes from the palette
 - edit node label, type, capability, risk, confirmation, and JSON params
+- configure condition node JSON and transform node schemas
 - move or delete selected nodes
 - add, edit, and delete edges between nodes
 - validate edge ids, endpoints, and conditions before publishing
