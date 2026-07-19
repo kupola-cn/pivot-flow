@@ -1,7 +1,9 @@
 import { createFlow, createFlowEdge, createFlowNode } from '../flow-schema.js';
 import { createFlowFromTemplate, listFlowTemplates } from '../flow-templates.js';
 import { flowToPlan } from '../flow-to-plan.js';
+import { createFlowRunner } from '../flow-runner.js';
 import { createMemoryFlowStore } from '../flow-store.js';
+import { createLocalIntentMapper } from '../intent-mapper.js';
 import { validateFlow } from '../flow-validation.js';
 import { getDefaultCapabilityForNodeType } from '../node-types.js';
 import { escapeHTML, on, resolveTarget, setHTML } from './dom.js';
@@ -10,18 +12,32 @@ import { renderFlowDesignerToHTML } from './FlowDesigner.js';
 import { renderFlowListToHTML } from './FlowList.js';
 import { renderFlowPreviewToHTML } from './FlowPreview.js';
 import { renderFlowRunPanelToHTML } from './FlowRunPanel.js';
+import { parseFlowTestSlots } from './FlowTestPanel.js';
 import { renderFlowTemplateListToHTML } from './FlowTemplateList.js';
 
 export function FlowManager(options = {}) {
   const target = resolveTarget(options.target);
   const flowStore = options.flowStore ?? createMemoryFlowStore(options.flows ?? []);
   const templates = Array.isArray(options.templates) ? options.templates : listFlowTemplates();
+  const intentMapper = options.intentMapper ?? createLocalIntentMapper();
+  const runner = options.runtime
+    ? createFlowRunner({
+      runtime: options.runtime,
+      flowStore,
+      intentMapper,
+      contextProvider: options.contextProvider
+    })
+    : null;
   const state = {
     flows: [],
     templates,
     selectedFlowId: '',
     selectedNodeId: '',
     selectedEdgeId: '',
+    testPrompt: '',
+    testSlotsText: '{}',
+    testMatch: null,
+    testMissingSlots: [],
     preview: null,
     result: null,
     loading: false,
@@ -117,6 +133,100 @@ export function FlowManager(options = {}) {
     render();
   };
 
+  const matchTestPrompt = async () => {
+    const flow = getSelectedFlow(state);
+    if (!flow) {
+      state.error = 'Select a flow before testing.';
+      render();
+      return null;
+    }
+
+    const prompt = state.testPrompt || flow?.name || '';
+    const matchResult = intentMapper.match(prompt, flow ? [flow] : [], { includeDraft: true });
+    state.testMatch = matchResult.best;
+    state.testMissingSlots = matchResult.best?.missingSlots ?? [];
+    state.preview = null;
+    state.result = null;
+    state.error = matchResult.ok ? '' : 'Current flow did not match this prompt.';
+    render();
+    return matchResult.best;
+  };
+
+  const previewTestPrompt = async () => {
+    if (!runner) {
+      state.error = 'PIVOT runtime is required to test flows.';
+      render();
+      return null;
+    }
+
+    const slots = parseTestSlots();
+    if (!slots) {
+      render();
+      return null;
+    }
+
+    const flow = getSelectedFlow(state);
+    const matchEntry = state.testMatch ?? await matchTestPrompt();
+    if (!matchEntry) {
+      return null;
+    }
+
+    const previewResult = await runner.preview(state.testPrompt || flow?.name || '', {
+      match: matchEntry,
+      slots,
+      matchOptions: { includeDraft: true }
+    });
+    state.testMatch = previewResult.match;
+    state.testMissingSlots = previewResult.missingSlots ?? [];
+    state.preview = previewResult.preview ?? null;
+    state.result = null;
+    state.error = previewResult.ok ? '' : previewResult.message;
+    render();
+    return previewResult;
+  };
+
+  const executeTestPrompt = async () => {
+    if (!runner) {
+      state.error = 'PIVOT runtime is required to test flows.';
+      render();
+      return null;
+    }
+
+    const slots = parseTestSlots();
+    if (!slots) {
+      render();
+      return null;
+    }
+
+    const flow = getSelectedFlow(state);
+    const matchEntry = state.testMatch ?? await matchTestPrompt();
+    if (!matchEntry) {
+      return null;
+    }
+
+    const execution = await runner.execute(state.testPrompt || flow?.name || '', {
+      match: matchEntry,
+      slots,
+      matchOptions: { includeDraft: true }
+    });
+    state.testMatch = execution.match;
+    state.testMissingSlots = execution.missingSlots ?? [];
+    state.preview = execution.preview ?? null;
+    state.result = execution.result ?? execution.preview ?? null;
+    state.error = execution.ok ? '' : execution.message;
+    render();
+    return execution;
+  };
+
+  const parseTestSlots = () => {
+    try {
+      return parseFlowTestSlots(state.testSlotsText);
+    } catch (error) {
+      state.error = `Invalid test slots JSON: ${error.message}`;
+      return null;
+    }
+  };
+
   const saveSelected = async () => {
     const flow = getSelectedFlow(state);
     if (!flow) {
@@ -204,6 +314,8 @@ export function FlowManager(options = {}) {
       state.selectedFlowId = '';
       state.selectedNodeId = '';
       state.selectedEdgeId = '';
+      state.testMatch = null;
+      state.testMissingSlots = [];
       state.preview = null;
       state.result = null;
       state.error = '';
@@ -252,6 +364,10 @@ export function FlowManager(options = {}) {
       state.selectedFlowId = flow.id;
       state.selectedNodeId = flow.nodes?.[0]?.id ?? '';
       state.selectedEdgeId = flow.edges?.[0]?.id ?? '';
+      state.testPrompt = flow.intent?.examples?.[0] ?? flow.name ?? '';
+      state.testSlotsText = '{}';
+      state.testMatch = null;
+      state.testMissingSlots = [];
       state.preview = null;
       state.result = null;
       state.error = '';
@@ -436,6 +552,10 @@ export function FlowManager(options = {}) {
       state.selectedFlowId = el.dataset.flowId;
       state.selectedNodeId = '';
       state.selectedEdgeId = '';
+      state.testPrompt = getSelectedFlow(state)?.intent?.examples?.[0] ?? getSelectedFlow(state)?.name ?? '';
+      state.testSlotsText = '{}';
+      state.testMatch = null;
+      state.testMissingSlots = [];
       state.preview = null;
       state.result = null;
       render();
@@ -456,6 +576,15 @@ export function FlowManager(options = {}) {
     }),
     on(target, 'click', '[data-flow-action="execute"]', () => {
       executeSelected();
+    }),
+    on(target, 'click', '[data-flow-action="test-match"]', () => {
+      matchTestPrompt();
+    }),
+    on(target, 'click', '[data-flow-action="test-preview"]', () => {
+      previewTestPrompt();
+    }),
+    on(target, 'click', '[data-flow-action="test-execute"]', () => {
+      executeTestPrompt();
     }),
     on(target, 'click', '[data-flow-action="save-flow"]', () => {
       saveSelected();
@@ -522,9 +651,30 @@ export function FlowManager(options = {}) {
       updateSelectedEdgeField(el.dataset.flowEdgeField, e.target.value);
       render();
     }),
+    on(target, 'input', '[data-flow-test-field]', (e, el) => {
+      if (el.dataset.flowTestField === 'prompt') {
+        state.testPrompt = e.target.value;
+        state.testMatch = null;
+        state.testMissingSlots = [];
+      }
+      if (el.dataset.flowTestField === 'slots') {
+        state.testSlotsText = e.target.value;
+      }
+      state.preview = null;
+      state.result = null;
+      state.error = '';
+    }),
     on(target, 'click', '[data-flow-action="create-sample"]', async () => {
       const sample = await flowStore.create(createSampleFlow());
       state.selectedFlowId = sample.id;
+      state.selectedNodeId = sample.nodes?.[0]?.id ?? '';
+      state.selectedEdgeId = sample.edges?.[0]?.id ?? '';
+      state.testPrompt = sample.intent?.examples?.[0] ?? sample.name ?? '';
+      state.testSlotsText = '{}';
+      state.testMatch = null;
+      state.testMissingSlots = [];
+      state.preview = null;
+      state.result = null;
       await refresh();
     })
   ];

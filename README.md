@@ -230,6 +230,7 @@ FlowAssistantDrawer({
 - move or delete selected nodes
 - add, edit, and delete edges between nodes
 - validate edge ids, endpoints, and conditions before publishing
+- test match, preview, and execute from the management page with prompt and slots JSON
 - save, publish, disable, or delete flows through the configured `FlowStore`
 - preview and execute the selected flow through the configured PIVOT runtime
 

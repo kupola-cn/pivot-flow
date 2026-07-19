@@ -6,6 +6,7 @@ import { renderFlowCanvasToHTML } from './FlowCanvas.js';
 import { renderIntentPatternEditorToHTML } from './IntentPatternEditor.js';
 import { renderNodeInspectorToHTML } from './NodeInspector.js';
 import { renderNodePaletteToHTML } from './NodePalette.js';
+import { renderFlowTestPanelToHTML } from './FlowTestPanel.js';
 import { renderVariableMapperToHTML } from './VariableMapper.js';
 
 export function renderFlowDesignerToHTML(flow, state = {}) {
@@ -37,6 +38,7 @@ export function renderFlowDesignerToHTML(flow, state = {}) {
     renderFlowSettingsToHTML(flow),
     renderFlowCanvasToHTML(flow, state),
     renderFlowEdgeEditorToHTML(flow, state),
+    renderFlowTestPanelToHTML(state),
     '</main>',
     '<aside class="flow-designer__inspector">',
     renderNodeInspectorToHTML(selectedNode, { editable: true }),

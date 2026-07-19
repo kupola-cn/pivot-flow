@@ -2,7 +2,8 @@
 .flow-designer,
 .flow-assistant,
 .flow-preview,
-.flow-run-panel {
+.flow-run-panel,
+.flow-test-panel {
   color: var(--text-default);
   font-family: var(--font-family-base, inherit);
 }
@@ -20,6 +21,8 @@
 .flow-inspector__actions,
 .flow-assistant__header,
 .flow-assistant__actions,
+.flow-test-panel__header,
+.flow-test-panel__actions,
 .flow-list__button,
 .flow-node__button,
 .flow-inspector__field {
@@ -240,36 +243,43 @@
 .flow-intent-editor,
 .flow-template-panel,
 .flow-edge-editor,
-.flow-settings {
+.flow-settings,
+.flow-test-panel {
   display: grid;
   gap: var(--spacer-10);
 }
 
-.flow-settings {
+.flow-settings,
+.flow-edge-editor,
+.flow-test-panel {
   border: 1px solid var(--border-neutral-l1);
   border-radius: var(--radius-4);
   background: var(--bg-overlay-l1);
   padding: var(--spacer-12);
 }
 
-.flow-edge-editor {
-  border: 1px solid var(--border-neutral-l1);
-  border-radius: var(--radius-4);
-  background: var(--bg-overlay-l1);
-  padding: var(--spacer-12);
-}
-
-.flow-edge-editor__header {
+.flow-edge-editor__header,
+.flow-test-panel__header {
   align-items: center;
   display: flex;
   gap: var(--spacer-8);
   justify-content: space-between;
 }
 
+.flow-test-panel__actions {
+  flex-wrap: wrap;
+}
+
 .flow-edge-form {
   display: grid;
   gap: var(--spacer-10);
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.flow-test-panel__grid {
+  display: grid;
+  gap: var(--spacer-10);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .flow-settings__grid {
@@ -470,11 +480,42 @@
   font-size: var(--body-xs-font-size);
 }
 
+.flow-test-match {
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  background: var(--bg-overlay-l2);
+  display: grid;
+  gap: var(--spacer-8);
+  padding: var(--spacer-10);
+}
+
+.flow-test-match strong {
+  color: var(--text-default);
+}
+
+.flow-test-match span,
+.flow-test-match__details summary {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-test-match__details pre {
+  border-radius: var(--radius-4);
+  background: var(--bg-base);
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+  margin: var(--spacer-8) 0 0;
+  overflow: auto;
+  padding: var(--spacer-8);
+  white-space: pre-wrap;
+}
+
 @media (max-width: 1180px) {
   .flow-manager__grid,
   .flow-designer,
   .flow-manager__runtime,
   .flow-edge-form,
+  .flow-test-panel__grid,
   .flow-settings__grid {
     grid-template-columns: 1fr;
   }

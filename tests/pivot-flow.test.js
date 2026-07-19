@@ -15,7 +15,9 @@ import {
   renderEditableNodeInspectorToHTML,
   renderFlowEdgeEditorToHTML,
   renderFlowSettingsToHTML,
+  renderFlowTestPanelToHTML,
   renderFlowTemplateListToHTML,
+  parseFlowTestSlots,
   registerFlowFrontendCapabilities,
   validateFlow
 } from '../src/index.js';
@@ -344,6 +346,26 @@ test('renders edge editor controls', () => {
   assert.match(html, /data-flow-edge-field="from"/);
   assert.match(html, /data-flow-edge-field="to"/);
   assert.match(html, /data-flow-edge-field="condition"/);
+});
+
+test('renders flow test panel controls', () => {
+  const html = renderFlowTestPanelToHTML({
+    testPrompt: '创建',
+    testSlotsText: '{"name":"张三"}'
+  });
+
+  assert.match(html, /data-flow-action="test-match"/);
+  assert.match(html, /data-flow-action="test-preview"/);
+  assert.match(html, /data-flow-action="test-execute"/);
+  assert.match(html, /data-flow-test-field="prompt"/);
+  assert.match(html, /data-flow-test-field="slots"/);
+  assert.match(html, /张三/);
+});
+
+test('parses flow test slots as object', () => {
+  assert.deepEqual(parseFlowTestSlots('{"name":"张三"}'), { name: '张三' });
+  assert.deepEqual(parseFlowTestSlots(''), {});
+  assert.throws(() => parseFlowTestSlots('[]'), /Slots must be a JSON object/);
 });
 
 test('registers built-in frontend capabilities', async () => {

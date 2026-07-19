@@ -246,6 +246,8 @@ export function renderVariableMapperToHTML(options?: Record<string, unknown>): s
 export function renderIntentPatternEditorToHTML(flow?: FlowDefinition | null): string;
 export function renderFlowPreviewToHTML(preview?: PivotResult | null, options?: Record<string, unknown>): string;
 export function renderFlowRunPanelToHTML(result?: PivotResult | null): string;
+export function renderFlowTestPanelToHTML(state?: Record<string, unknown>): string;
+export function parseFlowTestSlots(value?: string): Record<string, unknown>;
 export function renderFlowAuditPanelToHTML(audits?: unknown[], options?: Record<string, unknown>): string;
 
 export function FlowManager(options: {
@@ -254,6 +256,7 @@ export function FlowManager(options: {
   flowStore?: FlowStore;
   flows?: FlowDefinition[];
   templates?: FlowTemplate[];
+  intentMapper?: IntentMapper;
   contextProvider?: () => Record<string, unknown> | Promise<Record<string, unknown>>;
   input?: Record<string, unknown>;
 }): { element: Element; refresh(): Promise<void>; destroy(): void };
