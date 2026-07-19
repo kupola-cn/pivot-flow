@@ -88,7 +88,7 @@
 .flow-manager__runtime {
   display: grid;
   gap: var(--spacer-16);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
 .flow-designer {
@@ -508,6 +508,45 @@
   overflow: auto;
   padding: var(--spacer-8);
   white-space: pre-wrap;
+}
+
+.flow-capability-matrix {
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  font-size: var(--body-xs-font-size);
+  overflow: auto;
+}
+
+.flow-capability-matrix__head,
+.flow-capability-matrix__row {
+  display: grid;
+  gap: var(--spacer-8);
+  grid-template-columns: minmax(120px, 1.1fr) minmax(140px, 1fr) 72px 80px minmax(160px, 1.2fr);
+  min-width: 640px;
+  padding: var(--spacer-8);
+}
+
+.flow-capability-matrix__head {
+  background: var(--bg-overlay-l2);
+  color: var(--text-tertiary);
+  font-weight: 700;
+}
+
+.flow-capability-matrix__row {
+  border-top: 1px solid var(--border-neutral-l1);
+  color: var(--text-secondary);
+}
+
+.flow-capability-matrix code {
+  background: var(--bg-base);
+  border-radius: var(--radius-4);
+  color: var(--text-default);
+  display: inline-block;
+  font-size: var(--body-xs-font-size);
+  margin: 0 var(--spacer-4) var(--spacer-4) 0;
+  overflow-wrap: anywhere;
+  padding: 2px var(--spacer-4);
 }
 
 @media (max-width: 1180px) {

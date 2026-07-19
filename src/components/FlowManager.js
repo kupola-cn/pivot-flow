@@ -8,6 +8,7 @@ import { validateFlow } from '../flow-validation.js';
 import { getDefaultCapabilityForNodeType } from '../node-types.js';
 import { escapeHTML, on, resolveTarget, setHTML } from './dom.js';
 import { renderFlowAuditPanelToHTML } from './FlowAuditPanel.js';
+import { renderFlowCapabilityMatrixToHTML } from './FlowCapabilityMatrix.js';
 import { renderFlowDesignerToHTML } from './FlowDesigner.js';
 import { renderFlowListToHTML } from './FlowList.js';
 import { renderFlowPreviewToHTML } from './FlowPreview.js';
@@ -97,6 +98,10 @@ export function FlowManager(options = {}) {
       '<div>',
       '<div class="flow-panel-title">Audit</div>',
       renderFlowAuditPanelToHTML(options.runtime?.getAuditEvents?.() ?? []),
+      '</div>',
+      '<div>',
+      '<div class="flow-panel-title">Capabilities</div>',
+      renderFlowCapabilityMatrixToHTML(flow, options.runtime),
       '</div>',
       '</section>',
       '</section>'

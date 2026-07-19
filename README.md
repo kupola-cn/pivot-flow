@@ -248,6 +248,7 @@ FlowAssistantDrawer({
 - test match, preview, and execute from the management page with prompt and slots JSON
 - save, publish, disable, or delete flows through the configured `FlowStore`
 - preview and execute the selected flow through the configured PIVOT runtime
+- inspect capability dependencies, risk levels, confirmation requirements, and registered permissions for the selected flow
 
 ## Security Boundary
 

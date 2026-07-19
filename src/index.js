@@ -11,6 +11,7 @@ export * from './flow-control.js';
 
 export * from './components/FlowAssistantDrawer.js';
 export * from './components/FlowAuditPanel.js';
+export * from './components/FlowCapabilityMatrix.js';
 export * from './components/FlowCanvas.js';
 export * from './components/FlowDesigner.js';
 export * from './components/FlowList.js';

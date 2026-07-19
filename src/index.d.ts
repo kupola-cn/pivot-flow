@@ -248,6 +248,17 @@ export function renderVariableMapperToHTML(options?: Record<string, unknown>): s
 export function renderIntentPatternEditorToHTML(flow?: FlowDefinition | null): string;
 export function renderFlowPreviewToHTML(preview?: PivotResult | null, options?: Record<string, unknown>): string;
 export function renderFlowRunPanelToHTML(result?: PivotResult | null): string;
+export function renderFlowCapabilityMatrixToHTML(flow?: FlowDefinition | null, runtime?: PivotRuntime): string;
+export function getFlowCapabilityRows(flow?: FlowDefinition | null, runtime?: PivotRuntime): Array<{
+  nodeId?: string;
+  nodeLabel: string;
+  capability: string;
+  resource: string;
+  action: string;
+  risk: FlowRisk | string;
+  requiresConfirmation: boolean;
+  permissions: string[];
+}>;
 export function renderFlowTestPanelToHTML(state?: Record<string, unknown>): string;
 export function parseFlowTestSlots(value?: string): Record<string, unknown>;
 export function renderFlowAuditPanelToHTML(audits?: unknown[], options?: Record<string, unknown>): string;

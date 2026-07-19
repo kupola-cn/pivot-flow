@@ -12,7 +12,9 @@ import {
   evaluateFlowCondition,
   flowToPlan,
   listFlowTemplates,
+  getFlowCapabilityRows,
   renderEditableNodeInspectorToHTML,
+  renderFlowCapabilityMatrixToHTML,
   renderFlowEdgeEditorToHTML,
   renderFlowSettingsToHTML,
   renderFlowTestPanelToHTML,
@@ -225,6 +227,29 @@ test('renders flow template list actions', () => {
 
   assert.match(html, /data-flow-action="create-from-template"/);
   assert.match(html, /material\.delete-with-confirm/);
+});
+
+test('renders flow capability dependency matrix', () => {
+  const flow = createOrganizationFlow();
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'org.create',
+    resource: 'organization',
+    action: ActionType.CREATE,
+    risk: RiskLevel.MEDIUM,
+    permissions: ['system:org:create'],
+    requiresConfirmation: true,
+    execute: () => ({ ok: true })
+  });
+
+  const rows = getFlowCapabilityRows(flow, runtime);
+  const html = renderFlowCapabilityMatrixToHTML(flow, runtime);
+
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].capability, 'org.create');
+  assert.equal(rows[0].permissions[0], 'system:org:create');
+  assert.match(html, /flow-capability-matrix/);
+  assert.match(html, /system:org:create/);
 });
 
 test('renders editable node inspector controls', () => {
