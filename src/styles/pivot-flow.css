@@ -1724,13 +1724,15 @@
 .flow-safety-report__header strong,
 .flow-safety-report__capabilities > strong,
 .flow-safety-report__sensitive > strong,
-.flow-safety-report__issues > strong {
+.flow-safety-report__issues > strong,
+.flow-batch-safety-report__breakdown > strong {
   color: var(--text-default);
   font-size: var(--body-xs-font-size);
 }
 
 .flow-safety-report__header span,
 .flow-safety-report small,
+.flow-batch-safety-report small,
 .flow-safety-report__backend,
 .flow-safety-report__issues li {
   color: var(--text-secondary);
@@ -1766,6 +1768,7 @@
 .flow-safety-report__sensitive,
 .flow-safety-report__issues,
 .flow-safety-report__backend,
+.flow-batch-safety-report__breakdown,
 .flow-batch-safety-report__flows {
   background: var(--bg-overlay-l2);
   border: 1px solid var(--border-neutral-l1);
@@ -1813,6 +1816,7 @@
 .flow-safety-report__backend ul,
 .flow-safety-report__capabilities ol,
 .flow-safety-report__sensitive ol,
+.flow-batch-safety-report__breakdown ol,
 .flow-batch-safety-report__flows ol {
   display: grid;
   gap: var(--spacer-6);
@@ -1821,6 +1825,7 @@
 }
 
 .flow-safety-report__capabilities li,
+.flow-batch-safety-report__breakdown li,
 .flow-batch-safety-report__flows li {
   display: grid;
   gap: var(--spacer-4);
@@ -1828,10 +1833,17 @@
 }
 
 .flow-safety-report__capabilities li > span:first-child,
+.flow-batch-safety-report__breakdown li > span:first-child,
 .flow-batch-safety-report__flows li > span:first-child {
   display: grid;
   gap: var(--spacer-2);
   min-width: 0;
+}
+
+.flow-batch-safety-report__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacer-6);
 }
 
 .flow-safety-report code {

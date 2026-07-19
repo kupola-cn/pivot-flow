@@ -362,7 +362,15 @@ export function FlowManager(options = {}) {
 
     const batchSafety = createFlowBatchSafetyReport(flows, options.runtime);
     if (!batchSafety.ok) {
-      state.error = `Cannot publish filtered flows: ${batchSafety.summary} ${batchSafety.blockingIssues.slice(0, 5).join('; ')}`;
+      const blockedNames = batchSafety.blockedFlows
+        .map((flow) => flow.flowName || flow.flowId)
+        .filter(Boolean)
+        .slice(0, 5);
+      state.error = [
+        `Cannot publish filtered flows: ${batchSafety.summary}`,
+        blockedNames.length > 0 ? `Blocked flows: ${blockedNames.join(', ')}` : '',
+        batchSafety.blockingIssues.slice(0, 3).join('; ')
+      ].filter(Boolean).join(' ');
       render();
       return;
     }

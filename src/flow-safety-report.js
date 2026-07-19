@@ -82,6 +82,10 @@ export function createFlowBatchSafetyReport(flows = [], source, options = {}) {
     output[entry.risk] = (output[entry.risk] ?? 0) + 1;
     return output;
   }, {});
+  const checkSummaries = createBatchCheckSummaries(entries);
+  const blockedFlows = blocked.map(createBatchFlowSummary);
+  const reviewFlows = review.map(createBatchFlowSummary);
+  const readyFlows = ready.map(createBatchFlowSummary);
 
   return {
     ok: blocked.length === 0,
@@ -91,6 +95,11 @@ export function createFlowBatchSafetyReport(flows = [], source, options = {}) {
     reviewCount: review.length,
     blockedCount: blocked.length,
     riskCounts,
+    highestRisk: getHighestRiskFromReports(entries),
+    checkSummaries,
+    blockedFlows,
+    reviewFlows,
+    readyFlows,
     reports: entries,
     blockingIssues,
     warnings,
@@ -155,7 +164,12 @@ export function renderFlowBatchSafetyReportToHTML(reportOrFlows, source, options
     `<span><strong>${escapeHTML(report.readyCount)}</strong><small>ready</small></span>`,
     `<span><strong>${escapeHTML(report.reviewCount)}</strong><small>review</small></span>`,
     `<span><strong>${escapeHTML(report.blockedCount)}</strong><small>blocked</small></span>`,
+    `<span><strong>${escapeHTML(report.highestRisk || 'low')}</strong><small>highest risk</small></span>`,
     '</div>',
+    renderBatchRiskCounts(report.riskCounts),
+    renderBatchCheckSummaries(report.checkSummaries),
+    renderBatchFlowSummaries('Blocked flows', report.blockedFlows),
+    renderBatchFlowSummaries('Review flows', report.reviewFlows),
     renderSafetyIssues('Blocking issues', report.blockingIssues, 'error'),
     renderSafetyIssues('Warnings', report.warnings.slice(0, Number(options.maxWarnings || 12)), 'warning'),
     '<div class="flow-batch-safety-report__flows">',
@@ -173,6 +187,127 @@ export function renderFlowBatchSafetyReportToHTML(reportOrFlows, source, options
     '</ol>',
     '</div>',
     '</section>'
+  ].join('');
+}
+
+function createBatchFlowSummary(entry) {
+  return {
+    flowId: entry.flowId,
+    flowName: entry.flowName,
+    flowStatus: entry.flowStatus,
+    status: entry.status,
+    risk: entry.risk,
+    blockingCount: entry.blockingIssues.length,
+    warningCount: entry.warnings.length,
+    summary: entry.summary
+  };
+}
+
+function createBatchCheckSummaries(entries) {
+  const summaries = new Map();
+  for (const entry of entries) {
+    for (const check of entry.checks ?? []) {
+      if (!summaries.has(check.id)) {
+        summaries.set(check.id, {
+          id: check.id,
+          label: check.label,
+          passCount: 0,
+          warnCount: 0,
+          failCount: 0,
+          messages: []
+        });
+      }
+      const summary = summaries.get(check.id);
+      if (check.status === 'fail') {
+        summary.failCount += 1;
+      } else if (check.status === 'warn') {
+        summary.warnCount += 1;
+      } else {
+        summary.passCount += 1;
+      }
+      if (check.status !== 'pass' && check.message && !summary.messages.includes(check.message)) {
+        summary.messages.push(check.message);
+      }
+    }
+  }
+
+  return Array.from(summaries.values()).map((summary) => ({
+    ...summary,
+    status: summary.failCount > 0 ? 'fail' : summary.warnCount > 0 ? 'warn' : 'pass'
+  }));
+}
+
+function getHighestRiskFromReports(entries) {
+  let risk = RiskLevel.LOW;
+  for (const entry of entries) {
+    if ((RISK_RANK[entry.risk] ?? 0) > (RISK_RANK[risk] ?? 0)) {
+      risk = entry.risk;
+    }
+  }
+  return risk;
+}
+
+function renderBatchRiskCounts(riskCounts = {}) {
+  const entries = Object.entries(riskCounts).filter(([, count]) => count > 0);
+  if (entries.length === 0) {
+    return '';
+  }
+
+  return [
+    '<div class="flow-batch-safety-report__breakdown">',
+    '<strong>Risk breakdown</strong>',
+    '<div class="flow-batch-safety-report__chips">',
+    ...entries.map(([risk, count]) => `<span class="flow-badge flow-badge--${escapeAttr(risk)}">${escapeHTML(risk)} ${escapeHTML(count)}</span>`),
+    '</div>',
+    '</div>'
+  ].join('');
+}
+
+function renderBatchCheckSummaries(checks = []) {
+  if (!checks.length) {
+    return '';
+  }
+
+  return [
+    '<div class="flow-batch-safety-report__breakdown">',
+    '<strong>Check summary</strong>',
+    '<ol>',
+    ...checks.map((check) => [
+      '<li>',
+      '<span>',
+      `<strong>${escapeHTML(check.label)}</strong>`,
+      `<small>${escapeHTML(check.failCount)} fail · ${escapeHTML(check.warnCount)} warn · ${escapeHTML(check.passCount)} pass</small>`,
+      '</span>',
+      `<span class="flow-badge flow-badge--${escapeAttr(check.status === 'fail' ? 'high' : check.status === 'warn' ? 'medium' : 'low')}">${escapeHTML(check.status)}</span>`,
+      check.messages.length > 0 ? `<small>${escapeHTML(check.messages.slice(0, 2).join('; '))}</small>` : '',
+      '</li>'
+    ].join('')),
+    '</ol>',
+    '</div>'
+  ].join('');
+}
+
+function renderBatchFlowSummaries(title, flows = []) {
+  if (!flows.length) {
+    return '';
+  }
+
+  return [
+    '<div class="flow-batch-safety-report__breakdown">',
+    `<strong>${escapeHTML(title)}</strong>`,
+    '<ol>',
+    ...flows.map((flow) => [
+      '<li>',
+      '<span>',
+      `<strong>${escapeHTML(flow.flowName || flow.flowId)}</strong>`,
+      `<small>${escapeHTML(flow.summary)}</small>`,
+      '</span>',
+      `<span class="flow-badge flow-badge--${escapeAttr(flow.status === 'blocked' ? 'high' : flow.status === 'review' ? 'medium' : 'low')}">${escapeHTML(flow.status)}</span>`,
+      `<small>${escapeHTML(flow.blockingCount)} blocking · ${escapeHTML(flow.warningCount)} warnings · ${escapeHTML(flow.risk)} risk</small>`,
+      '</li>'
+    ].join('')),
+    '</ol>',
+    '</div>'
   ].join('');
 }
 

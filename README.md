@@ -310,7 +310,7 @@ if (!report.ok) {
 }
 ```
 
-`FlowManager` renders single-flow and filtered-flow batch reports by default. It blocks publish when the report has blocking issues. A `review` report can still be published from the frontend, but backend publish APIs must continue to enforce authorization and business rules.
+`FlowManager` renders single-flow and filtered-flow batch reports by default. Batch reports include risk counts, highest risk, check summaries, blocked flows, review flows, and detailed issues. It blocks publish when the report has blocking issues. A `review` report can still be published from the frontend, but backend publish APIs must continue to enforce authorization and business rules.
 
 ## UI Example
 

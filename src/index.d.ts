@@ -273,9 +273,32 @@ export interface FlowBatchSafetyReport {
   reviewCount: number;
   blockedCount: number;
   riskCounts: Record<string, number>;
+  highestRisk: FlowRisk | string;
+  checkSummaries: Array<{
+    id: string;
+    label: string;
+    status: 'pass' | 'warn' | 'fail';
+    passCount: number;
+    warnCount: number;
+    failCount: number;
+    messages: string[];
+  }>;
+  blockedFlows: FlowBatchSafetyFlowSummary[];
+  reviewFlows: FlowBatchSafetyFlowSummary[];
+  readyFlows: FlowBatchSafetyFlowSummary[];
   reports: FlowSafetyReport[];
   blockingIssues: string[];
   warnings: string[];
+  summary: string;
+}
+export interface FlowBatchSafetyFlowSummary {
+  flowId: string;
+  flowName: string;
+  flowStatus: string;
+  status: 'ready' | 'review' | 'blocked';
+  risk: FlowRisk | string;
+  blockingCount: number;
+  warningCount: number;
   summary: string;
 }
 export function createFlowSafetyReport(flow?: FlowDefinition | null, source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {

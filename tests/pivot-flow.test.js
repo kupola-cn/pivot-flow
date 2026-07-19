@@ -613,7 +613,7 @@ test('creates batch publish safety reports for filtered flows', () => {
     name: 'Delete flow',
     status: 'draft',
     nodes: [
-      { id: 'delete', type: 'capability.run', capability: 'material.delete', label: 'Delete material', requiresConfirmation: true }
+      { id: 'delete', type: 'capability.run', capability: 'material.delete', label: 'Delete material', risk: 'high', requiresConfirmation: true }
     ]
   });
   const unsafeFlow = createFlow({
@@ -632,8 +632,17 @@ test('creates batch publish safety reports for filtered flows', () => {
   assert.equal(report.total, 3);
   assert.equal(report.blockedCount, 1);
   assert.equal(report.reviewCount, 2);
+  assert.equal(report.highestRisk, 'high');
+  assert.equal(report.blockedFlows[0].flowName, 'Unsafe flow');
+  assert.equal(report.reviewFlows.length, 2);
+  assert.equal(report.riskCounts.low, 2);
+  assert.equal(report.riskCounts.high, 1);
+  assert.equal(report.checkSummaries.some((item) => item.id === 'capability-registration' && item.failCount === 1), true);
   assert.match(report.blockingIssues.join('\n'), /Unsafe flow: Capability is not registered: role\.remove/);
   assert.match(html, /Batch publish safety/);
+  assert.match(html, /Risk breakdown/);
+  assert.match(html, /Check summary/);
+  assert.match(html, /Blocked flows/);
   assert.match(html, /Unsafe flow/);
   assert.match(html, /Blocking issues/);
 });
