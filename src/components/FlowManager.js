@@ -36,6 +36,7 @@ export function FlowManager(options = {}) {
     selectedFlowId: '',
     selectedNodeId: '',
     selectedEdgeId: '',
+    nodeKeyword: '',
     listKeyword: '',
     listStatus: '',
     listRisk: '',
@@ -577,6 +578,7 @@ export function FlowManager(options = {}) {
       state.selectedFlowId = el.dataset.flowId;
       state.selectedNodeId = '';
       state.selectedEdgeId = '';
+      state.nodeKeyword = '';
       state.testPrompt = getSelectedFlow(state)?.intent?.examples?.[0] ?? getSelectedFlow(state)?.name ?? '';
       state.testSlotsText = '{}';
       state.testMatch = null;
@@ -601,6 +603,10 @@ export function FlowManager(options = {}) {
       state.listStatus = '';
       state.listRisk = '';
       state.listGroupBy = '';
+      render();
+    }),
+    on(target, 'click', '[data-flow-action="clear-node-search"]', () => {
+      state.nodeKeyword = '';
       render();
     }),
     on(target, 'click', '[data-flow-action="preview"]', () => {
@@ -699,6 +705,12 @@ export function FlowManager(options = {}) {
     on(target, 'input', '[data-flow-list-filter]', (e, el) => {
       if (el.dataset.flowListFilter === 'keyword') {
         state.listKeyword = e.target.value;
+        render();
+      }
+    }),
+    on(target, 'input', '[data-flow-canvas-field]', (e, el) => {
+      if (el.dataset.flowCanvasField === 'nodeKeyword') {
+        state.nodeKeyword = e.target.value;
         render();
       }
     }),

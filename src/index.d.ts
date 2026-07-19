@@ -256,6 +256,8 @@ export function getFlowExecutionTrace(result?: PivotResult | null, nodes?: FlowN
   skippedNodeIds: string[];
   firstFailedNodeId: string;
 };
+export function getFlowNodeMatches(nodes?: FlowNode[], keyword?: string): { active: boolean; matchedIds: Set<string>; count: number };
+export function getFlowNodeAdjacency(nodeId?: string, edges?: FlowEdge[]): { active: boolean; relatedEdgeIds: Set<string>; relatedNodeIds: Set<string> };
 export function renderNodeInspectorToHTML(node?: FlowNode | null, options?: { editable?: boolean }): string;
 export function renderEditableNodeInspectorToHTML(node: FlowNode): string;
 export function renderNodePaletteToHTML(nodes?: unknown[]): string;

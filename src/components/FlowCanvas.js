@@ -15,6 +15,8 @@ export function renderFlowCanvasToHTML(flow, options = {}) {
 
   const layout = createFlowCanvasLayout(nodes, edges);
   const trace = getFlowExecutionTrace(options.result ?? options.preview, nodes, edges);
+  const nodeMatches = getFlowNodeMatches(nodes, options.nodeKeyword);
+  const adjacency = getFlowNodeAdjacency(options.selectedNodeId, edges);
 
   return [
     '<div class="flow-canvas">',
@@ -27,9 +29,9 @@ export function renderFlowCanvasToHTML(flow, options = {}) {
     trace.skippedNodeIds.length > 0 ? `<span class="flow-canvas__summary-status flow-canvas__summary-status--skipped">${escapeHTML(trace.skippedNodeIds.length)} skipped</span>` : '',
     '</div>',
     '<div class="flow-canvas__board">',
-    ...layout.layers.map((layer, index) => renderLayer(layer, index, options, trace.nodeStates)),
+    ...layout.layers.map((layer, index) => renderLayer(layer, index, options, trace.nodeStates, nodeMatches, adjacency)),
     '</div>',
-    renderEdgeRail(edges, options, trace.edgeStates),
+    renderEdgeRail(edges, options, trace.edgeStates, adjacency),
     '</div>'
   ].join('');
 }
@@ -89,7 +91,7 @@ export function createFlowCanvasLayout(nodes = [], edges = []) {
   };
 }
 
-function renderLayer(layer, index, options, nodeStates) {
+function renderLayer(layer, index, options, nodeStates, nodeMatches, adjacency) {
   return [
     '<section class="flow-canvas__layer">',
     '<div class="flow-canvas__layer-title">',
@@ -97,18 +99,21 @@ function renderLayer(layer, index, options, nodeStates) {
     `<small>${escapeHTML(layer.length)} node${layer.length === 1 ? '' : 's'}</small>`,
     '</div>',
     '<ol class="flow-canvas__nodes">',
-    ...layer.map((item) => renderNodeCard(item.node, item.index, options, nodeStates.get(item.node.id))),
+    ...layer.map((item) => renderNodeCard(item.node, item.index, options, nodeStates.get(item.node.id), nodeMatches, adjacency)),
     '</ol>',
     '</section>'
   ].join('');
 }
 
-export function renderNodeCard(node, index, options = {}, nodeState = null) {
+export function renderNodeCard(node, index, options = {}, nodeState = null, nodeMatches = null, adjacency = null) {
   const selected = options.selectedNodeId === node.id;
+  const matched = nodeMatches?.matchedIds?.has(node.id) ?? false;
+  const dimmed = Boolean(nodeMatches?.active && !matched);
+  const related = Boolean(adjacency?.relatedNodeIds?.has(node.id));
   const status = nodeState?.status ?? 'idle';
   const capability = getFlowNodeCapability(node);
   return [
-    `<li class="flow-node${selected ? ' is-selected' : ''} flow-node--${escapeAttr(status)}" data-node-id="${escapeAttr(node.id)}" data-flow-action="select-node">`,
+    `<li class="${getNodeClasses({ selected, matched, dimmed, related, status })}" data-node-id="${escapeAttr(node.id)}" data-flow-action="select-node">`,
     '<button type="button" class="flow-node__button">',
     '<span class="flow-node__index">',
     escapeHTML(index + 1),
@@ -127,7 +132,7 @@ export function renderNodeCard(node, index, options = {}, nodeState = null) {
   ].join('');
 }
 
-function renderEdgeRail(edges, options = {}, edgeStates = new Map()) {
+function renderEdgeRail(edges, options = {}, edgeStates = new Map(), adjacency = null) {
   if (!Array.isArray(edges) || edges.length === 0) {
     return '';
   }
@@ -137,7 +142,7 @@ function renderEdgeRail(edges, options = {}, edgeStates = new Map()) {
     '<div class="flow-canvas__edge-title">Edges</div>',
     '<ol>',
     ...edges.map((edge) => [
-      `<li class="${getEdgeClasses(edge, options, edgeStates)}">`,
+      `<li class="${getEdgeClasses(edge, options, edgeStates, adjacency)}">`,
       `<button type="button" data-flow-action="select-edge" data-edge-id="${escapeAttr(edge.id)}">`,
       `<span>${escapeHTML(edge.from || '-')} -> ${escapeHTML(edge.to || '-')}</span>`,
       `<small>${escapeHTML(getEdgeStateLabel(edge, edgeStates))}</small>`,
@@ -212,6 +217,56 @@ export function getFlowExecutionTrace(result, nodes = [], edges = []) {
   };
 }
 
+export function getFlowNodeMatches(nodes = [], keyword = '') {
+  const normalized = String(keyword || '').trim().toLowerCase();
+  const matchedIds = new Set();
+  if (!normalized) {
+    return { active: false, matchedIds, count: 0 };
+  }
+
+  for (const node of Array.isArray(nodes) ? nodes : []) {
+    const capability = getFlowNodeCapability(node);
+    const haystack = [
+      node?.id,
+      node?.label,
+      node?.type,
+      capability,
+      node?.risk
+    ].filter(Boolean).join(' ').toLowerCase();
+    if (haystack.includes(normalized)) {
+      matchedIds.add(node.id);
+    }
+  }
+
+  return { active: true, matchedIds, count: matchedIds.size };
+}
+
+export function getFlowNodeAdjacency(nodeId = '', edges = []) {
+  const selectedNodeId = String(nodeId || '').trim();
+  const relatedEdgeIds = new Set();
+  const relatedNodeIds = new Set();
+  if (!selectedNodeId) {
+    return { active: false, relatedEdgeIds, relatedNodeIds };
+  }
+
+  relatedNodeIds.add(selectedNodeId);
+  for (const edge of Array.isArray(edges) ? edges : []) {
+    if (edge?.from === selectedNodeId || edge?.to === selectedNodeId) {
+      if (edge.id) {
+        relatedEdgeIds.add(edge.id);
+      }
+      if (edge.from) {
+        relatedNodeIds.add(edge.from);
+      }
+      if (edge.to) {
+        relatedNodeIds.add(edge.to);
+      }
+    }
+  }
+
+  return { active: true, relatedEdgeIds, relatedNodeIds };
+}
+
 function isEdgeOnExecutionPath(edge, fromStatus, toStatus) {
   if (fromStatus === 'idle' || toStatus === 'idle') {
     return false;
@@ -233,10 +288,22 @@ function isEdgeOnExecutionPath(edge, fromStatus, toStatus) {
   return true;
 }
 
-function getEdgeClasses(edge, options, edgeStates) {
+function getNodeClasses(input) {
+  return [
+    'flow-node',
+    input.selected ? 'is-selected' : '',
+    input.matched ? 'is-matched' : '',
+    input.dimmed ? 'is-dimmed' : '',
+    input.related ? 'is-related' : '',
+    `flow-node--${escapeAttr(input.status)}`
+  ].filter(Boolean).join(' ');
+}
+
+function getEdgeClasses(edge, options, edgeStates, adjacency) {
   const state = edgeStates.get(edge.id);
   return [
     edge.id === options.selectedEdgeId ? 'is-selected' : '',
+    adjacency?.relatedEdgeIds?.has(edge.id) ? 'is-related' : '',
     state?.active ? 'is-path' : '',
     state?.failed ? 'is-failed-path' : ''
   ].filter(Boolean).join(' ');

@@ -2,7 +2,7 @@ import { flowToPlan } from '../flow-to-plan.js';
 import { validateFlow } from '../flow-validation.js';
 import { FLOW_RISK_LEVELS, FLOW_STATUS } from '../node-types.js';
 import { escapeAttr, escapeHTML, on, resolveTarget, setHTML } from './dom.js';
-import { renderFlowCanvasToHTML } from './FlowCanvas.js';
+import { getFlowNodeMatches, renderFlowCanvasToHTML } from './FlowCanvas.js';
 import { renderIntentPatternEditorToHTML } from './IntentPatternEditor.js';
 import { renderNodeInspectorToHTML } from './NodeInspector.js';
 import { renderNodePaletteToHTML } from './NodePalette.js';
@@ -16,6 +16,7 @@ export function renderFlowDesignerToHTML(flow, state = {}) {
 
   const selectedNode = getSelectedNode(flow, state.selectedNodeId);
   const validation = validateFlow(flow);
+  const nodeMatches = getFlowNodeMatches(flow.nodes ?? [], state.nodeKeyword);
 
   return [
     '<section class="flow-designer">',
@@ -36,6 +37,7 @@ export function renderFlowDesignerToHTML(flow, state = {}) {
     '</div>',
     validation.valid ? '' : `<div class="flow-alert flow-alert--error">${escapeHTML(validation.errors.join('; '))}</div>`,
     renderFlowSettingsToHTML(flow),
+    renderCanvasControlsToHTML(state, nodeMatches),
     renderFlowCanvasToHTML(flow, state),
     renderFlowEdgeEditorToHTML(flow, state),
     renderFlowTestPanelToHTML(state),
@@ -45,6 +47,26 @@ export function renderFlowDesignerToHTML(flow, state = {}) {
     renderVariableMapperToHTML(),
     renderIntentPatternEditorToHTML(flow),
     '</aside>',
+    '</section>'
+  ].join('');
+}
+
+function renderCanvasControlsToHTML(state, nodeMatches) {
+  return [
+    '<section class="flow-canvas-controls">',
+    '<label class="flow-field">',
+    '<span>Find node</span>',
+    '<input class="ds-input ds-input--sm" type="search" placeholder="Search node, capability, type" ',
+    `value="${escapeAttr(state.nodeKeyword || '')}" data-flow-canvas-field="nodeKeyword">`,
+    '</label>',
+    '<div class="flow-canvas-controls__meta">',
+    nodeMatches.active
+      ? `<span>${escapeHTML(nodeMatches.count)} matched</span>`
+      : '<span>No search</span>',
+    state.nodeKeyword
+      ? '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="clear-node-search">Clear</button>'
+      : '',
+    '</div>',
     '</section>'
   ].join('');
 }
@@ -178,7 +200,8 @@ export function FlowDesigner(options = {}) {
   const target = resolveTarget(options.target);
   const state = {
     flow: options.flow ?? null,
-    selectedNodeId: options.flow?.nodes?.[0]?.id ?? ''
+    selectedNodeId: options.flow?.nodes?.[0]?.id ?? '',
+    nodeKeyword: ''
   };
 
   const render = () => {
@@ -189,6 +212,16 @@ export function FlowDesigner(options = {}) {
     on(target, 'click', '[data-flow-action="select-node"]', (e, el) => {
       state.selectedNodeId = el.dataset.nodeId;
       render();
+    }),
+    on(target, 'click', '[data-flow-action="clear-node-search"]', () => {
+      state.nodeKeyword = '';
+      render();
+    }),
+    on(target, 'input', '[data-flow-canvas-field]', (e, el) => {
+      if (el.dataset.flowCanvasField === 'nodeKeyword') {
+        state.nodeKeyword = e.target.value;
+        render();
+      }
     }),
     on(target, 'click', '[data-flow-action="preview"]', () => {
       if (!state.flow || typeof options.onPreview !== 'function') {
@@ -205,6 +238,7 @@ export function FlowDesigner(options = {}) {
     update(nextFlow) {
       state.flow = nextFlow;
       state.selectedNodeId = nextFlow?.nodes?.[0]?.id ?? '';
+      state.nodeKeyword = '';
       render();
     },
     destroy() {

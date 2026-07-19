@@ -16,6 +16,8 @@ import {
   listFlowTemplates,
   getFlowCapabilityRows,
   getFlowExecutionTrace,
+  getFlowNodeAdjacency,
+  getFlowNodeMatches,
   getFlowRisk,
   groupFlows,
   renderEditableNodeInspectorToHTML,
@@ -356,6 +358,36 @@ test('derives flow canvas execution trace from runtime node results', () => {
   assert.equal(trace.edgeStates.get('edge-failure').failed, true);
   assert.match(html, /flow-node--failed/);
   assert.match(html, /failed path/);
+});
+
+test('matches and highlights flow canvas nodes', () => {
+  const flow = createFlow({
+    id: 'canvas-search-flow',
+    name: 'Canvas search flow',
+    nodes: [
+      { id: 'resolve-user', type: 'capability.run', capability: 'user.resolve', label: 'Resolve user' },
+      { id: 'assign-role', type: 'capability.run', capability: 'user.assignRoles', label: 'Assign role' },
+      { id: 'message', type: 'message.show', label: 'Show message' }
+    ],
+    edges: [
+      { id: 'edge-1', from: 'resolve-user', to: 'assign-role', condition: 'success' },
+      { id: 'edge-2', from: 'assign-role', to: 'message', condition: 'success' }
+    ]
+  });
+
+  const matches = getFlowNodeMatches(flow.nodes, 'assign');
+  const adjacency = getFlowNodeAdjacency('assign-role', flow.edges);
+  const html = renderFlowCanvasToHTML(flow, {
+    nodeKeyword: 'assign',
+    selectedNodeId: 'assign-role'
+  });
+
+  assert.equal(matches.count, 1);
+  assert.equal(matches.matchedIds.has('assign-role'), true);
+  assert.equal(adjacency.relatedEdgeIds.size, 2);
+  assert.equal(adjacency.relatedNodeIds.has('message'), true);
+  assert.match(html, /is-matched/);
+  assert.match(html, /is-related/);
 });
 
 test('renders editable node inspector controls', () => {
