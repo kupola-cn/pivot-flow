@@ -268,6 +268,7 @@ import {
   createAIFlowProviderMessages,
   createAIFlowProviderRequest,
   createAIFlowDraft,
+  createAIFlowDraftRepairPlan,
   createCapabilityManifestSummary,
   diffAIFlowDraft,
   generateAIFlowDraft,
@@ -286,6 +287,7 @@ const recommendations = recommendFlowCapabilities('删除耗材 TEST-001', runti
 const draft = createAIFlowDraft(aiStructuredOutput, { runtime });
 const validation = validateAIFlowDraft(draft.flow, { runtime });
 const missing = getMissingFlowCapabilities(draft.flow, runtime);
+const repairPlan = createAIFlowDraftRepairPlan(draft, runtime);
 const diff = diffAIFlowDraft(aiStructuredOutput.flow, draft.flow);
 const previewHTML = renderAIFlowDraftPreviewToHTML(draft, { showDiff: true });
 
@@ -324,6 +326,7 @@ AIFlowDraftReviewer({
 - `generateAIFlowDraft()` sends a controlled builder request to the provider, parses the structured response, normalizes it as a draft, and validates it.
 - `parseAIFlowProviderOutput()` accepts common JSON response shapes, including raw JSON text, fenced JSON, `{ flow }`, `output_text`, and chat `choices[0].message.content`.
 - `createAIFlowDraft()` converts structured AI output into a normalized draft Flow and validates it immediately.
+- `createAIFlowDraftRepairPlan()` turns missing capabilities into actionable review items: replace with a registered capability or register a new backend-backed capability first.
 - `createCapabilityManifestSummary()` returns a capability summary without `execute` functions.
 - `getMissingFlowCapabilities()` reports draft nodes that reference unavailable capabilities and suggests close registered capabilities.
 - `diffAIFlowDraft()` shows how the raw AI output changed during normalization, such as `published` becoming `draft` or high-risk confirmation being added.
@@ -333,6 +336,21 @@ AIFlowDraftReviewer({
 - `validateAIFlowDraft()` checks that AI output stays as a draft, only references registered capabilities, and requires confirmation for high-risk or delete operations.
 
 The provider layer is intentionally generic. `pivot-flow` does not include OpenAI, Tongyi, Claude, or any other model SDK. Applications should call AI APIs through their own backend when secrets, tenant data, or audit requirements are involved. The backend should redact sensitive context, apply rate limits, and return only structured Flow JSON to the browser.
+
+When AI references an unavailable capability, do not auto-create it. Use the repair plan as an operator/developer handoff:
+
+```js
+const generated = await generateAIFlowDraft('归档发票 INV-001', {
+  runtime,
+  provider
+});
+
+if (!generated.ok && generated.repairPlan.missingCount > 0) {
+  console.table(generated.repairPlan.registrationChecklist);
+}
+```
+
+The checklist is only a planning artifact. Developers still need to implement the runtime capability, backend API, backend authorization, validation, and audit behavior before the Flow can be published safely.
 
 Backend proxy shape:
 

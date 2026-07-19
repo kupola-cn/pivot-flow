@@ -299,6 +299,43 @@ export function parseAIFlowProviderOutput(output?: unknown, fallbackPrompt?: str
   prompt: string;
   flow: Partial<FlowDefinition>;
 };
+export interface AIFlowDraftRepairRegistration {
+  name: string;
+  resource: string;
+  action: string;
+  risk: FlowRisk | string;
+  permissions: string[];
+  requiresConfirmation: boolean;
+  paramsSchema: Record<string, unknown>;
+  nodeId: string;
+  nodeLabel: string;
+  notes: string[];
+}
+export interface AIFlowDraftRepairAction {
+  action: 'replace-capability' | 'register-capability';
+  nodeId: string;
+  nodeLabel: string;
+  missingCapability: string;
+  message: string;
+  recommendation: null | {
+    capability: Record<string, unknown>;
+    score: number;
+    reasons: string[];
+  };
+  registration: AIFlowDraftRepairRegistration;
+  risk: FlowRisk | string;
+  requiresBackendWork: boolean;
+  requiresReview: boolean;
+}
+export interface AIFlowDraftRepairPlan {
+  ok: boolean;
+  flowId: string;
+  flowName: string;
+  missingCount: number;
+  summary: string;
+  actions: AIFlowDraftRepairAction[];
+  registrationChecklist: AIFlowDraftRepairRegistration[];
+}
 export function generateAIFlowDraft(prompt?: string, options?: {
   provider: AIFlowProviderLike;
   runtime?: PivotRuntime;
@@ -338,6 +375,7 @@ export function createAIFlowDraft(input?: Partial<FlowDefinition> | { prompt?: s
   validation: ReturnType<typeof validateAIFlowDraft>;
   diff: ReturnType<typeof diffAIFlowDraft>;
   missingCapabilities: ReturnType<typeof getMissingFlowCapabilities>;
+  repairPlan: AIFlowDraftRepairPlan;
   capabilitySummary: ReturnType<typeof createCapabilityManifestSummary>;
 };
 export function getMissingFlowCapabilities(flow?: FlowDefinition, source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
@@ -351,6 +389,12 @@ export function getMissingFlowCapabilities(flow?: FlowDefinition, source?: Pivot
   label: string;
   recommendations: ReturnType<typeof recommendFlowCapabilities>;
 }>;
+export function createAIFlowDraftRepairPlan(draftResult?: FlowDefinition | ReturnType<typeof createAIFlowDraft>, source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: {
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[];
+  recommendationLimit?: number;
+  limit?: number;
+}): AIFlowDraftRepairPlan;
 export function diffAIFlowDraft(before?: unknown, after?: unknown, options?: {
   ignorePaths?: string[];
   limit?: number;
@@ -376,6 +420,7 @@ export function renderAIFlowDraftPreviewToHTML(draftResult?: FlowDefinition | Re
   allowPublished?: boolean;
   showJSON?: boolean;
   showDiff?: boolean;
+  showRepairPlan?: boolean;
 }): string;
 export function renderAIFlowDraftReviewToHTML(draftResult?: FlowDefinition | ReturnType<typeof createAIFlowDraft>, options?: {
   runtime?: PivotRuntime;
@@ -383,6 +428,7 @@ export function renderAIFlowDraftReviewToHTML(draftResult?: FlowDefinition | Ret
   allowPublished?: boolean;
   showJSON?: boolean;
   showDiff?: boolean;
+  showRepairPlan?: boolean;
   canSave?: boolean;
   title?: string;
   description?: string;

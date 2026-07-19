@@ -21,6 +21,7 @@ import {
   flowToPlan,
   listFlowTemplates,
   diffAIFlowDraft,
+  createAIFlowDraftRepairPlan,
   getFlowCapabilityRows,
   getFlowExecutionTrace,
   getMissingFlowCapabilities,
@@ -924,6 +925,82 @@ test('reports missing AI draft capabilities and normalization diff', () => {
   assert.equal(draft.diff.some((item) => item.path === 'status' && item.after === 'draft'), true);
   assert.match(html, /Missing capabilities/);
   assert.match(html, /Draft changes/);
+});
+
+test('creates actionable repair plans for AI draft missing capabilities', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'material.delete',
+    resource: 'material',
+    action: ActionType.DELETE,
+    risk: RiskLevel.HIGH,
+    description: '删除耗材',
+    execute: () => ({ deleted: true })
+  });
+  const draft = createAIFlowDraft({
+    flow: {
+      id: 'ai-repair-plan',
+      name: 'Repair plan flow',
+      nodes: [
+        {
+          id: 'delete',
+          type: 'capability.run',
+          label: 'Remove material',
+          capability: 'material.remove',
+          params: { id: '{{intent.id}}' }
+        }
+      ]
+    }
+  }, { runtime });
+  const plan = createAIFlowDraftRepairPlan(draft, runtime);
+  const html = renderAIFlowDraftPreviewToHTML(draft, { runtime });
+
+  assert.equal(draft.ok, false);
+  assert.equal(draft.repairPlan.missingCount, 1);
+  assert.equal(plan.actions[0].action, 'replace-capability');
+  assert.equal(plan.actions[0].recommendation.capability.name, 'material.delete');
+  assert.equal(plan.actions[0].registration.name, 'material.remove');
+  assert.equal(plan.actions[0].registration.action, 'delete');
+  assert.equal(plan.actions[0].registration.requiresConfirmation, true);
+  assert.match(html, /Repair plan/);
+  assert.match(html, /Recommended: material\.delete/);
+});
+
+test('creates registration checklist when no capability recommendation exists', () => {
+  const draft = createAIFlowDraft({
+    flow: {
+      id: 'ai-register-plan',
+      name: 'Register plan flow',
+      nodes: [
+        {
+          id: 'archive',
+          type: 'capability.run',
+          label: 'Archive invoice',
+          capability: 'invoice.archive',
+          risk: 'medium'
+        }
+      ]
+    }
+  }, { capabilities: [] });
+  const plan = createAIFlowDraftRepairPlan(draft, []);
+
+  assert.equal(plan.ok, true);
+  assert.equal(plan.missingCount, 0);
+
+  const blocked = createAIFlowDraftRepairPlan(draft.flow, [
+    {
+      name: 'material.query',
+      resource: 'material',
+      action: ActionType.QUERY,
+      risk: RiskLevel.LOW
+    }
+  ]);
+
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.actions[0].action, 'register-capability');
+  assert.equal(blocked.registrationChecklist[0].name, 'invoice.archive');
+  assert.equal(blocked.registrationChecklist[0].resource, 'invoice');
+  assert.equal(blocked.registrationChecklist[0].requiresConfirmation, false);
 });
 
 test('renders AI flow draft review actions only for valid drafts', () => {

@@ -205,6 +205,7 @@ export function createAIFlowDraft(input = {}, options = {}) {
   });
   const diff = diffAIFlowDraft(source, flow);
   const missingCapabilities = getMissingFlowCapabilities(flow, capabilities, options);
+  const repairPlan = createAIFlowDraftRepairPlan({ flow, missingCapabilities }, capabilities, options);
 
   return {
     ok: validation.valid,
@@ -212,6 +213,7 @@ export function createAIFlowDraft(input = {}, options = {}) {
     validation,
     diff,
     missingCapabilities,
+    repairPlan,
     capabilitySummary: validation.capabilitySummary
   };
 }
@@ -250,6 +252,58 @@ export function getMissingFlowCapabilities(flow, source, options = {}) {
     .filter(Boolean);
 }
 
+export function createAIFlowDraftRepairPlan(draftResult, source, options = {}) {
+  const flow = draftResult?.flow ?? draftResult;
+  const missingCapabilities = draftResult?.missingCapabilities
+    ?? getMissingFlowCapabilities(flow, source ?? options.capabilities ?? options.runtime, options);
+  const nodes = Array.isArray(flow?.nodes) ? flow.nodes : [];
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
+
+  const actions = missingCapabilities.map((item) => {
+    const recommendation = item.recommendations?.[0] ?? null;
+    const node = nodeById.get(item.nodeId) ?? {};
+    const inferred = inferCapabilityRegistration(item.capability, node, recommendation);
+    const action = recommendation
+      ? 'replace-capability'
+      : 'register-capability';
+
+    return {
+      action,
+      nodeId: item.nodeId,
+      nodeLabel: item.label || node.label || item.nodeId || '',
+      missingCapability: item.capability,
+      message: recommendation
+        ? `Use registered capability "${recommendation.capability.name}" if it matches the intended behavior.`
+        : `Register capability "${item.capability}" before this Flow can be saved or published.`,
+      recommendation: recommendation
+        ? {
+          capability: recommendation.capability,
+          score: recommendation.score,
+          reasons: recommendation.reasons
+        }
+        : null,
+      registration: inferred,
+      risk: inferred.risk,
+      requiresBackendWork: action === 'register-capability',
+      requiresReview: true
+    };
+  });
+
+  return {
+    ok: actions.length === 0,
+    flowId: flow?.id || '',
+    flowName: flow?.name || '',
+    missingCount: actions.length,
+    actions,
+    registrationChecklist: actions
+      .filter((item) => item.action === 'register-capability')
+      .map((item) => item.registration),
+    summary: actions.length === 0
+      ? 'No missing capabilities were found.'
+      : `${actions.length} missing capability item(s) need review before this draft can be saved.`
+  };
+}
+
 export function diffAIFlowDraft(before = {}, after = {}, options = {}) {
   const changes = [];
   const ignorePaths = new Set(options.ignorePaths ?? ['createdAt', 'updatedAt', 'publishedAt']);
@@ -278,6 +332,7 @@ export function renderAIFlowDraftPreviewToHTML(draftResult, options = {}) {
   const flow = draftResult?.flow ?? draftResult;
   const validation = draftResult?.validation ?? validateAIFlowDraft(flow, options);
   const missingCapabilities = draftResult?.missingCapabilities ?? getMissingFlowCapabilities(flow, options.capabilities ?? options.runtime, options);
+  const repairPlan = draftResult?.repairPlan ?? createAIFlowDraftRepairPlan(draftResult, options.capabilities ?? options.runtime, options);
   const diff = Array.isArray(draftResult?.diff) ? draftResult.diff : [];
   const nodes = Array.isArray(flow?.nodes) ? flow.nodes : [];
   const status = validation.valid ? 'valid draft' : 'blocked';
@@ -296,6 +351,9 @@ export function renderAIFlowDraftPreviewToHTML(draftResult, options = {}) {
       : '',
     missingCapabilities.length > 0
       ? renderMissingCapabilities(missingCapabilities)
+      : '',
+    options.showRepairPlan !== false && repairPlan.missingCount > 0
+      ? renderDraftRepairPlan(repairPlan)
       : '',
     '<ol class="flow-ai-draft-preview__nodes">',
     ...nodes.map((node, index) => renderDraftNode(node, index)),
@@ -478,6 +536,40 @@ function renderMissingCapabilities(items) {
   ].join('');
 }
 
+function renderDraftRepairPlan(plan) {
+  return [
+    '<div class="flow-ai-draft-preview__repair">',
+    '<div class="flow-ai-draft-preview__repair-head">',
+    '<strong>Repair plan</strong>',
+    `<span>${escapeHTML(plan.summary)}</span>`,
+    '</div>',
+    '<ol>',
+    ...plan.actions.map((item) => [
+      '<li>',
+      '<span>',
+      `<strong>${escapeHTML(item.nodeLabel || item.nodeId || item.missingCapability)}</strong>`,
+      `<small>${escapeHTML(item.missingCapability)}</small>`,
+      '</span>',
+      `<em>${escapeHTML(item.action === 'replace-capability' ? 'replace' : 'register')}</em>`,
+      `<p>${escapeHTML(item.message)}</p>`,
+      item.recommendation
+        ? `<small>Recommended: ${escapeHTML(item.recommendation.capability.name)} · score ${escapeHTML(item.recommendation.score)}</small>`
+        : `<small>Registration: ${escapeHTML(item.registration.name)} · ${escapeHTML(item.registration.resource)}.${escapeHTML(item.registration.action)} · ${escapeHTML(item.registration.risk)}</small>`,
+      '</li>'
+    ].join('')),
+    '</ol>',
+    plan.registrationChecklist.length > 0
+      ? [
+        '<details>',
+        '<summary>Capability registration checklist</summary>',
+        `<pre>${escapeHTML(JSON.stringify(plan.registrationChecklist, null, 2))}</pre>`,
+        '</details>'
+      ].join('')
+      : '',
+    '</div>'
+  ].join('');
+}
+
 function renderDraftDiff(diff) {
   return [
     '<div class="flow-ai-draft-preview__diff">',
@@ -590,6 +682,64 @@ function normalizeAIFlowNode(node, index, capabilityByName) {
     requiresConfirmation: Boolean(safeNode.requiresConfirmation || requiresHumanConfirmation({ ...safeNode, risk }, capability)),
     params: isPlainObject(safeNode.params) ? safeNode.params : {}
   };
+}
+
+function inferCapabilityRegistration(capabilityName, node = {}, recommendation = null) {
+  const parts = String(capabilityName || '').split('.');
+  const rawAction = parts.length > 1 ? parts[parts.length - 1] : (node.action || '');
+  const action = normalizeCapabilityAction(rawAction);
+  const resource = parts.length > 1 ? parts.slice(0, -1).join('.') : (node.resource || 'unknown');
+  const recommended = recommendation?.capability ?? {};
+  const risk = node.risk
+    || recommended.risk
+    || inferRiskFromAction(action);
+
+  return {
+    name: capabilityName || '',
+    resource,
+    action,
+    risk,
+    permissions: [],
+    requiresConfirmation: risk === RiskLevel.HIGH || risk === RiskLevel.CRITICAL || action === ActionType.DELETE,
+    paramsSchema: clonePlainValue(node.params ?? {}),
+    nodeId: node.id || '',
+    nodeLabel: node.label || '',
+    notes: [
+      'Register this capability in the application runtime.',
+      'Implement backend authorization and business validation before exposing it to Flow.',
+      'Publish the Flow only after preview, review, and server-side permission checks pass.'
+    ]
+  };
+}
+
+function normalizeCapabilityAction(value) {
+  const action = String(value || '').trim().toLowerCase();
+  const aliases = {
+    add: ActionType.CREATE,
+    create: ActionType.CREATE,
+    insert: ActionType.CREATE,
+    remove: ActionType.DELETE,
+    delete: ActionType.DELETE,
+    destroy: ActionType.DELETE,
+    update: ActionType.UPDATE,
+    edit: ActionType.UPDATE,
+    modify: ActionType.UPDATE,
+    query: ActionType.QUERY,
+    list: ActionType.QUERY,
+    get: ActionType.QUERY,
+    read: ActionType.QUERY
+  };
+  return aliases[action] || action || ActionType.QUERY;
+}
+
+function inferRiskFromAction(action) {
+  if (action === ActionType.DELETE) {
+    return RiskLevel.HIGH;
+  }
+  if (action === ActionType.CREATE || action === ActionType.UPDATE) {
+    return RiskLevel.MEDIUM;
+  }
+  return RiskLevel.LOW;
 }
 
 function parseProviderPayload(output) {

@@ -921,6 +921,7 @@
 }
 
 .flow-ai-draft-preview__missing,
+.flow-ai-draft-preview__repair,
 .flow-ai-draft-preview__diff {
   background: var(--bg-overlay-l2);
   border: 1px solid var(--border-neutral-l1);
@@ -931,12 +932,14 @@
 }
 
 .flow-ai-draft-preview__missing strong,
+.flow-ai-draft-preview__repair strong,
 .flow-ai-draft-preview__diff strong {
   color: var(--text-default);
   font-size: var(--body-xs-font-size);
 }
 
 .flow-ai-draft-preview__missing ol,
+.flow-ai-draft-preview__repair ol,
 .flow-ai-draft-preview__diff ol {
   display: grid;
   gap: var(--spacer-6);
@@ -946,6 +949,7 @@
 }
 
 .flow-ai-draft-preview__missing li,
+.flow-ai-draft-preview__repair li,
 .flow-ai-draft-preview__diff li {
   display: grid;
   gap: var(--spacer-2);
@@ -953,6 +957,7 @@
 }
 
 .flow-ai-draft-preview__missing li span,
+.flow-ai-draft-preview__repair li span,
 .flow-ai-draft-preview__diff li span {
   color: var(--text-default);
   font-size: var(--body-xs-font-size);
@@ -960,10 +965,47 @@
 }
 
 .flow-ai-draft-preview__missing li small,
+.flow-ai-draft-preview__repair li small,
 .flow-ai-draft-preview__diff li small {
   color: var(--text-secondary);
   font-size: var(--body-xs-font-size);
   overflow-wrap: anywhere;
+}
+
+.flow-ai-draft-preview__repair-head {
+  display: grid;
+  gap: var(--spacer-2);
+}
+
+.flow-ai-draft-preview__repair-head span,
+.flow-ai-draft-preview__repair p,
+.flow-ai-draft-preview__repair summary {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  line-height: 1.6;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.flow-ai-draft-preview__repair li {
+  border-top: 1px solid var(--border-neutral-l1);
+  padding-top: var(--spacer-6);
+}
+
+.flow-ai-draft-preview__repair li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.flow-ai-draft-preview__repair em {
+  background: var(--bg-brand-overlay);
+  border-radius: 999px;
+  color: var(--text-brand);
+  font-size: var(--body-xs-font-size);
+  font-style: normal;
+  line-height: 1;
+  justify-self: start;
+  padding: 4px 8px;
 }
 
 .flow-ai-draft-preview__node {
