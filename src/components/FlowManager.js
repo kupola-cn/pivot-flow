@@ -6,12 +6,12 @@ import { createMemoryFlowStore } from '../flow-store.js';
 import { createLocalIntentMapper } from '../intent-mapper.js';
 import { validateFlow } from '../flow-validation.js';
 import { getDefaultCapabilityForNodeType } from '../node-types.js';
-import { escapeHTML, on, resolveTarget, setHTML } from './dom.js';
+import { escapeAttr, escapeHTML, on, resolveTarget, setHTML } from './dom.js';
 import { renderFlowAuditPanelToHTML } from './FlowAuditPanel.js';
 import { renderFlowCapabilityMatrixToHTML } from './FlowCapabilityMatrix.js';
 import { getFlowExecutionTrace } from './FlowCanvas.js';
 import { renderFlowDesignerToHTML } from './FlowDesigner.js';
-import { renderFlowListToHTML } from './FlowList.js';
+import { filterFlows, renderFlowListToHTML } from './FlowList.js';
 import { renderFlowPreviewToHTML } from './FlowPreview.js';
 import { renderFlowRunPanelToHTML } from './FlowRunPanel.js';
 import { parseFlowTestSlots } from './FlowTestPanel.js';
@@ -36,6 +36,8 @@ export function FlowManager(options = {}) {
     selectedFlowId: '',
     selectedNodeId: '',
     selectedEdgeId: '',
+    listKeyword: '',
+    listStatus: '',
     testPrompt: '',
     testSlotsText: '{}',
     testMatch: null,
@@ -64,6 +66,10 @@ export function FlowManager(options = {}) {
 
   const render = () => {
     const flow = getSelectedFlow(state);
+    const visibleFlows = filterFlows(state.flows, {
+      keyword: state.listKeyword,
+      status: state.listStatus
+    });
     setHTML(target, [
       '<section class="flow-manager">',
       '<header class="flow-manager__header">',
@@ -80,7 +86,13 @@ export function FlowManager(options = {}) {
       state.error ? `<div class="flow-alert flow-alert--error">${escapeHTML(state.error)}</div>` : '',
       '<div class="flow-manager__grid">',
       '<aside class="flow-manager__sidebar">',
-      renderFlowListToHTML(state.flows, { activeId: state.selectedFlowId }),
+      renderFlowListFilters(state, visibleFlows.length),
+      renderFlowListToHTML(state.flows, {
+        activeId: state.selectedFlowId,
+        keyword: state.listKeyword,
+        status: state.listStatus,
+        emptyText: 'No flows match the current filters.'
+      }),
       renderFlowTemplateListToHTML(state.templates),
       '</aside>',
       '<main class="flow-manager__workspace">',
@@ -579,6 +591,11 @@ export function FlowManager(options = {}) {
     on(target, 'click', '[data-flow-action="refresh"]', () => {
       refresh();
     }),
+    on(target, 'click', '[data-flow-action="clear-flow-filters"]', () => {
+      state.listKeyword = '';
+      state.listStatus = '';
+      render();
+    }),
     on(target, 'click', '[data-flow-action="preview"]', () => {
       previewSelected();
     }),
@@ -672,6 +689,18 @@ export function FlowManager(options = {}) {
       state.result = null;
       state.error = '';
     }),
+    on(target, 'input', '[data-flow-list-filter]', (e, el) => {
+      if (el.dataset.flowListFilter === 'keyword') {
+        state.listKeyword = e.target.value;
+        render();
+      }
+    }),
+    on(target, 'change', '[data-flow-list-filter]', (e, el) => {
+      if (el.dataset.flowListFilter === 'status') {
+        state.listStatus = e.target.value;
+        render();
+      }
+    }),
     on(target, 'click', '[data-flow-action="create-sample"]', async () => {
       const sample = await flowStore.create(createSampleFlow());
       state.selectedFlowId = sample.id;
@@ -704,6 +733,30 @@ function parseListInput(value) {
     .split(/[\n,，]/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function renderFlowListFilters(state, visibleCount) {
+  const statuses = ['', 'published', 'draft', 'disabled', 'archived'];
+  return [
+    '<div class="flow-list-filters">',
+    '<div class="flow-list-filters__meta">',
+    '<strong>Flows</strong>',
+    `<span>${escapeHTML(visibleCount)} / ${escapeHTML(state.flows.length)}</span>`,
+    '</div>',
+    '<input class="ds-input ds-input--sm" type="search" placeholder="Search flows" ',
+    `value="${escapeAttr(state.listKeyword)}" data-flow-list-filter="keyword">`,
+    '<select class="ds-select ds-select--sm" data-flow-list-filter="status">',
+    ...statuses.map((status) => [
+      `<option value="${escapeAttr(status)}"${state.listStatus === status ? ' selected' : ''}>`,
+      escapeHTML(status || 'All statuses'),
+      '</option>'
+    ].join('')),
+    '</select>',
+    state.listKeyword || state.listStatus
+      ? '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="clear-flow-filters">Clear filters</button>'
+      : '',
+    '</div>'
+  ].join('');
 }
 
 function getSelectedFlow(state) {

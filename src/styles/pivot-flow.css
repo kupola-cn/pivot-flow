@@ -161,6 +161,35 @@
   min-width: 0;
 }
 
+.flow-list-filters {
+  display: grid;
+  gap: var(--spacer-8);
+  margin-bottom: var(--spacer-12);
+}
+
+.flow-list-filters__meta {
+  align-items: center;
+  color: var(--text-secondary);
+  display: flex;
+  font-size: var(--body-xs-font-size);
+  gap: var(--spacer-8);
+  justify-content: space-between;
+}
+
+.flow-list-filters__meta strong {
+  color: var(--text-default);
+  font-size: var(--body-sm-font-size);
+}
+
+.flow-list-filters__meta span {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: 999px;
+  color: var(--text-tertiary);
+  line-height: 1;
+  padding: 4px 8px;
+}
+
 .flow-list__main strong,
 .flow-template-card__main strong,
 .flow-edge-card__main strong,

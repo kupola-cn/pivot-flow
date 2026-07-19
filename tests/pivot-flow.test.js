@@ -9,6 +9,7 @@ import {
   createMemoryFlowStore,
   createFlowRunner,
   createFlowCanvasLayout,
+  filterFlows,
   applyFlowTransform,
   evaluateFlowCondition,
   flowToPlan,
@@ -230,6 +231,30 @@ test('renders flow template list actions', () => {
 
   assert.match(html, /data-flow-action="create-from-template"/);
   assert.match(html, /material\.delete-with-confirm/);
+});
+
+test('filters flows by status and keyword', () => {
+  const flows = [
+    createOrganizationFlow(),
+    createFlow({
+      id: 'role-create',
+      name: 'Create role',
+      status: 'draft',
+      intent: {
+        keywords: ['role', 'permission']
+      }
+    }),
+    createFlow({
+      id: 'disabled-material',
+      name: 'Material update',
+      status: 'disabled',
+      description: 'Update catalog material'
+    })
+  ];
+
+  assert.equal(filterFlows(flows, { status: 'published' }).length, 1);
+  assert.equal(filterFlows(flows, { keyword: 'permission' })[0].id, 'role-create');
+  assert.equal(filterFlows(flows, { keyword: 'catalog', status: 'disabled' })[0].id, 'disabled-material');
 });
 
 test('renders flow capability dependency matrix', () => {

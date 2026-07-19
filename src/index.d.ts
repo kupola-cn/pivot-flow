@@ -236,6 +236,7 @@ export function createFlowFrontendCapabilities(adapter?: FlowFrontendCapabilityA
 export function registerFlowFrontendCapabilities(runtime: PivotRuntime, adapter?: FlowFrontendCapabilityAdapter): unknown[];
 
 export function renderFlowListToHTML(flows?: FlowDefinition[], options?: Record<string, unknown>): string;
+export function filterFlows(flows?: FlowDefinition[], options?: { keyword?: string; status?: FlowStatus | string }): FlowDefinition[];
 export function renderFlowTemplateListToHTML(templates?: FlowTemplate[], options?: Record<string, unknown>): string;
 export function renderFlowDesignerToHTML(flow?: FlowDefinition | null, state?: Record<string, unknown>): string;
 export function renderFlowSettingsToHTML(flow: FlowDefinition): string;
