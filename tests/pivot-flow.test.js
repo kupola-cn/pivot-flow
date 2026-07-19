@@ -19,6 +19,7 @@ import {
   getFlowNodeAdjacency,
   getFlowNodeMatches,
   getFlowRisk,
+  groupFlowTemplates,
   groupFlows,
   renderEditableNodeInspectorToHTML,
   renderFlowCapabilityMatrixToHTML,
@@ -232,10 +233,14 @@ test('creates draft flows from built-in templates', () => {
 });
 
 test('renders flow template list actions', () => {
-  const html = renderFlowTemplateListToHTML(listFlowTemplates({ group: 'material' }));
+  const templates = listFlowTemplates();
+  const groups = groupFlowTemplates(templates);
+  const html = renderFlowTemplateListToHTML(templates, { groupBy: 'group' });
 
   assert.match(html, /data-flow-action="create-from-template"/);
   assert.match(html, /material\.delete-with-confirm/);
+  assert.equal(groups.some((group) => group.key === 'material'), true);
+  assert.match(html, /flow-template-groups/);
 });
 
 test('filters flows by status and keyword', () => {

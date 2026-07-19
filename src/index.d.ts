@@ -240,6 +240,7 @@ export function filterFlows(flows?: FlowDefinition[], options?: { keyword?: stri
 export function groupFlows(flows?: FlowDefinition[], options?: { groupBy?: 'status' | 'risk' | string }): Array<{ key: string; label: string; flows: FlowDefinition[] }>;
 export function getFlowRisk(flow?: Partial<FlowDefinition>): FlowRisk | 'low';
 export function renderFlowTemplateListToHTML(templates?: FlowTemplate[], options?: Record<string, unknown>): string;
+export function groupFlowTemplates(templates?: FlowTemplate[]): Array<{ key: string; label: string; templates: FlowTemplate[] }>;
 export function renderFlowDesignerToHTML(flow?: FlowDefinition | null, state?: Record<string, unknown>): string;
 export function renderFlowSettingsToHTML(flow: FlowDefinition): string;
 export function renderFlowEdgeEditorToHTML(flow: FlowDefinition, state?: Record<string, unknown>): string;

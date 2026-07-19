@@ -237,8 +237,8 @@ FlowAssistantDrawer({
 `FlowManager` provides the first configurable management surface:
 
 - create blank or sample flows
-- create draft flows from built-in or custom templates
-- search, filter, and group flows by keyword, status, or risk in the manager sidebar
+- create draft flows from built-in or custom templates grouped by business domain
+- search, filter, group, publish, and disable filtered flows in the manager sidebar
 - edit flow name, description, status, risk, examples, keywords, patterns, and slots
 - add built-in nodes from the palette
 - edit node label, type, capability, risk, confirmation, and JSON params

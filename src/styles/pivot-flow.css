@@ -203,6 +203,7 @@
 }
 
 .flow-list-filters__row,
+.flow-list-filters__bulk,
 .flow-list__badges,
 .flow-list-group__title {
   align-items: center;
@@ -213,6 +214,10 @@
 
 .flow-list-filters__row {
   align-items: stretch;
+}
+
+.flow-list-filters__bulk {
+  flex-wrap: wrap;
 }
 
 .flow-list-filters__row .ds-select {
@@ -248,7 +253,13 @@
   gap: var(--spacer-12);
 }
 
+.flow-template-groups,
 .flow-list-group {
+  display: grid;
+  gap: var(--spacer-8);
+}
+
+.flow-template-group {
   display: grid;
   gap: var(--spacer-8);
 }

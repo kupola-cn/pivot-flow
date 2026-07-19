@@ -99,7 +99,7 @@ export function FlowManager(options = {}) {
         groupBy: state.listGroupBy,
         emptyText: 'No flows match the current filters.'
       }),
-      renderFlowTemplateListToHTML(state.templates),
+      renderFlowTemplateListToHTML(state.templates, { groupBy: 'group' }),
       '</aside>',
       '<main class="flow-manager__workspace">',
       renderFlowDesignerToHTML(flow, state),
@@ -321,6 +321,51 @@ export function FlowManager(options = {}) {
       await refresh();
     } catch (error) {
       state.error = error?.message || 'Failed to disable flow.';
+      render();
+    }
+  };
+
+  const publishFiltered = async () => {
+    const flows = getVisibleFlows(state);
+    if (flows.length === 0) {
+      return;
+    }
+
+    for (const flow of flows) {
+      const validation = validateFlow(flow);
+      if (!validation.valid) {
+        state.error = `Cannot publish filtered flows: ${flow.name || flow.id} is invalid (${validation.errors.join('; ')})`;
+        render();
+        return;
+      }
+    }
+
+    try {
+      for (const flow of flows) {
+        await flowStore.publish(flow.id);
+      }
+      state.error = '';
+      await refresh();
+    } catch (error) {
+      state.error = error?.message || 'Failed to publish filtered flows.';
+      render();
+    }
+  };
+
+  const disableFiltered = async () => {
+    const flows = getVisibleFlows(state);
+    if (flows.length === 0) {
+      return;
+    }
+
+    try {
+      for (const flow of flows) {
+        await flowStore.disable(flow.id);
+      }
+      state.error = '';
+      await refresh();
+    } catch (error) {
+      state.error = error?.message || 'Failed to disable filtered flows.';
       render();
     }
   };
@@ -640,6 +685,12 @@ export function FlowManager(options = {}) {
     on(target, 'click', '[data-flow-action="disable-flow"]', () => {
       disableSelected();
     }),
+    on(target, 'click', '[data-flow-action="publish-filtered-flows"]', () => {
+      publishFiltered();
+    }),
+    on(target, 'click', '[data-flow-action="disable-filtered-flows"]', () => {
+      disableFiltered();
+    }),
     on(target, 'click', '[data-flow-action="remove-flow"]', () => {
       removeSelected();
     }),
@@ -818,12 +869,28 @@ function renderFlowListFilters(state, visibleCount) {
     state.listKeyword || state.listStatus || state.listRisk || state.listGroupBy
       ? '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="clear-flow-filters">Clear filters</button>'
       : '',
+    visibleCount > 0
+      ? [
+        '<div class="flow-list-filters__bulk">',
+        '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-action="publish-filtered-flows">Publish filtered</button>',
+        '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-action="disable-filtered-flows">Disable filtered</button>',
+        '</div>'
+      ].join('')
+      : '',
     '</div>'
   ].join('');
 }
 
 function getSelectedFlow(state) {
   return state.flows.find((flow) => flow.id === state.selectedFlowId) ?? state.flows[0] ?? null;
+}
+
+function getVisibleFlows(state) {
+  return filterFlows(state.flows, {
+    keyword: state.listKeyword,
+    status: state.listStatus,
+    risk: state.listRisk
+  });
 }
 
 function focusFirstFailedNode(state, flow, result) {
