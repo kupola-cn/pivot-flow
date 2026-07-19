@@ -1374,6 +1374,26 @@ test('renders canvas node locate and failed-node jump controls', () => {
   assert.match(html, /Selected: Start/);
 });
 
+test('renders designer reset action when a flow has unsaved changes', () => {
+  const flow = createFlow({
+    id: 'dirty-flow',
+    name: 'Dirty flow',
+    nodes: [
+      { id: 'message', type: 'message.show', label: 'Message' }
+    ]
+  });
+  const cleanHTML = renderFlowDesignerToHTML(flow, {
+    hasUnsavedChanges: false
+  });
+  const dirtyHTML = renderFlowDesignerToHTML(flow, {
+    hasUnsavedChanges: true
+  });
+
+  assert.doesNotMatch(cleanHTML, /data-flow-action="reset-flow-edits"/);
+  assert.match(dirtyHTML, /data-flow-action="reset-flow-edits"/);
+  assert.match(dirtyHTML, /Reset edits/);
+});
+
 test('renders editable node inspector controls', () => {
   const html = renderEditableNodeInspectorToHTML({
     id: 'create-user',

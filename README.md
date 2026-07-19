@@ -449,6 +449,7 @@ FlowAssistantDrawer({
 - duplicate an existing flow as a draft copy before changing it
 - search, filter, group, publish, and disable filtered flows in the manager sidebar
 - edit flow name, description, status, risk, examples, keywords, patterns, and slots
+- review unsaved local edits with the default change report and reset the selected flow back to its saved baseline
 - add built-in nodes from the palette
 - edit node label, type, capability, risk, confirmation, and JSON params
 - inspect a layered flow canvas generated from nodes and edges

@@ -1,4 +1,4 @@
-import { createFlow, createFlowEdge, createFlowNode, duplicateFlow } from '../flow-schema.js';
+import { cloneFlow, createFlow, createFlowEdge, createFlowNode, duplicateFlow } from '../flow-schema.js';
 import { createFlowFromTemplate, listFlowTemplates } from '../flow-templates.js';
 import { flowToPlan } from '../flow-to-plan.js';
 import { canConnectFlowNodes } from '../flow-validation.js';
@@ -9,6 +9,7 @@ import { createIntentClarificationPlan, createLocalIntentMapper } from '../inten
 import { createFlowAccessReport, renderFlowAccessReportToHTML } from '../flow-access-report.js';
 import { renderFlowNodeNeighborhoodToHTML } from '../flow-graph-analysis.js';
 import { createFlowBatchSafetyReport, createFlowSafetyReport, renderFlowBatchSafetyReportToHTML, renderFlowSafetyReportToHTML } from '../flow-safety-report.js';
+import { diffFlows, renderFlowChangeReportToHTML } from '../flow-versioning.js';
 import { renderFlowDataDependenciesToHTML } from '../flow-dependencies.js';
 import { getDefaultCapabilityForNodeType } from '../node-types.js';
 import { escapeAttr, escapeHTML, on, resolveTarget, setHTML } from './dom.js';
@@ -38,6 +39,7 @@ export function FlowManager(options = {}) {
     : null;
   const state = {
     flows: [],
+    flowBaselines: new Map(),
     templates,
     selectedFlowId: '',
     selectedNodeId: '',
@@ -74,6 +76,7 @@ export function FlowManager(options = {}) {
     render();
     try {
       state.flows = await flowStore.list();
+      state.flowBaselines = new Map(state.flows.map((item) => [item.id, cloneFlow(item)]));
       state.context = await resolveContext(options.contextProvider, options.context);
       state.selectedFlowId = state.selectedFlowId || state.flows[0]?.id || '';
       state.selectedEdgeId = state.selectedEdgeId || getSelectedFlow(state)?.edges?.[0]?.id || '';
@@ -89,6 +92,8 @@ export function FlowManager(options = {}) {
 
   const render = () => {
     const flow = getSelectedFlow(state);
+    const baseline = getSelectedFlowBaseline(state);
+    state.hasUnsavedChanges = hasUnsavedFlowChanges(baseline, flow);
     const visibleFlows = filterFlows(state.flows, {
       keyword: state.listKeyword,
       status: state.listStatus,
@@ -127,6 +132,10 @@ export function FlowManager(options = {}) {
       '</main>',
       '</div>',
       '<section class="flow-manager__runtime">',
+      '<div>',
+      '<div class="flow-panel-title">Unsaved changes</div>',
+      renderFlowChangeStatusToHTML(baseline, flow),
+      '</div>',
       '<div>',
       '<div class="flow-panel-title">Preview</div>',
       renderFlowPreviewToHTML(state.preview),
@@ -545,6 +554,30 @@ export function FlowManager(options = {}) {
     }
   };
 
+  const resetSelectedEdits = () => {
+    const baseline = getSelectedFlowBaseline(state);
+    if (!baseline) {
+      state.error = 'No saved baseline is available for the selected flow.';
+      render();
+      return;
+    }
+
+    const index = state.flows.findIndex((item) => item.id === baseline.id);
+    if (index < 0) {
+      state.error = `Flow was not found: ${baseline.id}`;
+      render();
+      return;
+    }
+
+    state.flows[index] = cloneFlow(baseline);
+    state.selectedNodeId = state.flows[index].nodes?.[0]?.id ?? '';
+    state.selectedEdgeId = state.flows[index].edges?.[0]?.id ?? '';
+    state.preview = null;
+    state.result = null;
+    state.error = '';
+    render();
+  };
+
   const createBlankFlow = async () => {
     try {
       const flow = await flowStore.create(createFlow({
@@ -951,6 +984,9 @@ export function FlowManager(options = {}) {
     on(target, 'click', '[data-flow-action="remove-flow"]', () => {
       removeSelected();
     }),
+    on(target, 'click', '[data-flow-action="reset-flow-edits"]', () => {
+      resetSelectedEdits();
+    }),
     on(target, 'click', '[data-flow-action="create-flow"]', () => {
       createBlankFlow();
     }),
@@ -1192,6 +1228,35 @@ function renderFlowListFilters(state, visibleCount) {
 
 function getSelectedFlow(state) {
   return state.flows.find((flow) => flow.id === state.selectedFlowId) ?? state.flows[0] ?? null;
+}
+
+function getSelectedFlowBaseline(state) {
+  const flow = getSelectedFlow(state);
+  if (!flow) {
+    return null;
+  }
+
+  return state.flowBaselines?.get?.(flow.id) ?? null;
+}
+
+function hasUnsavedFlowChanges(baseline, flow) {
+  if (!baseline || !flow) {
+    return false;
+  }
+
+  return diffFlows(baseline, flow).length > 0;
+}
+
+function renderFlowChangeStatusToHTML(baseline, flow) {
+  if (!flow) {
+    return '<div class="flow-empty flow-empty--compact">Select a flow to review local edits.</div>';
+  }
+
+  if (!baseline) {
+    return '<div class="flow-empty flow-empty--compact">No saved baseline is available for this flow.</div>';
+  }
+
+  return renderFlowChangeReportToHTML(baseline, flow);
 }
 
 function getVisibleFlows(state) {

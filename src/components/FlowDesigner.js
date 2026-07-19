@@ -31,6 +31,9 @@ export function renderFlowDesignerToHTML(flow, state = {}) {
     '</div>',
     '<div class="flow-designer__actions">',
     '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-action="save-flow">Save</button>',
+    state.hasUnsavedChanges
+      ? '<button type="button" class="ds-btn ds-btn--tertiary ds-btn--sm" data-flow-action="reset-flow-edits">Reset edits</button>'
+      : '',
     '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-action="preview">Preview</button>',
     '<button type="button" class="ds-btn ds-btn--brand ds-btn--sm" data-flow-action="execute">Execute</button>',
     '</div>',
