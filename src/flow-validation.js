@@ -152,6 +152,48 @@ export function createFlowValidationResult(errors = [], warnings = []) {
   };
 }
 
+export function canConnectFlowNodes(flow, from, to, options = {}) {
+  const nodes = Array.isArray(flow?.nodes) ? flow.nodes : [];
+  const edges = Array.isArray(flow?.edges) ? flow.edges : [];
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const fromId = String(from || '').trim();
+  const toId = String(to || '').trim();
+  const edgeId = String(options.edgeId || '').trim();
+
+  if (!fromId || !nodeIds.has(fromId)) {
+    return createConnectionResult(false, `Unknown from node: ${fromId || '-'}.`);
+  }
+  if (!toId || !nodeIds.has(toId)) {
+    return createConnectionResult(false, `Unknown to node: ${toId || '-'}.`);
+  }
+  if (fromId === toId) {
+    return createConnectionResult(false, `Flow edge cannot reference the same node: ${fromId}.`);
+  }
+
+  const duplicate = edges.find((edge) => edge.from === fromId && edge.to === toId && (!edgeId || edge.id !== edgeId));
+  if (duplicate) {
+    return createConnectionResult(false, `Duplicate edge already connects ${fromId} -> ${toId}.`);
+  }
+
+  const nextEdges = [
+    ...edges.filter((edge) => !edgeId || edge.id !== edgeId),
+    { id: edgeId || '__candidate__', from: fromId, to: toId, condition: options.condition ?? 'success' }
+  ];
+  if (hasCycle({ nodes, edges: nextEdges })) {
+    return createConnectionResult(false, `Connecting ${fromId} -> ${toId} would create a cycle.`);
+  }
+
+  return createConnectionResult(true, `Connection is valid: ${fromId} -> ${toId}.`);
+}
+
+function createConnectionResult(ok, message) {
+  return {
+    ok,
+    message,
+    valid: ok
+  };
+}
+
 function validateIntent(intent = {}, errors, warnings) {
   const slots = Array.isArray(intent.slots) ? intent.slots : [];
   const names = new Set();

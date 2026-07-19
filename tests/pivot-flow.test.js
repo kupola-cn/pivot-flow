@@ -11,6 +11,7 @@ import {
   createCapabilityManifestSummary,
   createFlowFromTemplate,
   createHttpFlowStore,
+  canConnectFlowNodes,
   createLocalIntentMapper,
   createMemoryFlowStore,
   createFlowRunner,
@@ -266,6 +267,27 @@ test('validates edge ids and conditions', () => {
   assert.match(validation.errors.join('\n'), /Duplicate flow edge id: edge-1/);
   assert.match(validation.errors.join('\n'), /Flow edge cannot reference the same node: a/);
   assert.match(validation.errors.join('\n'), /Unknown flow edge condition: maybe/);
+});
+
+test('checks canvas connection safety before adding edges', () => {
+  const flow = createFlow({
+    id: 'connection-flow',
+    name: 'Connection flow',
+    nodes: [
+      { id: 'a', type: 'message.show' },
+      { id: 'b', type: 'message.show' },
+      { id: 'c', type: 'message.show' }
+    ],
+    edges: [
+      { id: 'edge-a-b', from: 'a', to: 'b' },
+      { id: 'edge-b-c', from: 'b', to: 'c' }
+    ]
+  });
+
+  assert.equal(canConnectFlowNodes(flow, 'a', 'c').ok, true);
+  assert.equal(canConnectFlowNodes(flow, 'a', 'b').ok, false);
+  assert.match(canConnectFlowNodes(flow, 'a', 'a').message, /same node/);
+  assert.match(canConnectFlowNodes(flow, 'c', 'a').message, /cycle/);
 });
 
 test('HTTP store maps REST endpoints and normalizes flow responses', async () => {

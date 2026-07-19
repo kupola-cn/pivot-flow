@@ -1,6 +1,7 @@
 import { createFlow, createFlowEdge, createFlowNode } from '../flow-schema.js';
 import { createFlowFromTemplate, listFlowTemplates } from '../flow-templates.js';
 import { flowToPlan } from '../flow-to-plan.js';
+import { canConnectFlowNodes } from '../flow-validation.js';
 import { createFlowRunner } from '../flow-runner.js';
 import { createMemoryFlowStore } from '../flow-store.js';
 import { createIntentClarificationPlan, createLocalIntentMapper } from '../intent-mapper.js';
@@ -540,7 +541,12 @@ export function FlowManager(options = {}) {
     const from = state.selectedNodeId && nodes.some((node) => node.id === state.selectedNodeId)
       ? state.selectedNodeId
       : nodes[0].id;
-    const to = nodes.find((node) => node.id !== from)?.id ?? nodes[1].id;
+    const to = findConnectableTarget(flow, from);
+    if (!to) {
+      state.error = `No valid target node can be connected from ${from}.`;
+      render();
+      return;
+    }
     const edge = createFlowEdge({ from, to, condition: 'success' });
     flow.edges = [...(flow.edges ?? []), edge];
     state.selectedEdgeId = edge.id;
@@ -569,6 +575,21 @@ export function FlowManager(options = {}) {
     const edge = flow?.edges?.find((item) => item.id === state.selectedEdgeId);
     if (!edge || !field) {
       return;
+    }
+
+    if (field === 'from' || field === 'to') {
+      const nextEdge = {
+        ...edge,
+        [field]: value
+      };
+      const connection = canConnectFlowNodes(flow, nextEdge.from, nextEdge.to, {
+        edgeId: edge.id,
+        condition: nextEdge.condition
+      });
+      if (!connection.ok) {
+        state.error = connection.message;
+        return;
+      }
     }
 
     edge[field] = value;
@@ -981,6 +1002,16 @@ function focusFirstFailedNode(state, flow, result) {
   if (trace.firstFailedNodeId) {
     state.selectedNodeId = trace.firstFailedNodeId;
   }
+}
+
+function findConnectableTarget(flow, from) {
+  for (const node of flow?.nodes ?? []) {
+    const connection = canConnectFlowNodes(flow, from, node.id);
+    if (connection.ok) {
+      return node.id;
+    }
+  }
+  return '';
 }
 
 function scrollSelectedNodeIntoView(target, nodeId) {

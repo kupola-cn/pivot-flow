@@ -29,6 +29,7 @@ import {
   createFlowRunner,
   createFlowVariableSources,
   createIntentClarificationPlan,
+  canConnectFlowNodes,
   analyzeIntentConfig,
   explainIntentMatches,
   analyzeFlowDataDependencies,
@@ -356,6 +357,7 @@ FlowAssistantDrawer({
 - inspect capability dependencies, risk levels, confirmation requirements, and registered permissions for the selected flow
 - inspect execution paths in the canvas, including executed nodes, skipped nodes, failed nodes, and active edges
 - automatically focus the first failed node after execution and expose a failed-node jump action so the operator can inspect the broken step
+- prevent invalid canvas connections with `canConnectFlowNodes()`, including unknown nodes, self links, duplicate edges, and cycles
 
 The designer uses a structured layered canvas rather than a freeform drag canvas. This keeps the API stable while making dependencies, edge direction, risk, confirmation, and execution state easier to inspect.
 

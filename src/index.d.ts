@@ -181,6 +181,14 @@ export function createFlowEdge(input?: Partial<FlowEdge>): FlowEdge;
 export function normalizeFlow(flow: Partial<FlowDefinition>): FlowDefinition;
 export function cloneFlow<T = unknown>(flow: T): T;
 export function validateFlow(flow: FlowDefinition, options?: { capabilities?: unknown }): FlowValidationResult;
+export function canConnectFlowNodes(flow: FlowDefinition, from?: string, to?: string, options?: {
+  edgeId?: string;
+  condition?: FlowEdge['condition'];
+}): {
+  ok: boolean;
+  valid: boolean;
+  message: string;
+};
 export interface FlowDataReference {
   source: 'node' | 'intent' | 'context';
   raw: string;
