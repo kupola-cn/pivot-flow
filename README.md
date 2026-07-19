@@ -356,6 +356,18 @@ await flowStore.restoreSnapshot(snapshots[0].id);  // restores as a draft by def
 
 The default snapshot store is in-memory. Production apps should pass a `snapshotStore` backed by their own API if snapshots must survive refreshes, devices, or deployments.
 
+## Advanced Flow Modules
+
+The library also includes headless modules for production-grade Flow management:
+
+- `createFlowApprovalRequest()`, `reviewFlowApproval()`, `createFlowPublishGate()`, and `applyApprovedPublish()` model approval-first publishing.
+- `createHybridIntentRouter()` combines local explainable matching with an optional AI structured intent router.
+- `createFlowCanvasState()`, `moveFlowCanvasNode()`, `addFlowCanvasNode()`, and `connectFlowCanvasNodes()` provide safe canvas editing primitives for draggable UIs.
+- `simulateFlowPermissions()` compares multiple actors against Flow permission hints for role testing.
+- `createFlowApiContract()` and `validateFlowApiResponse()` document and validate expected backend API response boundaries.
+
+These modules are frontend orchestration helpers. Backend APIs must still own final authorization, validation, transactions, data-scope checks, and audit.
+
 ## Flow Templates
 
 Built-in templates provide common starting points for application flows. Templates create draft flows and still require project-specific capability registration, preview, publish checks, and backend authorization.

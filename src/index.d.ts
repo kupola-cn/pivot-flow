@@ -648,6 +648,34 @@ export function resolveFlowParams(value: unknown, input?: Record<string, unknown
 export function evaluateFlowCondition(condition: unknown, input?: Record<string, unknown>, context?: Record<string, unknown>): boolean;
 export function applyFlowTransform(mapping?: Record<string, unknown>, input?: Record<string, unknown>, context?: Record<string, unknown>): unknown;
 export function compareValues(left: unknown, operator: string, right?: unknown): boolean;
+export const FLOW_APPROVAL_STATUS: {
+  DRAFT: 'draft';
+  PENDING: 'pending';
+  APPROVED: 'approved';
+  REJECTED: 'rejected';
+  CANCELLED: 'cancelled';
+};
+export function createFlowApprovalRequest(flow: FlowDefinition, options?: Record<string, unknown>): Record<string, unknown>;
+export function reviewFlowApproval(request?: Record<string, unknown>, decision?: { action?: 'approve' | 'reject' | 'cancel' | string; reviewedAt?: string; reviewedBy?: unknown; comment?: string }): Record<string, unknown>;
+export function createFlowPublishGate(flow?: FlowDefinition, source?: PivotRuntime | PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] }, options?: Record<string, unknown>): Record<string, unknown>;
+export function applyApprovedPublish(flow?: FlowDefinition, approval?: Record<string, unknown>, options?: Record<string, unknown>): FlowDefinition;
+export function renderFlowPublishGateToHTML(gateOrFlow?: Record<string, unknown> | FlowDefinition, source?: unknown, options?: Record<string, unknown>): string;
+export const FLOW_API_CONTRACT: Record<string, string>;
+export function createFlowApiContract(options?: Record<string, unknown>): Record<string, unknown>;
+export function validateFlowApiResponse(payload?: unknown, options?: { status?: number | string }): FlowValidationResult;
+export function createFlowCanvasState(flow?: FlowDefinition, options?: Record<string, unknown>): Record<string, unknown>;
+export function normalizeFlowCanvasPositions(flow?: FlowDefinition, positions?: Record<string, { x?: number; y?: number }> | Map<string, { x?: number; y?: number }>): Record<string, { x: number; y: number }>;
+export function moveFlowCanvasNode(state?: Record<string, unknown>, nodeId?: string, point?: { x?: number; y?: number }): Record<string, unknown>;
+export function addFlowCanvasNode(flow?: FlowDefinition, nodeInput?: Partial<FlowNode>, point?: { x?: number; y?: number }): { flow: FlowDefinition; node: FlowNode };
+export function connectFlowCanvasNodes(flow?: FlowDefinition, from?: string, to?: string, options?: Record<string, unknown>): { ok: boolean; message: string; edge?: FlowEdge; flow: FlowDefinition };
+export function simulateFlowPermissions(flow?: FlowDefinition, source?: unknown, actors?: Array<Record<string, unknown> & { permissions?: string[] }>, options?: Record<string, unknown>): Record<string, unknown>;
+export function renderFlowPermissionSimulationToHTML(simulationOrFlow?: unknown, source?: unknown, actors?: Array<Record<string, unknown>>, options?: Record<string, unknown>): string;
+export function createAIIntentRouterProviderRequest(prompt?: string, flows?: FlowDefinition[], options?: Record<string, unknown>): Record<string, unknown>;
+export function parseAIIntentRouterOutput(output?: unknown): { flowId: string; confidence: number; slots: Record<string, unknown>; reason: string };
+export function createHybridIntentRouter(options?: Record<string, unknown>): {
+  match(prompt: string, flows?: FlowDefinition[], options?: Record<string, unknown>): Promise<Record<string, unknown>>;
+  explain(prompt: string, flows?: FlowDefinition[], options?: Record<string, unknown>): FlowIntentMatchExplanationResult;
+};
 export function createLocalIntentMapper(options?: { minConfidence?: number }): IntentMapper;
 export function scoreFlow(prompt: string, normalizedPrompt: string, flow: FlowDefinition): FlowMatch & {
   explanation: FlowIntentMatchExplanation;

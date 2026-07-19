@@ -19,12 +19,17 @@ import {
   createFlowRunHistorySummary,
   createFlowRunRecord,
   createFlowAccessReport,
+  createFlowApiContract,
+  createFlowApprovalRequest,
+  createFlowCanvasState,
   createFlowExportPayload,
   createFlowImportReport,
   createFlowChangeReport,
   createFlowEditSession,
   createFlowSnapshot,
   createVersionedFlowStore,
+  createFlowPublishGate,
+  createHybridIntentRouter,
   applyAIFlowDraftRepairPlan,
   createFlowBatchSafetyReport,
   createFlowSafetyReport,
@@ -63,7 +68,12 @@ import {
   exportFlowToJSON,
   exportFlowsToJSON,
   importFlowsToStore,
+  addFlowCanvasNode,
+  applyApprovedPublish,
+  connectFlowCanvasNodes,
+  moveFlowCanvasNode,
   parseAIFlowProviderOutput,
+  parseAIIntentRouterOutput,
   parseFlowImportJSON,
   prepareImportedFlow,
   renderEditableNodeInspectorToHTML,
@@ -76,6 +86,8 @@ import {
   renderFlowRunSummaryToHTML,
   renderFlowSnapshotListToHTML,
   renderFlowAccessReportToHTML,
+  renderFlowPermissionSimulationToHTML,
+  renderFlowPublishGateToHTML,
   renderFlowChangeReportToHTML,
   renderFlowImportReportToHTML,
   renderFlowNodeNeighborhoodToHTML,
@@ -91,14 +103,17 @@ import {
   renderVariableMapperToHTML,
   restoreFlowSnapshot,
   recommendFlowCapabilities,
+  reviewFlowApproval,
   renderAIFlowDraftPreviewToHTML,
   renderAIFlowBuilderPanelToHTML,
   renderAIFlowDraftReviewToHTML,
   parseFlowTestSlots,
   registerFlowFrontendCapabilities,
   sanitizeFlowRunValue,
+  simulateFlowPermissions,
   summarizeFlowRunResult,
   validateAIFlowDraft,
+  validateFlowApiResponse,
   validateFlow
 } from '../src/index.js';
 
@@ -353,6 +368,129 @@ test('tracks flow edit sessions with reset commit and snapshots', () => {
   assert.equal(session.dirty, false);
   assert.equal(session.baseline.metadata.restoredFromSnapshot, 'edit-snapshot-1');
   assert.throws(() => session.mutate(null), /mutator function/);
+});
+
+test('gates publishing through approval safety and access checks', () => {
+  const flow = createOrganizationFlow();
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'org.create',
+    resource: 'organization',
+    action: ActionType.CREATE,
+    risk: RiskLevel.MEDIUM,
+    permissions: ['system:org:create'],
+    execute: () => ({ ok: true })
+  });
+  const request = createFlowApprovalRequest(flow, {
+    id: 'approval-1',
+    requestedBy: 'admin'
+  });
+  const blocked = createFlowPublishGate(flow, runtime, {
+    actor: { id: 'viewer', permissions: [] },
+    approval: request
+  });
+  const approved = reviewFlowApproval(request, {
+    action: 'approve',
+    reviewedBy: 'owner'
+  });
+  const ready = createFlowPublishGate(flow, runtime, {
+    actor: { id: 'admin', permissions: ['system:org:create'] },
+    approval: approved
+  });
+  const published = applyApprovedPublish(flow, approved, {
+    publishedAt: '2026-07-19T15:00:00.000Z'
+  });
+  const html = renderFlowPublishGateToHTML(ready);
+
+  assert.equal(blocked.ok, false);
+  assert.equal(blocked.blockingIssues.some((item) => item.includes('approval')), true);
+  assert.equal(approved.status, 'approved');
+  assert.equal(ready.ok, true);
+  assert.equal(published.status, 'published');
+  assert.equal(published.metadata.publishedByApproval, 'approval-1');
+  assert.match(html, /Publish gate/);
+  assert.throws(() => reviewFlowApproval(approved, { action: 'approve' }), /Only pending/);
+});
+
+test('routes intents through local matching before AI fallback', async () => {
+  const flow = createOrganizationFlow();
+  const aiFlow = createFlow({
+    id: 'role-query',
+    name: 'Query roles',
+    status: 'published',
+    intent: { keywords: ['角色'] }
+  });
+  const router = createHybridIntentRouter({
+    aiProvider: () => ({ flowId: 'role-query', confidence: 0.9, slots: { keyword: '管理员' }, reason: 'role query' })
+  });
+  const local = await router.match('在集团下增加分机构 C', [flow, aiFlow]);
+  const ai = await router.match('帮我看看管理员角色', [flow, aiFlow], { minConfidence: 0.99 });
+  const parsed = parseAIIntentRouterOutput('{"flowId":"x","confidence":2,"slots":{},"reason":"ok"}');
+
+  assert.equal(local.source, 'local');
+  assert.equal(local.best.flow.id, 'org-create');
+  assert.equal(ai.source, 'ai');
+  assert.equal(ai.best.flow.id, 'role-query');
+  assert.equal(parsed.confidence, 1);
+});
+
+test('edits canvas state with safe node movement and connections', () => {
+  const flow = createFlow({
+    id: 'canvas-edit',
+    name: 'Canvas edit',
+    nodes: [
+      { id: 'a', type: 'message.show', label: 'A' },
+      { id: 'b', type: 'message.show', label: 'B' }
+    ],
+    edges: []
+  });
+  const state = createFlowCanvasState(flow);
+  const moved = moveFlowCanvasNode(state, 'a', { x: 20, y: 30 });
+  const added = addFlowCanvasNode(flow, { id: 'c', type: 'message.show', label: 'C' }, { x: 40, y: 50 });
+  const connected = connectFlowCanvasNodes(added.flow, 'a', 'b');
+  const blocked = connectFlowCanvasNodes(connected.flow, 'a', 'b');
+
+  assert.deepEqual(moved.positions.a, { x: 20, y: 30 });
+  assert.equal(added.node.id, 'c');
+  assert.equal(connected.ok, true);
+  assert.equal(blocked.ok, false);
+});
+
+test('simulates role permissions and renders frontend hint results', () => {
+  const flow = createOrganizationFlow();
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'org.create',
+    resource: 'organization',
+    action: ActionType.CREATE,
+    risk: RiskLevel.MEDIUM,
+    permissions: ['system:org:create'],
+    execute: () => ({ ok: true })
+  });
+  const simulation = simulateFlowPermissions(flow, runtime, [
+    { id: 'admin', permissions: ['system:org:create'] },
+    { id: 'viewer', permissions: [] }
+  ]);
+  const html = renderFlowPermissionSimulationToHTML(simulation);
+
+  assert.equal(simulation.ok, false);
+  assert.equal(simulation.allowedCount, 1);
+  assert.equal(simulation.blockedCount, 1);
+  assert.match(html, /Permission simulation/);
+  assert.match(html, /system:org:create/);
+});
+
+test('defines and validates backend API contracts', () => {
+  const contract = createFlowApiContract({ baseUrl: '/admin' });
+  const ok = validateFlowApiResponse({ ok: true, data: [] }, { status: 200 });
+  const warning = validateFlowApiResponse({ data: [] }, { status: 200 });
+  const bad = validateFlowApiResponse('bad', { status: 299 });
+
+  assert.equal(contract.endpoints.listFlows, '/admin/api/pivot-flows');
+  assert.equal(ok.valid, true);
+  assert.equal(warning.warnings.length, 1);
+  assert.equal(bad.valid, false);
+  assert.equal(bad.errors.some((item) => item.includes('object')), true);
 });
 
 test('matches natural language intent to a published flow', () => {

@@ -14,6 +14,8 @@
 .flow-access-report,
 .flow-change-report,
 .flow-import-report,
+.flow-permission-simulation,
+.flow-publish-gate,
 .flow-safety-report {
   color: var(--text-default);
   font-family: var(--font-family-base, inherit);
@@ -2289,6 +2291,91 @@
 .flow-change-report__item--high em,
 .flow-change-report__issues--error > strong {
   color: var(--status-error-default);
+}
+
+.flow-publish-gate,
+.flow-permission-simulation {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-10);
+  min-width: 0;
+  padding: var(--spacer-10);
+}
+
+.flow-publish-gate--blocked {
+  border-color: var(--status-error-default);
+}
+
+.flow-publish-gate--review {
+  border-color: var(--status-warning-default);
+}
+
+.flow-publish-gate header,
+.flow-permission-simulation header,
+.flow-permission-simulation li {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.flow-publish-gate header,
+.flow-permission-simulation header {
+  align-items: flex-start;
+}
+
+.flow-publish-gate header strong,
+.flow-permission-simulation header strong,
+.flow-permission-simulation li strong {
+  color: var(--text-default);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-publish-gate header span,
+.flow-publish-gate small,
+.flow-publish-gate li,
+.flow-permission-simulation header span,
+.flow-permission-simulation small,
+.flow-permission-simulation li small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+.flow-publish-gate > div {
+  display: grid;
+  gap: var(--spacer-8);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.flow-publish-gate > div span,
+.flow-permission-simulation li {
+  background: var(--bg-overlay-l2);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  padding: var(--spacer-8);
+}
+
+.flow-permission-simulation ol {
+  display: grid;
+  gap: var(--spacer-8);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.flow-permission-simulation li em {
+  background: var(--bg-brand-overlay);
+  border-radius: 999px;
+  color: var(--text-brand);
+  font-size: var(--body-xs-font-size);
+  font-style: normal;
+  line-height: 1;
+  padding: 4px 8px;
 }
 
 .flow-safety-report,
