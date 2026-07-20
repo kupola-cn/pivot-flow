@@ -6,9 +6,14 @@ export type FlowNodeType =
   | 'intent.input'
   | 'api.call'
   | 'capability.run'
+  | 'data.query'
   | 'condition'
   | 'confirm'
   | 'transform'
+  | 'human.select'
+  | 'ui.display'
+  | 'output.return'
+  | 'subflow.run'
   | 'message.show'
   | 'route.navigate'
   | 'table.refresh'
@@ -46,13 +51,21 @@ export interface FlowNode {
   id: string;
   type: FlowNodeType;
   label?: string;
+  description?: string;
   capability?: string;
+  resource?: string;
+  action?: string;
+  flowId?: string;
+  version?: string;
   params?: Record<string, unknown>;
   inputSchema?: Record<string, unknown>;
   outputSchema?: Record<string, unknown>;
   risk?: FlowRisk;
   requiresConfirmation?: boolean;
   condition?: unknown;
+  ports?: Record<string, unknown>;
+  control?: Record<string, unknown>;
+  safety?: Record<string, unknown>;
   ui?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
 }
@@ -190,6 +203,41 @@ export function canConnectFlowNodes(flow: FlowDefinition, from?: string, to?: st
   valid: boolean;
   message: string;
 };
+export interface FlowNodeTypeDefinition {
+  type: string;
+  label: string;
+  group?: string;
+  icon?: string;
+  description?: string;
+  capability?: string;
+  inputSchema?: Record<string, unknown>;
+  outputSchema?: Record<string, unknown>;
+  defaultParams?: Record<string, unknown>;
+  ports?: Record<string, unknown>;
+  safety?: Record<string, unknown>;
+  validate?: (node: FlowNode, context: { flow?: FlowDefinition; options?: Record<string, unknown> }) => void | string | {
+    errors?: string[];
+    warnings?: string[];
+  };
+  toPlanNode?: (node: FlowNode, context: {
+    flow: FlowDefinition;
+    input: Record<string, unknown>;
+    context: Record<string, unknown>;
+    resolveFlowParams: typeof resolveFlowParams;
+    getFlowNodeCapability: typeof getFlowNodeCapability;
+  }) => Partial<PivotPlan['nodes'][number]> | null;
+  renderInspector?: (props: unknown) => unknown;
+  renderNode?: (props: unknown) => unknown;
+}
+export const FLOW_NODE_TYPES: Record<string, FlowNodeType | string>;
+export const BUILT_IN_NODE_DEFINITIONS: FlowNodeTypeDefinition[];
+export function registerFlowNodeType(definition: Partial<FlowNodeTypeDefinition> & { type: string }): FlowNodeTypeDefinition;
+export function unregisterFlowNodeType(type: string): boolean;
+export function clearCustomFlowNodeTypes(): void;
+export function getFlowNodeTypeDefinition(type: string): FlowNodeTypeDefinition | null;
+export function listFlowNodeTypeDefinitions(options?: { includeCustom?: boolean }): FlowNodeTypeDefinition[];
+export function getDefaultCapabilityForNodeType(type: string): string;
+export function getFlowNodeCapability(node?: Partial<FlowNode> | null): string;
 export const FLOW_EXPORT_SCHEMA: 'kupola.pivot-flow.export.v1';
 export interface FlowExportPayload {
   schema: typeof FLOW_EXPORT_SCHEMA;
@@ -911,6 +959,8 @@ export function getFlowNodeCapability(node: Partial<FlowNode>): string;
 
 export interface FlowFrontendCapabilityAdapter {
   showMessage?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
+  selectRecord?: (params: Record<string, unknown>, context?: Record<string, unknown>) => unknown | Promise<unknown>;
+  displayData?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
   navigate?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
   refreshTable?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
   openForm?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
@@ -918,6 +968,8 @@ export interface FlowFrontendCapabilityAdapter {
   openModal?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
   markAudit?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
   messagePermissions?: string[];
+  humanSelectPermissions?: string[];
+  displayPermissions?: string[];
   routePermissions?: string[];
   tablePermissions?: string[];
   formPermissions?: string[];

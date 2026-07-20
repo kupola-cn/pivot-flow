@@ -1,7 +1,7 @@
-import { BUILT_IN_NODE_DEFINITIONS } from '../node-types.js';
+import { listFlowNodeTypeDefinitions } from '../node-types.js';
 import { escapeHTML, escapeAttr } from './dom.js';
 
-export function renderNodePaletteToHTML(nodes = BUILT_IN_NODE_DEFINITIONS) {
+export function renderNodePaletteToHTML(nodes = listFlowNodeTypeDefinitions()) {
   return [
     '<div class="flow-palette">',
     '<div class="flow-panel-title">Node palette</div>',

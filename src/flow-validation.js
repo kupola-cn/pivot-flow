@@ -1,4 +1,4 @@
-import { FLOW_NODE_TYPES, FLOW_STATUS, getFlowNodeCapability, isCapabilityBackedNode, isKnownFlowNodeType, isKnownFlowStatus, isKnownRiskLevel } from './node-types.js';
+import { FLOW_NODE_TYPES, FLOW_STATUS, getFlowNodeCapability, getFlowNodeTypeDefinition, isCapabilityBackedNode, isKnownFlowNodeType, isKnownFlowStatus, isKnownRiskLevel } from './node-types.js';
 
 export function validateFlow(flow, options = {}) {
   const errors = [];
@@ -75,6 +75,16 @@ export function validateFlow(flow, options = {}) {
     if (node.type === FLOW_NODE_TYPES.TRANSFORM && !isPlainObject(node.params)) {
       errors.push(`Transform node params must be an object: ${node.id}`);
     }
+
+    if (node.type === FLOW_NODE_TYPES.SUBFLOW_RUN && !getSubflowId(node)) {
+      errors.push(`Subflow node requires params.flowId: ${node.id}`);
+    }
+
+    const nodeTypeDefinition = getFlowNodeTypeDefinition(node.type);
+    if (typeof nodeTypeDefinition?.validate === 'function') {
+      const customValidation = nodeTypeDefinition.validate(node, { flow, options });
+      collectCustomValidation(customValidation, errors, warnings);
+    }
   }
 
   for (const edge of flow.edges) {
@@ -137,11 +147,11 @@ function isKnownEdgeCondition(condition) {
     return true;
   }
 
-  if (typeof condition === 'object') {
-    return true;
+  if (typeof condition === 'string') {
+    return ['always', 'success', 'failure', 'skipped'].includes(condition);
   }
 
-  return ['always', 'success', 'failure', 'skipped'].includes(condition);
+  return isValidStructuredEdgeCondition(condition);
 }
 
 export function createFlowValidationResult(errors = [], warnings = []) {
@@ -279,6 +289,87 @@ function normalizeCapabilitySet(capabilities) {
   }
 
   return null;
+}
+
+function getSubflowId(node) {
+  return String(node?.params?.flowId ?? node?.flowId ?? '').trim();
+}
+
+function collectCustomValidation(validation, errors, warnings) {
+  if (!validation) {
+    return;
+  }
+
+  if (Array.isArray(validation.errors)) {
+    errors.push(...validation.errors.filter(Boolean));
+  }
+
+  if (Array.isArray(validation.warnings)) {
+    warnings.push(...validation.warnings.filter(Boolean));
+  }
+
+  if (typeof validation === 'string') {
+    errors.push(validation);
+  }
+}
+
+function isValidStructuredEdgeCondition(condition) {
+  if (!isPlainObject(condition)) {
+    return false;
+  }
+
+  const allowedFields = new Set([
+    'ok',
+    'skipped',
+    'path',
+    'exists',
+    'equals',
+    'notEquals',
+    'in',
+    'gt',
+    'gte',
+    'lt',
+    'lte',
+    'contains',
+    'empty',
+    'notEmpty'
+  ]);
+
+  for (const field of Object.keys(condition)) {
+    if (!allowedFields.has(field)) {
+      return false;
+    }
+  }
+
+  if (condition.ok !== undefined && typeof condition.ok !== 'boolean') {
+    return false;
+  }
+
+  if (condition.skipped !== undefined && typeof condition.skipped !== 'boolean') {
+    return false;
+  }
+
+  if (condition.path !== undefined && (typeof condition.path !== 'string' || condition.path.trim() === '')) {
+    return false;
+  }
+
+  if (condition.exists !== undefined && typeof condition.exists !== 'boolean') {
+    return false;
+  }
+
+  if (condition.in !== undefined && !Array.isArray(condition.in)) {
+    return false;
+  }
+
+  if (condition.empty !== undefined && typeof condition.empty !== 'boolean') {
+    return false;
+  }
+
+  if (condition.notEmpty !== undefined && typeof condition.notEmpty !== 'boolean') {
+    return false;
+  }
+
+  return true;
 }
 
 function requireString(target, field, errors) {

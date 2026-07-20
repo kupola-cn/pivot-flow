@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { ActionType, RiskLevel, createPivotRuntime } from '@kupola/pivot';
 import {
   createFlow,
+  clearCustomFlowNodeTypes,
   createAIFlowBuilderContext,
   createAIFlowProvider,
   createAIFlowProviderMessages,
@@ -58,12 +59,14 @@ import {
   getFlowNodeMatches,
   getFlowRisk,
   getFlowRunSummary,
+  getFlowNodeTypeDefinition,
   groupFlowTemplates,
   groupFlowCanvasNodes,
   groupFlows,
   generateAIFlowDraft,
   filterFlowRuns,
   hasPermission,
+  listFlowNodeTypeDefinitions,
   normalizeFlowCanvasViewport,
   exportFlowToJSON,
   exportFlowsToJSON,
@@ -108,13 +111,16 @@ import {
   renderAIFlowBuilderPanelToHTML,
   renderAIFlowDraftReviewToHTML,
   parseFlowTestSlots,
+  registerFlowNodeType,
   registerFlowFrontendCapabilities,
+  renderNodePaletteToHTML,
   sanitizeFlowRunValue,
   simulateFlowPermissions,
   summarizeFlowRunResult,
   validateAIFlowDraft,
   validateFlowApiResponse,
-  validateFlow
+  validateFlow,
+  unregisterFlowNodeType
 } from '../src/index.js';
 
 function createOrganizationFlow() {
@@ -1729,6 +1735,171 @@ test('validates condition and transform node configuration', () => {
   assert.equal(validation.valid, false);
   assert.match(validation.errors.join('\n'), /Condition node requires a condition object: condition/);
   assert.match(validation.errors.join('\n'), /Transform node params must be an object: transform/);
+});
+
+test('maps generic query, display, subflow, and output nodes to plan semantics', () => {
+  const flow = createFlow({
+    id: 'generic-node-flow',
+    name: 'Generic node flow',
+    status: 'draft',
+    nodes: [
+      {
+        id: 'query-users',
+        type: 'data.query',
+        label: 'Query users',
+        resource: 'users',
+        capability: 'users.query',
+        params: {
+          filters: [
+            { field: 'name', operator: 'eq', value: '{{intent.name}}' }
+          ],
+          limit: 20
+        }
+      },
+      {
+        id: 'select-user',
+        type: 'human.select',
+        params: {
+          source: '{{query-users.data.records}}',
+          valueField: 'id'
+        }
+      },
+      {
+        id: 'display-user',
+        type: 'ui.display',
+        params: {
+          data: '{{select-user.data.record}}'
+        }
+      },
+      {
+        id: 'run-subflow',
+        type: 'subflow.run',
+        params: {
+          flowId: 'user-detail-flow',
+          version: 'latest-published',
+          input: {
+            userId: '{{select-user.data.record.id}}'
+          }
+        }
+      },
+      {
+        id: 'return-output',
+        type: 'output.return',
+        params: {
+          result: '{{run-subflow.data.result}}'
+        }
+      }
+    ],
+    edges: [
+      { from: 'query-users', to: 'select-user', condition: { path: 'data.total', gt: 1 } },
+      { from: 'select-user', to: 'display-user', condition: 'success' },
+      { from: 'display-user', to: 'run-subflow', condition: 'success' }
+    ]
+  });
+
+  const validation = validateFlow(flow);
+  const plan = flowToPlan(flow, { slots: { name: 'Zhang San' } });
+  const queryNode = plan.nodes.find((node) => node.id === 'query-users');
+  const selectNode = plan.nodes.find((node) => node.id === 'select-user');
+  const displayNode = plan.nodes.find((node) => node.id === 'display-user');
+  const subflowNode = plan.nodes.find((node) => node.id === 'run-subflow');
+
+  assert.equal(validation.valid, true);
+  assert.equal(queryNode.capability, 'users.query');
+  assert.equal(queryNode.params.resource, 'users');
+  assert.equal(queryNode.params.filters[0].value, 'Zhang San');
+  assert.equal(selectNode.capability, 'human.select');
+  assert.equal(displayNode.capability, 'ui.display');
+  assert.equal(subflowNode.capability, 'flow.subflow.run');
+  assert.equal(subflowNode.params.flowId, 'user-detail-flow');
+  assert.equal(subflowNode.params.input.userId.$from, 'select-user');
+  assert.equal(plan.nodes.some((node) => node.id === 'return-output'), false);
+  assert.equal(plan.edges[0].condition.gt, 1);
+});
+
+test('validates subflow nodes and structured edge conditions', () => {
+  const flow = createFlow({
+    id: 'invalid-subflow',
+    name: 'Invalid subflow',
+    status: 'draft',
+    nodes: [
+      { id: 'source', type: 'message.show', params: { message: 'start' } },
+      { id: 'subflow', type: 'subflow.run', params: {} },
+      { id: 'target', type: 'message.show', params: { message: 'done' } }
+    ],
+    edges: [
+      { id: 'edge-bad', from: 'source', to: 'target', condition: { path: 'data.total', unknown: 1 } }
+    ]
+  });
+  const validation = validateFlow(flow);
+
+  assert.equal(validation.valid, false);
+  assert.match(validation.errors.join('\n'), /Subflow node requires params\.flowId: subflow/);
+  assert.match(validation.errors.join('\n'), /Unknown flow edge condition/);
+});
+
+test('registers custom flow node types for validation, palette, and plan mapping', () => {
+  clearCustomFlowNodeTypes();
+
+  try {
+    const definition = registerFlowNodeType({
+      type: 'demo.custom',
+      label: 'Demo custom',
+      group: 'demo',
+      description: 'Run a custom demo node.',
+      inputSchema: {
+        name: { type: 'string', required: true }
+      },
+      outputSchema: {
+        ok: { type: 'boolean' }
+      },
+      validate(node) {
+        return node.params?.name
+          ? null
+          : { errors: [`Custom node requires params.name: ${node.id}`] };
+      },
+      toPlanNode(node) {
+        return {
+          id: node.id,
+          capability: 'demo.custom.run',
+          params: node.params,
+          metadata: {
+            custom: true
+          }
+        };
+      }
+    });
+    const flow = createFlow({
+      id: 'custom-node-flow',
+      name: 'Custom node flow',
+      status: 'draft',
+      nodes: [
+        {
+          id: 'custom',
+          type: 'demo.custom',
+          params: {
+            name: '{{intent.name}}'
+          }
+        }
+      ]
+    });
+    const validation = validateFlow(flow);
+    const plan = flowToPlan(flow, { slots: { name: 'demo' } });
+    const palette = renderNodePaletteToHTML();
+
+    assert.equal(definition.type, 'demo.custom');
+    assert.equal(getFlowNodeTypeDefinition('demo.custom').label, 'Demo custom');
+    assert.equal(listFlowNodeTypeDefinitions().some((node) => node.type === 'demo.custom'), true);
+    assert.equal(validation.valid, true);
+    assert.equal(plan.nodes[0].capability, 'demo.custom.run');
+    assert.equal(plan.nodes[0].params.name, 'demo');
+    assert.equal(plan.nodes[0].metadata.customNodeType, 'demo.custom');
+    assert.match(palette, /demo\.custom/);
+    assert.equal(unregisterFlowNodeType('demo.custom'), true);
+    assert.equal(getFlowNodeTypeDefinition('demo.custom'), null);
+  } finally {
+    clearCustomFlowNodeTypes();
+  }
 });
 
 test('evaluates controlled flow condition DSL', () => {

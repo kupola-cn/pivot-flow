@@ -1,7 +1,7 @@
 import { createPlan } from '@kupola/pivot';
 import { normalizeFlow } from './flow-schema.js';
 import { validateFlow } from './flow-validation.js';
-import { FLOW_NODE_TYPES, getFlowNodeCapability, isPlanVisibleNode } from './node-types.js';
+import { FLOW_NODE_TYPES, getFlowNodeCapability, getFlowNodeTypeDefinition, isPlanVisibleNode } from './node-types.js';
 
 const TEMPLATE_PATTERN = /^\{\{\s*([^}]+?)\s*\}\}$/;
 
@@ -56,6 +56,18 @@ export function flowNodeToPlanNode(node, flow, input = {}, context = {}) {
     return null;
   }
 
+  const nodeTypeDefinition = getFlowNodeTypeDefinition(node.type);
+  if (typeof nodeTypeDefinition?.toPlanNode === 'function') {
+    const planNode = nodeTypeDefinition.toPlanNode(node, {
+      flow,
+      input,
+      context,
+      resolveFlowParams,
+      getFlowNodeCapability
+    });
+    return planNode ? normalizeCustomPlanNode(planNode, node, flow, input, context) : null;
+  }
+
   if (node.type === FLOW_NODE_TYPES.CONFIRM) {
     return {
       id: node.id,
@@ -73,18 +85,61 @@ export function flowNodeToPlanNode(node, flow, input = {}, context = {}) {
     };
   }
 
+  if (node.type === FLOW_NODE_TYPES.SUBFLOW_RUN) {
+    return createCapabilityPlanNode(node, flow, input, context, {
+      flowId: node.params?.flowId ?? node.flowId,
+      version: node.params?.version ?? node.version,
+      input: node.params?.input ?? node.input ?? {}
+    });
+  }
+
+  if (node.type === FLOW_NODE_TYPES.DATA_QUERY) {
+    return createCapabilityPlanNode(node, flow, input, context, {
+      resource: node.resource,
+      action: node.action ?? 'query',
+      ...(node.params ?? {})
+    });
+  }
+
+  if (node.type === FLOW_NODE_TYPES.HUMAN_SELECT || node.type === FLOW_NODE_TYPES.UI_DISPLAY) {
+    return createCapabilityPlanNode(node, flow, input, context, node.params ?? {});
+  }
+
+  return createCapabilityPlanNode(node, flow, input, context, node.params ?? {});
+}
+
+function createCapabilityPlanNode(node, flow, input, context, params) {
   return {
     id: node.id,
     capability: getFlowNodeCapability(node),
     intent: node.label || flow.name,
     risk: node.risk,
-    params: resolveFlowParams(node.params ?? {}, input, context),
+    params: resolveFlowParams(params ?? {}, input, context),
     inputSchema: node.inputSchema,
     outputSchema: node.outputSchema,
     metadata: {
       ...(node.metadata ?? {}),
       flowNodeType: node.type,
       flowId: flow.id
+    }
+  };
+}
+
+function normalizeCustomPlanNode(planNode, sourceNode, flow, input, context) {
+  return {
+    ...planNode,
+    id: planNode.id ?? sourceNode.id,
+    intent: planNode.intent ?? sourceNode.label ?? flow.name,
+    risk: planNode.risk ?? sourceNode.risk,
+    params: resolveFlowParams(planNode.params ?? {}, input, context),
+    inputSchema: planNode.inputSchema ?? sourceNode.inputSchema,
+    outputSchema: planNode.outputSchema ?? sourceNode.outputSchema,
+    metadata: {
+      ...(sourceNode.metadata ?? {}),
+      ...(planNode.metadata ?? {}),
+      flowNodeType: sourceNode.type,
+      flowId: flow.id,
+      customNodeType: sourceNode.type
     }
   };
 }

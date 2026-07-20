@@ -2,6 +2,8 @@ import { ActionType, RiskLevel } from '@kupola/pivot';
 
 export const FLOW_FRONTEND_CAPABILITIES = Object.freeze({
   MESSAGE_SHOW: 'message.show',
+  HUMAN_SELECT: 'human.select',
+  UI_DISPLAY: 'ui.display',
   ROUTE_NAVIGATE: 'route.navigate',
   TABLE_REFRESH: 'table.refresh',
   FORM_OPEN: 'form.open',
@@ -40,6 +42,48 @@ export function createFlowFrontendCapabilities(adapter = {}) {
           shown: true,
           message: params.message,
           type: params.type ?? 'info'
+        };
+      }
+    },
+    {
+      name: FLOW_FRONTEND_CAPABILITIES.HUMAN_SELECT,
+      resource: 'frontend-human',
+      action: ActionType.EXECUTE,
+      risk: RiskLevel.LOW,
+      description: 'Ask a user to select a record from frontend candidates.',
+      allowUnknownParams: true,
+      permissions: adapter.humanSelectPermissions ?? [],
+      execute: async ({ params, context }) => {
+        const source = Array.isArray(params.source) ? params.source : [];
+        const selected = typeof adapter.selectRecord === 'function'
+          ? await adapter.selectRecord(params, context)
+          : source.length === 1
+            ? source[0]
+            : null;
+        const valueField = params.valueField ?? 'id';
+        return {
+          selected: Boolean(selected),
+          record: selected,
+          value: selected && typeof selected === 'object' ? selected[valueField] : selected
+        };
+      }
+    },
+    {
+      name: FLOW_FRONTEND_CAPABILITIES.UI_DISPLAY,
+      resource: 'frontend-display',
+      action: ActionType.EXECUTE,
+      risk: RiskLevel.LOW,
+      description: 'Display flow data in a frontend renderer.',
+      allowUnknownParams: true,
+      permissions: adapter.displayPermissions ?? [],
+      execute: async ({ params, context }) => {
+        if (typeof adapter.displayData === 'function') {
+          await adapter.displayData(params, context);
+        }
+        return {
+          displayed: true,
+          data: params.data,
+          renderer: params.renderer ?? params.ui?.renderer ?? 'auto'
         };
       }
     },
