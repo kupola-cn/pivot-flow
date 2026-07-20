@@ -3614,8 +3614,8 @@
   grid-template-rows: var(--flow-workbench-toolbar-height) minmax(0, 1fr);
   max-width: calc(100% - var(--spacer-24));
   right: var(--spacer-12);
-  top: 78px;
-  width: 440px;
+  top: 60px;
+  width: 300px;
 }
 
 .flow-workbench__palette-search {
@@ -3663,7 +3663,7 @@
 .flow-workbench__palette-group {
   display: grid;
   gap: var(--spacer-4);
-  margin: 0 0 var(--spacer-10);
+  margin: 0 0 var(--spacer-16);
 }
 
 .flow-workbench__palette-group-title {
@@ -3745,6 +3745,7 @@
   font-size: var(--body-sm-font-size);
   overflow: hidden;
   text-overflow: ellipsis;
+  padding: var(--spacer-8);
   white-space: nowrap;
 }
 
@@ -3777,8 +3778,9 @@
   box-shadow: var(--shadow-md);
   grid-template-rows: var(--flow-workbench-toolbar-height) minmax(0, 1fr);
   right: var(--spacer-12);
-  top: 78px;
+  top: 60px;
   width: 340px;
+  padding: var(--spacer-12);
 }
 
 .flow-workbench__panel-close {
@@ -3978,7 +3980,7 @@
   }
 
   .flow-workbench__inspector {
-    bottom: 88px;
+    bottom: 68px;
     left: var(--spacer-12);
     width: auto;
   }
