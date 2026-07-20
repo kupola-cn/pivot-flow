@@ -57,6 +57,7 @@ import {
   getFlowNodeAdjacency,
   getFlowNodeNeighborhood,
   getFlowNodeMatches,
+  getFlowNodePorts,
   getNodeCapabilitySchema,
   getFlowRisk,
   getFlowRunSummary,
@@ -753,6 +754,49 @@ test('checks canvas connection safety before adding edges', () => {
   assert.equal(canConnectFlowNodes(flow, 'a', 'b').ok, false);
   assert.match(canConnectFlowNodes(flow, 'a', 'a').message, /same node/);
   assert.match(canConnectFlowNodes(flow, 'c', 'a').message, /cycle/);
+});
+
+test('validates and stores canvas edge ports', () => {
+  const flow = createFlow({
+    id: 'port-connection-flow',
+    name: 'Port connection flow',
+    nodes: [
+      { id: 'query-users', type: 'data.query', capability: 'users.query' },
+      { id: 'select-user', type: 'human.select' }
+    ],
+    edges: []
+  });
+
+  const queryPorts = getFlowNodePorts(flow.nodes[0]);
+  const valid = canConnectFlowNodes(flow, 'query-users', 'select-user', {
+    sourcePort: 'output.records',
+    targetPort: 'input.payload'
+  });
+  const invalid = canConnectFlowNodes(flow, 'query-users', 'select-user', {
+    sourcePort: 'output.missing',
+    targetPort: 'input.payload'
+  });
+  const connected = connectFlowCanvasNodes(flow, 'query-users', 'select-user', {
+    sourcePort: 'output.records',
+    targetPort: 'input.payload'
+  });
+
+  assert.equal(queryPorts.outputs.some((port) => port.id === 'output.records'), true);
+  assert.equal(valid.ok, true);
+  assert.equal(invalid.ok, false);
+  assert.match(invalid.message, /Unknown source port/);
+  assert.equal(connected.ok, true);
+  assert.equal(connected.edge.sourcePort, 'output.records');
+  assert.equal(connected.edge.targetPort, 'input.payload');
+  assert.equal(validateFlow(connected.flow).valid, true);
+  assert.equal(validateFlow(createFlow({
+    id: 'bad-port-flow',
+    name: 'Bad port flow',
+    nodes: flow.nodes,
+    edges: [
+      { from: 'query-users', to: 'select-user', sourcePort: 'output.missing' }
+    ]
+  })).valid, false);
 });
 
 test('HTTP store maps REST endpoints and normalizes flow responses', async () => {
@@ -1483,6 +1527,49 @@ test('matches and highlights flow canvas nodes', () => {
   assert.equal(adjacency.relatedNodeIds.has('message'), true);
   assert.match(html, /is-matched/);
   assert.match(html, /is-related/);
+});
+
+test('renders draggable palette nodes and clickable canvas ports', () => {
+  const flow = createFlow({
+    id: 'canvas-port-flow',
+    name: 'Canvas port flow',
+    nodes: [
+      {
+        id: 'query-users',
+        type: 'data.query',
+        label: 'Query users',
+        ui: { position: { x: 24, y: 48 } }
+      },
+      { id: 'select-user', type: 'human.select', label: 'Select user' }
+    ],
+    edges: [
+      {
+        id: 'edge-1',
+        from: 'query-users',
+        to: 'select-user',
+        sourcePort: 'output.records',
+        targetPort: 'input.payload'
+      }
+    ]
+  });
+  const paletteHTML = renderNodePaletteToHTML();
+  const canvasHTML = renderFlowCanvasToHTML(flow, {
+    pendingConnection: { from: 'query-users', sourcePort: 'output.records' },
+    connectionMessage: 'Cannot connect duplicate edge.'
+  });
+  const edgeEditorHTML = renderFlowEdgeEditorToHTML(flow, { selectedEdgeId: 'edge-1' });
+
+  assert.match(paletteHTML, /draggable="true"/);
+  assert.match(canvasHTML, /data-flow-canvas-dropzone="true"/);
+  assert.match(canvasHTML, /data-flow-action="start-port-connection"/);
+  assert.match(canvasHTML, /data-flow-action="finish-port-connection"/);
+  assert.match(canvasHTML, /data-port-id="output\.records"/);
+  assert.match(canvasHTML, /data-flow-node-x="24"/);
+  assert.match(canvasHTML, /Connecting from query-users/);
+  assert.match(canvasHTML, /Cannot connect duplicate edge/);
+  assert.match(edgeEditorHTML, /data-flow-edge-field="sourcePort"/);
+  assert.match(edgeEditorHTML, /data-flow-edge-field="targetPort"/);
+  assert.match(edgeEditorHTML, /value="output\.records" selected/);
 });
 
 test('groups and collapses flow canvas nodes', () => {

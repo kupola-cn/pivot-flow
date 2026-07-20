@@ -1,4 +1,5 @@
 import { getFlowNodeCapability } from '../node-types.js';
+import { getFlowNodePorts } from '../flow-validation.js';
 import {
   formatFlowDuration,
   getFlowExecutionTrace,
@@ -30,7 +31,7 @@ export function renderFlowCanvasToHTML(flow, options = {}) {
   const viewport = normalizeFlowCanvasViewport(options);
 
   return [
-    `<div class="flow-canvas flow-canvas--density-${escapeAttr(viewport.density)}" data-flow-canvas-zoom="${escapeAttr(viewport.zoom)}">`,
+    `<div class="flow-canvas flow-canvas--density-${escapeAttr(viewport.density)}" data-flow-canvas-zoom="${escapeAttr(viewport.zoom)}" data-flow-canvas-dropzone="true">`,
     '<div class="flow-canvas__summary">',
     `<span>${escapeHTML(nodes.length)} nodes</span>`,
     `<span>${escapeHTML(edges.length)} edges</span>`,
@@ -44,6 +45,7 @@ export function renderFlowCanvasToHTML(flow, options = {}) {
     trace.skippedNodeIds.length > 0 ? `<span class="flow-canvas__summary-status flow-canvas__summary-status--skipped">${escapeHTML(trace.skippedNodeIds.length)} skipped</span>` : '',
     trace.totalDurationMs > 0 ? `<span>${escapeHTML(formatFlowDuration(trace.totalDurationMs))} total</span>` : '',
     '</div>',
+    renderConnectionStatus(options),
     renderExecutionDiagnostics(diagnostics),
     renderCanvasViewport(
       groups.active
@@ -319,9 +321,12 @@ export function renderNodeCard(node, index, options = {}, nodeState = null, node
   const status = nodeState?.status ?? 'idle';
   const capability = getFlowNodeCapability(node);
   const diagnostic = getNodeDiagnostic(nodeState);
+  const ports = getFlowNodePorts(node);
+  const position = normalizeNodePosition(node);
   return [
-    `<li class="${getNodeClasses({ selected, matched, dimmed, related, status })}" data-node-id="${escapeAttr(node.id)}" data-flow-action="select-node">`,
-    '<button type="button" class="flow-node__button">',
+    `<li class="${getNodeClasses({ selected, matched, dimmed, related, status })}" data-node-id="${escapeAttr(node.id)}" data-flow-node-x="${escapeAttr(position.x)}" data-flow-node-y="${escapeAttr(position.y)}">`,
+    renderNodePorts(node, ports.inputs, 'input', options),
+    `<button type="button" class="flow-node__button" data-flow-action="select-node" data-node-id="${escapeAttr(node.id)}">`,
     '<span class="flow-node__index">',
     escapeHTML(index + 1),
     '</span>',
@@ -337,7 +342,51 @@ export function renderNodeCard(node, index, options = {}, nodeState = null, node
     '</span>',
     `<span class="flow-badge flow-badge--${escapeAttr(node.risk || 'low')}">${escapeHTML(node.risk || 'low')}</span>`,
     '</button>',
+    renderNodePorts(node, ports.outputs, 'output', options),
     '</li>'
+  ].join('');
+}
+
+function renderConnectionStatus(options = {}) {
+  const pending = options.pendingConnection;
+  const message = options.connectionMessage || '';
+  if (!pending && !message) {
+    return '';
+  }
+
+  return [
+    '<div class="flow-canvas__connection-status">',
+    pending?.from
+      ? `<span>Connecting from ${escapeHTML(pending.from)}${pending.sourcePort ? ` / ${escapeHTML(pending.sourcePort)}` : ''}</span>`
+      : '',
+    message ? `<span class="flow-canvas__connection-message">${escapeHTML(message)}</span>` : '',
+    '</div>'
+  ].join('');
+}
+
+function renderNodePorts(node, ports, kind, options = {}) {
+  if (!Array.isArray(ports) || ports.length === 0) {
+    return '';
+  }
+
+  const pending = options.pendingConnection;
+  return [
+    `<div class="flow-node__ports flow-node__ports--${escapeAttr(kind)}">`,
+    ...ports.map((port) => {
+      const action = kind === 'output' ? 'start-port-connection' : 'finish-port-connection';
+      const pendingClass = kind === 'output' && pending?.from === node.id && pending?.sourcePort === port.id ? ' is-pending' : '';
+      return [
+        `<button type="button" class="flow-node-port ds-btn ds-btn--tertiary ds-btn--sm${pendingClass}"`,
+        ` data-flow-action="${escapeAttr(action)}"`,
+        ` data-node-id="${escapeAttr(node.id)}"`,
+        ` data-port-id="${escapeAttr(port.id)}"`,
+        ` data-port-kind="${escapeAttr(kind)}"`,
+        ` title="${escapeAttr(port.label || port.id)}">`,
+        `<span>${escapeHTML(port.label || port.id)}</span>`,
+        '</button>'
+      ].join('');
+    }),
+    '</div>'
   ].join('');
 }
 
@@ -538,6 +587,16 @@ function getNodeDiagnostic(nodeState) {
   return {
     durationText: nodeState.durationMs > 0 ? formatFlowDuration(nodeState.durationMs) : '',
     message: truncateFlowText(nodeState.message || nodeState.code || '', 90)
+  };
+}
+
+function normalizeNodePosition(node = {}) {
+  const position = node?.ui?.position ?? {};
+  const x = Number(position.x ?? 0);
+  const y = Number(position.y ?? 0);
+  return {
+    x: Number.isFinite(x) ? Math.round(x) : 0,
+    y: Number.isFinite(y) ? Math.round(y) : 0
   };
 }
 

@@ -70,10 +70,21 @@ export interface FlowNode {
   metadata?: Record<string, unknown>;
 }
 
+export interface FlowPort {
+  id: string;
+  label?: string;
+  kind?: 'input' | 'output';
+  dataType?: 'object' | 'array' | 'string' | 'number' | 'boolean' | 'void' | string;
+  required?: boolean;
+  cardinality?: 'one' | 'many' | 'none' | string;
+}
+
 export interface FlowEdge {
   id?: string;
   from: string;
   to: string;
+  sourcePort?: string;
+  targetPort?: string;
   condition?: 'always' | 'success' | 'failure' | 'skipped' | Record<string, unknown>;
   metadata?: Record<string, unknown>;
 }
@@ -197,12 +208,15 @@ export function duplicateFlow(flow?: Partial<FlowDefinition>, overrides?: Partia
 export function validateFlow(flow: FlowDefinition, options?: { capabilities?: unknown }): FlowValidationResult;
 export function canConnectFlowNodes(flow: FlowDefinition, from?: string, to?: string, options?: {
   edgeId?: string;
+  sourcePort?: string;
+  targetPort?: string;
   condition?: FlowEdge['condition'];
 }): {
   ok: boolean;
   valid: boolean;
   message: string;
 };
+export function getFlowNodePorts(node?: Partial<FlowNode> | null): { inputs: FlowPort[]; outputs: FlowPort[] };
 export interface FlowNodeTypeDefinition {
   type: string;
   label: string;
@@ -1310,6 +1324,8 @@ export function renderFlowCanvasToHTML(flow?: FlowDefinition | null, options?: {
   canvasDensity?: 'comfortable' | 'compact' | string;
   showMinimap?: boolean;
   showCanvasMinimap?: boolean;
+  pendingConnection?: { from?: string; sourcePort?: string } | null;
+  connectionMessage?: string;
 }): string;
 export function createFlowCanvasLayout(nodes?: FlowNode[], edges?: FlowEdge[]): {
   layers: Array<Array<{ node: FlowNode; index: number }>>;

@@ -1,5 +1,5 @@
 import { flowToPlan } from '../flow-to-plan.js';
-import { validateFlow } from '../flow-validation.js';
+import { getFlowNodePorts, validateFlow } from '../flow-validation.js';
 import { FLOW_RISK_LEVELS, FLOW_STATUS } from '../node-types.js';
 import { escapeAttr, escapeHTML, on, resolveTarget, setHTML } from './dom.js';
 import { getFlowExecutionTrace, getFlowNodeMatches, groupFlowCanvasNodes, normalizeFlowCanvasViewport, renderFlowCanvasToHTML } from './FlowCanvas.js';
@@ -212,6 +212,8 @@ function renderEdgeList(edges, state) {
 }
 
 function renderEdgeForm(edge, nodes) {
+  const fromNode = nodes.find((node) => node.id === edge.from);
+  const toNode = nodes.find((node) => node.id === edge.to);
   return [
     '<div class="flow-edge-form">',
     '<div class="flow-inspector__actions">',
@@ -226,10 +228,29 @@ function renderEdgeForm(edge, nodes) {
     `<select class="ds-select" data-flow-edge-field="to">${renderNodeOptions(nodes, edge.to)}</select>`,
     '</label>',
     '<label class="flow-field">',
+    '<span>Source port</span>',
+    `<select class="ds-select" data-flow-edge-field="sourcePort">${renderPortOptions(getFlowNodePorts(fromNode).outputs, edge.sourcePort)}</select>`,
+    '</label>',
+    '<label class="flow-field">',
+    '<span>Target port</span>',
+    `<select class="ds-select" data-flow-edge-field="targetPort">${renderPortOptions(getFlowNodePorts(toNode).inputs, edge.targetPort)}</select>`,
+    '</label>',
+    '<label class="flow-field">',
     '<span>Condition</span>',
     `<select class="ds-select" data-flow-edge-field="condition">${renderConditionOptions(edge.condition)}</select>`,
     '</label>',
     '</div>'
+  ].join('');
+}
+
+function renderPortOptions(ports, value = '') {
+  return [
+    '<option value="">Default port</option>',
+    ...ports.map((port) => [
+      `<option value="${escapeAttr(port.id)}"${port.id === value ? ' selected' : ''}>`,
+      escapeHTML(port.label || port.id),
+      '</option>'
+    ].join(''))
   ].join('');
 }
 

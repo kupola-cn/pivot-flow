@@ -51,6 +51,8 @@ export function createFlowEdge(input = {}) {
     id: input.id ?? createId('edge'),
     from: input.from ?? '',
     to: input.to ?? '',
+    sourcePort: input.sourcePort ?? '',
+    targetPort: input.targetPort ?? '',
     condition: input.condition ?? 'success',
     metadata: input.metadata ?? {}
   };

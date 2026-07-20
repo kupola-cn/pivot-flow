@@ -389,6 +389,24 @@
   min-width: 0;
 }
 
+.flow-canvas__connection-status {
+  align-items: center;
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-brand);
+  border-radius: var(--radius-4);
+  color: var(--text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--body-xs-font-size);
+  gap: var(--spacer-8);
+  margin-bottom: var(--spacer-12);
+  padding: var(--spacer-8);
+}
+
+.flow-canvas__connection-message {
+  color: var(--status-error-default);
+}
+
 .flow-canvas__diagnostic {
   background: var(--bg-overlay-l1);
   border: 1px solid var(--border-neutral-l1);
@@ -738,6 +756,8 @@
 }
 
 .flow-node {
+  display: grid;
+  gap: var(--spacer-6);
   min-width: 0;
   position: relative;
 }
@@ -779,6 +799,35 @@
 .flow-node__meta {
   flex-wrap: wrap;
   margin-top: var(--spacer-4);
+}
+
+.flow-node__ports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacer-4);
+}
+
+.flow-node__ports--input {
+  justify-content: flex-start;
+}
+
+.flow-node__ports--output {
+  justify-content: flex-end;
+}
+
+.flow-node-port {
+  max-width: 100%;
+}
+
+.flow-node-port span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flow-node-port.is-pending {
+  border-color: var(--border-brand);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--border-brand) 28%, transparent);
 }
 
 .flow-node--executed .flow-node__button {

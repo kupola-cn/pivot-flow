@@ -51,6 +51,8 @@ export function FlowManager(options = {}) {
     canvasDensity: 'comfortable',
     showCanvasMinimap: false,
     collapsedCanvasGroups: [],
+    pendingConnection: null,
+    connectionMessage: '',
     listKeyword: '',
     listStatus: '',
     listRisk: '',
@@ -747,7 +749,7 @@ export function FlowManager(options = {}) {
     }
   };
 
-  const addNodeToSelected = (nodeType) => {
+  const addNodeToSelected = (nodeType, point = null) => {
     const flow = getSelectedFlow(state);
     if (!flow || !nodeType) {
       return;
@@ -757,13 +759,19 @@ export function FlowManager(options = {}) {
       type: nodeType,
       label: nodeType,
       capability: getDefaultCapabilityForNodeType(nodeType),
-      risk: 'low'
+      risk: 'low',
+      ui: point
+        ? { position: normalizeCanvasPoint(point) }
+        : {}
     });
     flow.nodes = [...(flow.nodes ?? []), node];
     state.selectedNodeId = node.id;
     state.selectedEdgeId = '';
+    state.pendingConnection = null;
+    state.connectionMessage = point ? `Added ${nodeType} to canvas.` : '';
     state.preview = null;
     state.result = null;
+    state.error = '';
     render();
   };
 
@@ -780,6 +788,8 @@ export function FlowManager(options = {}) {
     state.preview = null;
     state.result = null;
     state.error = '';
+    state.pendingConnection = null;
+    state.connectionMessage = '';
     render();
   };
 
@@ -800,6 +810,7 @@ export function FlowManager(options = {}) {
     state.preview = null;
     state.result = null;
     state.error = '';
+    state.connectionMessage = '';
     render();
   };
 
@@ -821,13 +832,88 @@ export function FlowManager(options = {}) {
       render();
       return;
     }
+    const connection = canConnectFlowNodes(flow, from, to);
     const edge = createFlowEdge({ from, to, condition: 'success' });
     flow.edges = [...(flow.edges ?? []), edge];
     state.selectedEdgeId = edge.id;
     state.preview = null;
     state.result = null;
     state.error = '';
+    state.connectionMessage = connection.message;
     render();
+  };
+
+  const connectSelectedPorts = (from, to, sourcePort = '', targetPort = '') => {
+    const flow = getSelectedFlow(state);
+    if (!flow) {
+      return;
+    }
+
+    const connection = canConnectFlowNodes(flow, from, to, {
+      sourcePort,
+      targetPort
+    });
+    if (!connection.ok) {
+      state.connectionMessage = connection.message;
+      state.error = connection.message;
+      render();
+      return;
+    }
+
+    const edge = createFlowEdge({
+      from,
+      to,
+      sourcePort,
+      targetPort,
+      condition: 'success'
+    });
+    flow.edges = [...(flow.edges ?? []), edge];
+    state.selectedNodeId = to;
+    state.selectedEdgeId = edge.id;
+    state.pendingConnection = null;
+    state.connectionMessage = connection.message;
+    state.preview = null;
+    state.result = null;
+    state.error = '';
+    render();
+  };
+
+  const startPortConnection = (nodeId, sourcePort) => {
+    if (!nodeId || !sourcePort) {
+      return;
+    }
+
+    state.pendingConnection = {
+      from: nodeId,
+      sourcePort
+    };
+    state.selectedNodeId = nodeId;
+    state.connectionMessage = 'Select a target input port.';
+    state.error = '';
+    render();
+  };
+
+  const finishPortConnection = (nodeId, targetPort) => {
+    if (!state.pendingConnection?.from) {
+      state.connectionMessage = 'Select an output port before choosing a target input.';
+      state.error = state.connectionMessage;
+      render();
+      return;
+    }
+
+    connectSelectedPorts(state.pendingConnection.from, nodeId, state.pendingConnection.sourcePort, targetPort);
+  };
+
+  const dropNodeOnCanvas = (event, dropzone) => {
+    const nodeType = event.dataTransfer?.getData('application/x-pivot-flow-node')
+      || event.dataTransfer?.getData('text/plain')
+      || '';
+    if (!nodeType) {
+      return;
+    }
+
+    event.preventDefault();
+    addNodeToSelected(nodeType, getCanvasDropPoint(event, dropzone));
   };
 
   const removeSelectedEdge = () => {
@@ -851,17 +937,20 @@ export function FlowManager(options = {}) {
       return;
     }
 
-    if (field === 'from' || field === 'to') {
+    if (field === 'from' || field === 'to' || field === 'sourcePort' || field === 'targetPort') {
       const nextEdge = {
         ...edge,
         [field]: value
       };
       const connection = canConnectFlowNodes(flow, nextEdge.from, nextEdge.to, {
         edgeId: edge.id,
-        condition: nextEdge.condition
+        condition: nextEdge.condition,
+        sourcePort: nextEdge.sourcePort,
+        targetPort: nextEdge.targetPort
       });
       if (!connection.ok) {
         state.error = connection.message;
+        state.connectionMessage = connection.message;
         return;
       }
     }
@@ -870,6 +959,7 @@ export function FlowManager(options = {}) {
     state.preview = null;
     state.result = null;
     state.error = '';
+    state.connectionMessage = '';
   };
 
   const updateSelectedField = (field, value) => {
@@ -1005,6 +1095,8 @@ export function FlowManager(options = {}) {
       state.canvasDensity = 'comfortable';
       state.showCanvasMinimap = false;
       state.collapsedCanvasGroups = [];
+      state.pendingConnection = null;
+      state.connectionMessage = '';
       state.testPrompt = getSelectedFlow(state)?.intent?.examples?.[0] ?? getSelectedFlow(state)?.name ?? '';
       state.testSlotsText = '{}';
       state.testMatch = null;
@@ -1136,6 +1228,30 @@ export function FlowManager(options = {}) {
     }),
     on(target, 'click', '[data-flow-action="add-node"]', (e, el) => {
       addNodeToSelected(el.dataset.nodeType);
+    }),
+    on(target, 'dragstart', '[data-node-type]', (e, el) => {
+      e.dataTransfer?.setData('application/x-pivot-flow-node', el.dataset.nodeType || '');
+      e.dataTransfer?.setData('text/plain', el.dataset.nodeType || '');
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'copy';
+      }
+    }),
+    on(target, 'dragover', '[data-flow-canvas-dropzone]', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'copy';
+      }
+    }),
+    on(target, 'drop', '[data-flow-canvas-dropzone]', (e, el) => {
+      dropNodeOnCanvas(e, el);
+    }),
+    on(target, 'click', '[data-flow-action="start-port-connection"]', (e, el) => {
+      e.stopPropagation();
+      startPortConnection(el.dataset.nodeId, el.dataset.portId);
+    }),
+    on(target, 'click', '[data-flow-action="finish-port-connection"]', (e, el) => {
+      e.stopPropagation();
+      finishPortConnection(el.dataset.nodeId, el.dataset.portId);
     }),
     on(target, 'click', '[data-flow-action="remove-node"]', () => {
       removeSelectedNode();
@@ -1287,6 +1403,8 @@ export function FlowManager(options = {}) {
       state.result = null;
       state.canvasGroupBy = '';
       state.collapsedCanvasGroups = [];
+      state.pendingConnection = null;
+      state.connectionMessage = '';
       await refresh();
     })
   ];
@@ -1327,6 +1445,25 @@ function parseListInput(value) {
     .split(/[\n,，]/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function getCanvasDropPoint(event, dropzone) {
+  const rect = typeof dropzone?.getBoundingClientRect === 'function'
+    ? dropzone.getBoundingClientRect()
+    : { left: 0, top: 0 };
+  return normalizeCanvasPoint({
+    x: Number(event.clientX ?? 0) - Number(rect.left ?? 0),
+    y: Number(event.clientY ?? 0) - Number(rect.top ?? 0)
+  });
+}
+
+function normalizeCanvasPoint(point = {}) {
+  const x = Number(point.x ?? 0);
+  const y = Number(point.y ?? 0);
+  return {
+    x: Math.max(0, Math.round(Number.isFinite(x) ? x : 0)),
+    y: Math.max(0, Math.round(Number.isFinite(y) ? y : 0))
+  };
 }
 
 function normalizeParamFieldValue(value, inputType, paramType) {

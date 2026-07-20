@@ -116,6 +116,11 @@ export function validateFlow(flow, options = {}) {
     if (!isKnownEdgeCondition(edge.condition)) {
       errors.push(`Unknown flow edge condition: ${String(edge.condition)}`);
     }
+
+    const portValidation = validateEdgePorts(nodeById.get(edge.from), nodeById.get(edge.to), edge);
+    if (!portValidation.ok) {
+      errors.push(portValidation.message);
+    }
   }
 
   if (hasCycle(flow)) {
@@ -165,6 +170,7 @@ export function createFlowValidationResult(errors = [], warnings = []) {
 export function canConnectFlowNodes(flow, from, to, options = {}) {
   const nodes = Array.isArray(flow?.nodes) ? flow.nodes : [];
   const edges = Array.isArray(flow?.edges) ? flow.edges : [];
+  const nodeById = new Map(nodes.map((node) => [node.id, node]));
   const nodeIds = new Set(nodes.map((node) => node.id));
   const fromId = String(from || '').trim();
   const toId = String(to || '').trim();
@@ -178,6 +184,14 @@ export function canConnectFlowNodes(flow, from, to, options = {}) {
   }
   if (fromId === toId) {
     return createConnectionResult(false, `Flow edge cannot reference the same node: ${fromId}.`);
+  }
+
+  const portValidation = validateEdgePorts(nodeById.get(fromId), nodeById.get(toId), {
+    sourcePort: options.sourcePort,
+    targetPort: options.targetPort
+  });
+  if (!portValidation.ok) {
+    return createConnectionResult(false, portValidation.message);
   }
 
   const duplicate = edges.find((edge) => edge.from === fromId && edge.to === toId && (!edgeId || edge.id !== edgeId));
@@ -194,6 +208,111 @@ export function canConnectFlowNodes(flow, from, to, options = {}) {
   }
 
   return createConnectionResult(true, `Connection is valid: ${fromId} -> ${toId}.`);
+}
+
+export function getFlowNodePorts(node = {}) {
+  const explicitInputs = normalizeFlowPorts(node?.ports?.inputs, 'input');
+  const explicitOutputs = normalizeFlowPorts(node?.ports?.outputs, 'output');
+  const defaults = DEFAULT_FLOW_NODE_PORTS[node?.type] ?? DEFAULT_FLOW_NODE_PORTS.default;
+
+  return {
+    inputs: explicitInputs.length > 0 ? explicitInputs : defaults.inputs,
+    outputs: explicitOutputs.length > 0 ? explicitOutputs : defaults.outputs
+  };
+}
+
+const DEFAULT_FLOW_NODE_PORTS = Object.freeze({
+  [FLOW_NODE_TYPES.DATA_QUERY]: freezePorts({
+    inputs: [{ id: 'input.query', label: 'Query', kind: 'input', dataType: 'object' }],
+    outputs: [
+      { id: 'output.records', label: 'Records', kind: 'output', dataType: 'array' },
+      { id: 'output.empty', label: 'Empty', kind: 'output', dataType: 'void' },
+      { id: 'output.error', label: 'Error', kind: 'output', dataType: 'object' }
+    ]
+  }),
+  [FLOW_NODE_TYPES.CAPABILITY_RUN]: freezePorts({
+    inputs: [{ id: 'input.params', label: 'Params', kind: 'input', dataType: 'object' }],
+    outputs: [
+      { id: 'output.result', label: 'Result', kind: 'output', dataType: 'object' },
+      { id: 'output.error', label: 'Error', kind: 'output', dataType: 'object' }
+    ]
+  }),
+  [FLOW_NODE_TYPES.CONDITION]: freezePorts({
+    inputs: [{ id: 'input.value', label: 'Value', kind: 'input', dataType: 'object' }],
+    outputs: [
+      { id: 'output.true', label: 'True', kind: 'output', dataType: 'boolean' },
+      { id: 'output.false', label: 'False', kind: 'output', dataType: 'boolean' }
+    ]
+  }),
+  [FLOW_NODE_TYPES.HUMAN_SELECT]: freezePorts({
+    inputs: [{ id: 'input.payload', label: 'Payload', kind: 'input', dataType: 'array' }],
+    outputs: [
+      { id: 'output.selected', label: 'Selected', kind: 'output', dataType: 'object' },
+      { id: 'output.cancelled', label: 'Cancelled', kind: 'output', dataType: 'void' }
+    ]
+  }),
+  [FLOW_NODE_TYPES.UI_DISPLAY]: freezePorts({
+    inputs: [{ id: 'input.data', label: 'Data', kind: 'input', dataType: 'object' }],
+    outputs: [{ id: 'output.done', label: 'Done', kind: 'output', dataType: 'void' }]
+  }),
+  [FLOW_NODE_TYPES.CONFIRM]: freezePorts({
+    inputs: [{ id: 'input.payload', label: 'Payload', kind: 'input', dataType: 'object' }],
+    outputs: [
+      { id: 'output.confirmed', label: 'Confirmed', kind: 'output', dataType: 'object' },
+      { id: 'output.rejected', label: 'Rejected', kind: 'output', dataType: 'void' }
+    ]
+  }),
+  default: freezePorts({
+    inputs: [{ id: 'input', label: 'Input', kind: 'input', dataType: 'object' }],
+    outputs: [{ id: 'output', label: 'Output', kind: 'output', dataType: 'object' }]
+  })
+});
+
+function validateEdgePorts(fromNode, toNode, edge = {}) {
+  const sourcePort = String(edge.sourcePort || '').trim();
+  const targetPort = String(edge.targetPort || '').trim();
+
+  if (sourcePort && fromNode) {
+    const outputPorts = getFlowNodePorts(fromNode).outputs;
+    if (!outputPorts.some((port) => port.id === sourcePort)) {
+      return createConnectionResult(false, `Unknown source port ${sourcePort} on node ${fromNode.id}.`);
+    }
+  }
+
+  if (targetPort && toNode) {
+    const inputPorts = getFlowNodePorts(toNode).inputs;
+    if (!inputPorts.some((port) => port.id === targetPort)) {
+      return createConnectionResult(false, `Unknown target port ${targetPort} on node ${toNode.id}.`);
+    }
+  }
+
+  return createConnectionResult(true, 'Ports are valid.');
+}
+
+function normalizeFlowPorts(value, kind) {
+  const list = Array.isArray(value)
+    ? value
+    : isPlainObject(value)
+      ? Object.entries(value).map(([id, port]) => ({ id, ...(isPlainObject(port) ? port : {}) }))
+      : [];
+
+  return list
+    .map((port) => ({
+      id: String(port?.id || '').trim(),
+      label: String(port?.label || port?.id || '').trim(),
+      kind,
+      dataType: port?.dataType || 'object',
+      required: Boolean(port?.required),
+      cardinality: port?.cardinality || 'one'
+    }))
+    .filter((port) => port.id);
+}
+
+function freezePorts(ports) {
+  return Object.freeze({
+    inputs: Object.freeze(ports.inputs.map((port) => Object.freeze(port))),
+    outputs: Object.freeze(ports.outputs.map((port) => Object.freeze(port)))
+  });
 }
 
 function createConnectionResult(ok, message) {

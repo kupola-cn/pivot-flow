@@ -8,7 +8,7 @@ export function renderNodePaletteToHTML(nodes = listFlowNodeTypeDefinitions()) {
     '<ol class="flow-palette__list">',
     ...nodes.map((node) => [
       '<li class="flow-palette__item">',
-      `<button type="button" class="flow-node-type" data-flow-action="add-node" data-node-type="${escapeAttr(node.type)}">`,
+      `<button type="button" class="flow-node-type" draggable="true" data-flow-action="add-node" data-node-type="${escapeAttr(node.type)}">`,
       `<span>${escapeHTML(node.label)}</span>`,
       `<small>${escapeHTML(node.description)}</small>`,
       '</button>',

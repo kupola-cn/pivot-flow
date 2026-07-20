@@ -47,7 +47,13 @@ export function connectFlowCanvasNodes(flow = {}, from = '', to = '', options = 
   if (!connection.ok) {
     return { ok: false, message: connection.message, flow };
   }
-  const edge = createFlowEdge({ from, to, condition: options.condition ?? 'success' });
+  const edge = createFlowEdge({
+    from,
+    to,
+    sourcePort: options.sourcePort ?? '',
+    targetPort: options.targetPort ?? '',
+    condition: options.condition ?? 'success'
+  });
   return { ok: true, message: connection.message, edge, flow: { ...flow, edges: [...(flow.edges ?? []), edge] } };
 }
 
@@ -58,4 +64,3 @@ function normalizePoint(point = {}) {
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, Number.isFinite(value) ? value : 1));
 }
-
