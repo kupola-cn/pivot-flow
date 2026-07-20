@@ -3591,6 +3591,10 @@
 }
 
 .flow-workbench__result-toggle {
+  background: var(--bg-base-default);
+  border: 1px solid var(--border-neutral-l1);
+  box-shadow: var(--shadow-sm);
+  color: var(--text-default);
   bottom: var(--spacer-12);
   left: var(--spacer-12);
 }
@@ -3655,7 +3659,8 @@
 
 @media (max-width: 920px) {
   .flow-workbench {
-    --flow-workbench-mobile-bottom-reserve: calc(72px + env(safe-area-inset-bottom, 0px));
+    --flow-workbench-mobile-bottom-reserve: calc(56px + env(safe-area-inset-bottom, 0px));
+    min-height: 0;
   }
 
   .flow-workbench__topbar,
