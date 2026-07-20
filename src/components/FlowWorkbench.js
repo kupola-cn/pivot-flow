@@ -283,6 +283,8 @@ function renderCanvasToolbar(state, options, labels) {
     ].join('')).join(''),
     '</div>',
     `<span class="ds-badge ds-badge--success">${escapeHTML(state.connectionDraft ? labels.connecting : labels.ready)}</span>`,
+    '</div>',
+    '<div class="flow-workbench__zoom-toolbar">',
     '<div class="flow-workbench__zoom-controls">',
     renderToolbarButton('zoom-out', '-', 'secondary'),
     '<select class="ds-select ds-select--sm flow-workbench__zoom-select" data-flow-workbench-zoom aria-label="Zoom">',

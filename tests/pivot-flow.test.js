@@ -1785,7 +1785,7 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   assert.equal(ui.renderFlowWorkbenchToHTML, renderFlowWorkbenchToHTML);
   assert.match(target.innerHTML, /flow-designer/);
   assert.match(workbenchTarget.innerHTML, /flow-workbench/);
-  assert.match(renderFlowWorkbenchToHTML({
+  const defaultWorkbenchHTML = renderFlowWorkbenchToHTML({
     flow: createFlow({
       id: 'default-workbench-flow',
       name: 'Default workbench flow',
@@ -1799,7 +1799,11 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
     resultOpen: false,
     pan: { x: 0, y: 0 },
     zoom: 1
-  }), /data-node-template="data\.query"/);
+  });
+  assert.match(defaultWorkbenchHTML, /data-node-template="data\.query"/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__canvas-toolbar/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__zoom-toolbar/);
+  assert.equal(defaultWorkbenchHTML.indexOf('flow-workbench__canvas-toolbar') < defaultWorkbenchHTML.indexOf('flow-workbench__zoom-toolbar'), true);
   const actionsOnlyHTML = renderFlowWorkbenchToHTML({
     flow: createFlow({
       id: 'actions-only-workbench-flow',

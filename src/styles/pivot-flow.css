@@ -3327,6 +3327,7 @@
 
 .flow-workbench__topbar,
 .flow-workbench__canvas-toolbar,
+.flow-workbench__zoom-toolbar,
 .flow-workbench__palette,
 .flow-workbench__inspector,
 .flow-workbench__result,
@@ -3349,8 +3350,11 @@
 }
 
 .flow-workbench__topbar--actions-only {
-  left: auto;
+  left: 50%;
+  max-width: calc(100% - var(--spacer-24));
   padding: var(--spacer-6);
+  right: auto;
+  transform: translateX(-50%);
   width: auto;
 }
 
@@ -3382,6 +3386,21 @@
   left: var(--spacer-12);
   min-height: var(--flow-workbench-toolbar-height);
   padding: 0 var(--spacer-12);
+  top: 78px;
+}
+
+.flow-workbench__zoom-toolbar {
+  align-items: center;
+  background: var(--bg-base-default);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  box-sizing: border-box;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  min-height: var(--flow-workbench-toolbar-height);
+  padding: 0 var(--spacer-12);
+  right: var(--spacer-12);
+  top: 78px;
 }
 
 .flow-workbench__palette {
