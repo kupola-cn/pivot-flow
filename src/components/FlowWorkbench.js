@@ -1,3 +1,4 @@
+import { Tooltip } from '@kupola/kupola/components/tooltip';
 import { cloneFlow, createFlowNode } from '../flow-schema.js';
 import { flowToPlan } from '../flow-to-plan.js';
 import { canConnectFlowNodes, getFlowNodePorts } from '../flow-validation.js';
@@ -89,6 +90,7 @@ export function FlowWorkbench(options = {}) {
   const cleanups = [];
 
   const render = () => {
+    hidePaletteTooltip(state);
     setHTML(target, renderFlowWorkbenchToHTML(state, options));
     refreshCanvasEdges(target, state);
   };
@@ -248,7 +250,7 @@ export function FlowWorkbench(options = {}) {
     if (!item || !target.contains(item)) {
       return;
     }
-    showPaletteTooltip(target, item);
+    showPaletteTooltip(state, item);
   };
 
   const handlePaletteTooltipHide = (event) => {
@@ -256,7 +258,7 @@ export function FlowWorkbench(options = {}) {
     if (item && item.contains?.(event.relatedTarget)) {
       return;
     }
-    hidePaletteTooltip(target);
+    hidePaletteTooltip(state);
   };
 
   target.addEventListener('click', handleClick);
@@ -288,6 +290,7 @@ export function FlowWorkbench(options = {}) {
     refresh,
     destroy() {
       cleanups.forEach((cleanup) => cleanup());
+      hidePaletteTooltip(state);
       target.innerHTML = '';
     }
   };
@@ -339,7 +342,6 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
     `<div class="flow-workbench__log">${state.logs.map(renderLogEntry).join('')}</div>`,
     '</section>',
     ].join('') : '',
-    state.paletteOpen && !state.selectedNodeId ? '<div class="flow-workbench__palette-tooltip" role="tooltip" hidden></div>' : '',
     renderNodeHelpModal(state, options, labels),
     '</section>'
   ].join('');
@@ -363,7 +365,9 @@ function createWorkbenchState(options) {
     connectionDraft: null,
     connectingFrom: '',
     draggingNodeId: '',
-    dragOffset: null
+    dragOffset: null,
+    paletteTooltip: null,
+    paletteTooltipTarget: null
   };
 }
 
@@ -602,40 +606,40 @@ function restorePaletteSearchFocus(target, value) {
   }
 }
 
-function showPaletteTooltip(target, item) {
+function showPaletteTooltip(state, item) {
   const description = item.dataset.flowWorkbenchPaletteDescription || '';
-  const tooltip = target.querySelector?.('.flow-workbench__palette-tooltip');
-  if (!tooltip || !description) {
+  if (!description || typeof document === 'undefined') {
     return;
   }
-  tooltip.textContent = description;
-  tooltip.hidden = false;
-  positionPaletteTooltip(tooltip, item);
-}
-
-function hidePaletteTooltip(target) {
-  const tooltip = target.querySelector?.('.flow-workbench__palette-tooltip');
-  if (tooltip) {
-    tooltip.hidden = true;
+  if (state.paletteTooltip && state.paletteTooltipTarget === item) {
+    return;
   }
+
+  hidePaletteTooltip(state);
+  state.paletteTooltipTarget = item;
+  state.paletteTooltip = Tooltip({
+    target: item,
+    content: description,
+    placement: getPaletteTooltipPlacement(item),
+    trigger: 'manual'
+  });
+  state.paletteTooltip.show();
 }
 
-function positionPaletteTooltip(tooltip, item) {
+function hidePaletteTooltip(state) {
+  state.paletteTooltip?.destroy?.();
+  state.paletteTooltip = null;
+  state.paletteTooltipTarget = null;
+}
+
+function getPaletteTooltipPlacement(item) {
   const rect = item.getBoundingClientRect?.();
   if (!rect) {
-    return;
+    return 'right';
   }
-  const gap = 12;
   const viewportWidth = globalThis.window?.innerWidth || 0;
   const placeRight = viewportWidth > 0 && rect.left < 300 && rect.right + 300 < viewportWidth;
-  tooltip.style.top = `${rect.top + rect.height / 2}px`;
-  if (placeRight) {
-    tooltip.style.left = `${rect.right + gap}px`;
-    tooltip.style.transform = 'translateY(-50%)';
-  } else {
-    tooltip.style.left = `${Math.max(gap, rect.left - gap)}px`;
-    tooltip.style.transform = 'translate(-100%, -50%)';
-  }
+  return placeRight ? 'right' : 'left';
 }
 
 function renderCanvas(state, options) {

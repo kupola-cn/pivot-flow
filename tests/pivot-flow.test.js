@@ -1846,6 +1846,7 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   assert.match(defaultWorkbenchHTML, /flow-workbench__palette-grid/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__palette-item/);
   assert.match(defaultWorkbenchHTML, /data-flow-workbench-palette-description="Query records from a business resource\."/);
+  assert.doesNotMatch(defaultWorkbenchHTML, /flow-workbench__palette-tooltip/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__canvas-toolbar/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__status flow-workbench__status--ready/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__status-dot/);

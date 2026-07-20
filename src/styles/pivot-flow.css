@@ -3749,27 +3749,6 @@
   white-space: nowrap;
 }
 
-.flow-workbench__palette-tooltip {
-  background: var(--flow-workbench-tooltip-bg, color-mix(in srgb, var(--text-default) 88%, var(--bg-base-default)));
-  border-radius: var(--radius-4);
-  box-shadow: var(--shadow-md);
-  color: var(--flow-workbench-tooltip-text, var(--bg-base-default));
-  font-size: var(--body-sm-font-size);
-  font-weight: 700;
-  line-height: 1.55;
-  max-width: 260px;
-  padding: var(--spacer-8) var(--spacer-10);
-  pointer-events: none;
-  position: fixed;
-  white-space: normal;
-  width: max-content;
-  z-index: 80;
-}
-
-.flow-workbench__palette-tooltip[hidden] {
-  display: none;
-}
-
 .flow-workbench__inspector {
   background: var(--bg-base-default);
   border: 1px solid var(--border-neutral-l1);
