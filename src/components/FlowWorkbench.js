@@ -1,5 +1,6 @@
 import { cloneFlow, createFlowNode } from '../flow-schema.js';
 import { flowToPlan } from '../flow-to-plan.js';
+import { canConnectFlowNodes, getFlowNodePorts } from '../flow-validation.js';
 import { createDefaultFlowWorkbenchNodeTypes, getDefaultCapabilityForNodeType } from '../node-types.js';
 import { escapeAttr, escapeHTML, resolveTarget, setHTML } from './dom.js';
 
@@ -103,7 +104,7 @@ export function FlowWorkbench(options = {}) {
   const handleChange = (event) => {
     const input = event.target;
     if (input.dataset.flowWorkbenchConnectTo) {
-      connectNodes(state, api, state.selectedNodeId, input.value);
+      connectNodes(state, api, state.selectedNodeId, input.value, getDefaultConnectionPorts(state, state.selectedNodeId, input.value));
       render();
     } else if (input.dataset.flowWorkbenchZoom !== undefined) {
       updateZoom(state, input.value);
@@ -356,6 +357,9 @@ function renderNode(state, options, node) {
   const position = node.ui?.position || { x: 80, y: 80 };
   const selected = node.id === state.selectedNodeId ? ' is-selected' : '';
   const dragging = node.id === state.draggingNodeId ? ' is-dragging' : '';
+  const ports = getFlowNodePorts(node);
+  const inputPort = ports.inputs[0] || { id: 'input', label: 'Input' };
+  const outputPort = ports.outputs[0] || { id: 'output', label: 'Output' };
   const rows = getNodeContentRows(options, node).map(([label, value]) => [
     '<div class="flow-workbench__node-row">',
     `<span>${escapeHTML(label)}:</span>`,
@@ -365,8 +369,8 @@ function renderNode(state, options, node) {
 
   return [
     `<article class="flow-workbench__node${selected}${dragging}" style="left:${position.x}px;top:${position.y}px" data-flow-workbench-action="select-node" data-node-id="${escapeAttr(node.id)}">`,
-    `<button type="button" class="flow-workbench__port flow-workbench__port--in" data-node-id="${escapeAttr(node.id)}" data-port-kind="input" aria-label="${escapeAttr(node.label || node.id)} input"></button>`,
-    `<button type="button" class="flow-workbench__port flow-workbench__port--out" data-node-id="${escapeAttr(node.id)}" data-port-kind="output" aria-label="${escapeAttr(node.label || node.id)} output"></button>`,
+    `<button type="button" class="flow-workbench__port flow-workbench__port--in" data-node-id="${escapeAttr(node.id)}" data-port-id="${escapeAttr(inputPort.id)}" data-port-kind="input" aria-label="${escapeAttr(`${node.label || node.id} ${inputPort.label || inputPort.id}`)}"></button>`,
+    `<button type="button" class="flow-workbench__port flow-workbench__port--out" data-node-id="${escapeAttr(node.id)}" data-port-id="${escapeAttr(outputPort.id)}" data-port-kind="output" aria-label="${escapeAttr(`${node.label || node.id} ${outputPort.label || outputPort.id}`)}"></button>`,
     '<div class="flow-workbench__node-title">',
     `<strong>${escapeHTML(node.label || node.id)}</strong>`,
     `<span class="flow-workbench__node-type">${escapeHTML(renderNodeType(options, node.type))}</span>`,
@@ -617,6 +621,7 @@ function startPortConnection(event, target, state, api, render, portEl) {
   state.connectingFrom = nodeId;
   state.connectionDraft = {
     from: nodeId,
+    sourcePort: portEl.dataset.portId || '',
     point: getCanvasPoint(target, event, state)
   };
   render();
@@ -634,9 +639,14 @@ function startPortConnection(event, target, state, api, render, portEl) {
     const element = document.elementFromPoint(upEvent.clientX, upEvent.clientY);
     const targetPort = element?.closest?.('.flow-workbench__port[data-port-kind="input"]');
     const toNode = targetPort?.dataset.nodeId || findInputNodeAtPoint(state, getCanvasPoint(target, upEvent, state), nodeId)?.id;
+    const connection = toNode
+      ? connectNodes(state, api, nodeId, toNode, {
+        sourcePort: state.connectionDraft.sourcePort,
+        targetPort: targetPort?.dataset.portId || getDefaultConnectionPorts(state, nodeId, toNode).targetPort
+      })
+      : null;
     if (toNode) {
-      connectNodes(state, api, nodeId, toNode);
-      state.selectedNodeId = toNode;
+      state.selectedNodeId = connection?.ok ? toNode : '';
     }
     state.connectionDraft = null;
     state.connectingFrom = '';
@@ -657,15 +667,35 @@ function refreshCanvasEdges(target, state) {
   edges.innerHTML = state.flow.edges.map((edge) => renderEdge(state, edge)).join('') + renderDraftEdge(state);
 }
 
-function connectNodes(state, api, from, to) {
-  if (!from || !to || from === to) {
-    return;
+function connectNodes(state, api, from, to, options = {}) {
+  const connection = canConnectFlowNodes(state.flow, from, to, {
+    ...options,
+    condition: options.condition || 'success'
+  });
+  if (!connection.ok) {
+    api.writeLog('edge.blocked', connection.message);
+    return connection;
   }
-  const exists = state.flow.edges.some((edge) => edge.from === from && edge.to === to);
-  if (!exists) {
-    state.flow.edges = [...state.flow.edges, { id: `edge:${from}:${to}:${Date.now()}`, from, to, condition: 'success' }];
-    api.writeLog('edge.add', `${getNode(state, from)?.label || from} -> ${getNode(state, to)?.label || to}`);
-  }
+
+  state.flow.edges = [...state.flow.edges, {
+    id: `edge:${from}:${to}:${Date.now()}`,
+    from,
+    to,
+    sourcePort: options.sourcePort || '',
+    targetPort: options.targetPort || '',
+    condition: options.condition || 'success'
+  }];
+  api.writeLog('edge.add', `${getNode(state, from)?.label || from} -> ${getNode(state, to)?.label || to}`);
+  return connection;
+}
+
+function getDefaultConnectionPorts(state, from, to) {
+  const fromNode = getNode(state, from);
+  const toNode = getNode(state, to);
+  return {
+    sourcePort: getFlowNodePorts(fromNode).outputs[0]?.id || '',
+    targetPort: getFlowNodePorts(toNode).inputs[0]?.id || ''
+  };
 }
 
 function getCanvasPoint(target, event, state) {

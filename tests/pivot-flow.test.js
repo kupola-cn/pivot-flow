@@ -1838,6 +1838,25 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   });
   assert.match(exclusivePanelHTML, /flow-workbench__inspector/);
   assert.doesNotMatch(exclusivePanelHTML, /flow-workbench__palette/);
+  const portHTML = renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'workbench-port-flow',
+      name: 'Workbench port flow',
+      nodes: [
+        { id: 'query-users', type: 'data.query', capability: 'users.query', ui: { position: { x: 80, y: 80 } } }
+      ]
+    }),
+    selectedNodeId: '',
+    prompt: '',
+    resultHTML: '',
+    logs: [],
+    paletteOpen: false,
+    resultOpen: false,
+    pan: { x: 0, y: 0 },
+    zoom: 1
+  });
+  assert.match(portHTML, /data-port-id="input\.query"/);
+  assert.match(portHTML, /data-port-id="output\.records"/);
 
   designer.destroy();
   workbench.destroy();
