@@ -8,6 +8,30 @@ const DEFAULT_NODE_WIDTH = 238;
 const DEFAULT_NODE_HEIGHT = 132;
 const DEFAULT_BOARD_WIDTH = 2200;
 const DEFAULT_BOARD_HEIGHT = 1400;
+const NODE_ICON_CLASS_MAP = Object.freeze({
+  'intent.input': 'parameter',
+  'api.call': 'capability',
+  'capability.run': 'capability',
+  'data.query': 'query',
+  'data.create': 'create',
+  'data.update': 'update',
+  'data.delete': 'delete',
+  condition: 'condition',
+  confirm: 'confirm',
+  transform: 'transform',
+  loop: 'loop',
+  'human.select': 'select',
+  'ui.display': 'display',
+  'output.return': 'output',
+  'subflow.run': 'subflow',
+  'message.show': 'message',
+  'route.navigate': 'navigate',
+  'table.refresh': 'refresh',
+  'form.open': 'form',
+  'drawer.open': 'drawer',
+  'modal.open': 'modal',
+  'audit.mark': 'audit'
+});
 
 export function FlowWorkbench(options = {}) {
   const target = resolveTarget(options.target);
@@ -75,11 +99,21 @@ export function FlowWorkbench(options = {}) {
       state.paletteOpen = false;
     } else if (action === 'remove-node') {
       removeSelectedNode(state, api);
+    } else if (action === 'copy-node') {
+      copyNode(state, api, actionEl.dataset.nodeId);
+      state.paletteOpen = false;
+    } else if (action === 'remove-node-by-id') {
+      removeNode(state, api, actionEl.dataset.nodeId);
+    } else if (action === 'show-node-help') {
+      state.helpNodeId = actionEl.dataset.nodeId || '';
+    } else if (action === 'close-node-help') {
+      state.helpNodeId = '';
     } else if (action === 'reset') {
       state.flow = cloneFlow(options.flow);
       state.selectedNodeId = '';
       state.connectionDraft = null;
       state.draggingNodeId = '';
+      state.helpNodeId = '';
       state.pan = createPoint(options.pan, { x: 0, y: 0 });
       state.zoom = normalizeZoom(options.zoom);
       api.writeLog('ready', options.resetMessage || 'Flow was reset.');
@@ -204,6 +238,7 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
     `<div class="flow-workbench__log">${state.logs.map(renderLogEntry).join('')}</div>`,
     '</section>',
     ].join('') : '',
+    renderNodeHelpModal(state, options, labels),
     '</section>'
   ].join('');
 }
@@ -218,6 +253,7 @@ function createWorkbenchState(options) {
     logs: [],
     paletteOpen: Boolean(options.paletteOpen),
     resultOpen: Boolean(options.resultOpen),
+    helpNodeId: options.helpNodeId || '',
     pan: createPoint(options.pan, { x: 0, y: 0 }),
     zoom: normalizeZoom(options.zoom),
     connectionDraft: null,
@@ -334,7 +370,9 @@ function renderEdge(state, edge) {
   }
   const a = from.ui?.position || { x: 0, y: 0 };
   const b = to.ui?.position || { x: 0, y: 0 };
-  return `<path class="flow-workbench__edge" d="${escapeAttr(createEdgePath(a.x + DEFAULT_NODE_WIDTH, a.y + DEFAULT_NODE_HEIGHT / 2, b.x, b.y + DEFAULT_NODE_HEIGHT / 2))}"></path>`;
+  const fromPoint = getOutputPortPoint(a);
+  const toPoint = getInputPortPoint(b);
+  return `<path class="flow-workbench__edge" d="${escapeAttr(createEdgePath(fromPoint.x, fromPoint.y, toPoint.x, toPoint.y))}"></path>`;
 }
 
 function renderDraftEdge(state) {
@@ -347,7 +385,16 @@ function renderDraftEdge(state) {
   }
   const position = from.ui?.position || { x: 0, y: 0 };
   const point = state.connectionDraft.point || position;
-  return `<path class="flow-workbench__edge flow-workbench__edge--draft" d="${escapeAttr(createEdgePath(position.x + DEFAULT_NODE_WIDTH, position.y + DEFAULT_NODE_HEIGHT / 2, point.x, point.y))}"></path>`;
+  const fromPoint = getOutputPortPoint(position);
+  return `<path class="flow-workbench__edge flow-workbench__edge--draft" d="${escapeAttr(createEdgePath(fromPoint.x, fromPoint.y, point.x, point.y))}"></path>`;
+}
+
+function getInputPortPoint(position) {
+  return { x: position.x, y: position.y + DEFAULT_NODE_HEIGHT / 2 };
+}
+
+function getOutputPortPoint(position) {
+  return { x: position.x + DEFAULT_NODE_WIDTH, y: position.y + DEFAULT_NODE_HEIGHT / 2 };
 }
 
 function createEdgePath(x1, y1, x2, y2) {
@@ -362,6 +409,7 @@ function renderNode(state, options, node) {
   const ports = getFlowNodePorts(node);
   const inputPort = ports.inputs[0] || { id: 'input', label: 'Input' };
   const outputPort = ports.outputs[0] || { id: 'output', label: 'Output' };
+  const iconClass = getNodeIconClass(node.type);
   const rows = getNodeContentRows(options, node).map(([label, value]) => [
     '<div class="flow-workbench__node-row">',
     `<span>${escapeHTML(label)}:</span>`,
@@ -374,11 +422,73 @@ function renderNode(state, options, node) {
     `<button type="button" class="flow-workbench__port flow-workbench__port--in" data-node-id="${escapeAttr(node.id)}" data-port-id="${escapeAttr(inputPort.id)}" data-port-kind="input" aria-label="${escapeAttr(`${node.label || node.id} ${inputPort.label || inputPort.id}`)}"></button>`,
     `<button type="button" class="flow-workbench__port flow-workbench__port--out" data-node-id="${escapeAttr(node.id)}" data-port-id="${escapeAttr(outputPort.id)}" data-port-kind="output" aria-label="${escapeAttr(`${node.label || node.id} ${outputPort.label || outputPort.id}`)}"></button>`,
     '<div class="flow-workbench__node-title">',
+    '<div class="flow-workbench__node-title-main">',
+    `<span class="flow-workbench__node-icon flow-workbench__node-icon--${escapeAttr(iconClass)}" aria-label="${escapeAttr(renderNodeType(options, node.type))}" title="${escapeAttr(renderNodeType(options, node.type))}"></span>`,
     `<strong>${escapeHTML(node.label || node.id)}</strong>`,
-    `<span class="flow-workbench__node-type">${escapeHTML(renderNodeType(options, node.type))}</span>`,
+    '</div>',
+    '<div class="flow-workbench__node-actions">',
+    renderNodeActionButton('copy-node', node.id, 'copy', 'Copy node'),
+    renderNodeActionButton('remove-node-by-id', node.id, 'delete', 'Delete node'),
+    renderNodeActionButton('show-node-help', node.id, 'help', 'Node help'),
+    '</div>',
     '</div>',
     `<div class="flow-workbench__node-content">${rows}</div>`,
     '</article>'
+  ].join('');
+}
+
+function renderNodeActionButton(action, nodeId, icon, label) {
+  return [
+    `<button type="button" class="flow-workbench__node-action flow-workbench__node-action--${escapeAttr(icon)}" `,
+    `data-flow-workbench-action="${escapeAttr(action)}" data-node-id="${escapeAttr(nodeId)}" `,
+    `aria-label="${escapeAttr(label)}" title="${escapeAttr(label)}"></button>`
+  ].join('');
+}
+
+function getNodeIconClass(type) {
+  return NODE_ICON_CLASS_MAP[type] || 'capability';
+}
+
+function renderNodeHelpModal(state, options, labels) {
+  if (!state.helpNodeId) {
+    return '';
+  }
+  const node = getNode(state, state.helpNodeId);
+  if (!node) {
+    return '';
+  }
+  const definition = getWorkbenchNodeDefinition(options, node);
+  const title = node.label || definition?.nodeLabel || definition?.label || node.id;
+  const description = definition?.help || definition?.description || labels.defaultHelpDescription;
+  const usageRows = [
+    [labels.type || 'Type', renderNodeType(options, node.type)],
+    [labels.capability || 'Capability', node.capability || defaultCapability(node.type) || '-'],
+    [labels.risk || 'Risk', node.risk || 'low'],
+    [labels.params || 'Params JSON', JSON.stringify(node.params || {}, null, 2)]
+  ];
+
+  return [
+    '<div class="ds-modal-container flow-workbench__help-modal-container is-open" role="presentation">',
+    '<button type="button" class="ds-modal-mask is-visible" data-flow-workbench-action="close-node-help" aria-label="Close node help"></button>',
+    '<section class="ds-modal flow-workbench__help-modal" role="dialog" aria-modal="true" aria-labelledby="flowWorkbenchNodeHelpTitle">',
+    '<header class="ds-modal__header">',
+    `<h3 id="flowWorkbenchNodeHelpTitle" class="ds-modal__title">${escapeHTML(title)}</h3>`,
+    '<button type="button" class="ds-modal__close" data-flow-workbench-action="close-node-help" aria-label="Close">×</button>',
+    '</header>',
+    '<div class="ds-modal__body">',
+    `<p class="flow-workbench__help-description">${escapeHTML(description)}</p>`,
+    '<dl class="flow-workbench__help-list">',
+    usageRows.map(([label, value]) => [
+      `<dt>${escapeHTML(label)}</dt>`,
+      `<dd>${escapeHTML(value)}</dd>`
+    ].join('')).join(''),
+    '</dl>',
+    '</div>',
+    '<footer class="ds-modal__footer">',
+    '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-workbench-action="close-node-help">Close</button>',
+    '</footer>',
+    '</section>',
+    '</div>'
   ].join('');
 }
 
@@ -480,10 +590,50 @@ function removeSelectedNode(state, api) {
   if (!id) {
     return;
   }
+  removeNode(state, api, id);
+}
+
+function removeNode(state, api, id) {
+  if (!id || !getNode(state, id)) {
+    return;
+  }
   state.flow.nodes = state.flow.nodes.filter((node) => node.id !== id);
   state.flow.edges = state.flow.edges.filter((edge) => edge.from !== id && edge.to !== id);
-  state.selectedNodeId = state.flow.nodes[0]?.id || '';
+  state.selectedNodeId = state.selectedNodeId === id ? state.flow.nodes[0]?.id || '' : state.selectedNodeId;
+  state.helpNodeId = state.helpNodeId === id ? '' : state.helpNodeId;
   api.writeLog('node.remove', `Removed node: ${id}`);
+}
+
+function copyNode(state, api, id) {
+  const source = getNode(state, id);
+  if (!source) {
+    return;
+  }
+  const copy = clonePlain(source);
+  copy.id = createCopiedNodeId(state, source.id);
+  copy.ui = copy.ui || {};
+  const position = source.ui?.position || { x: 80, y: 80 };
+  copy.ui.position = clampNodePosition({
+    x: position.x + 36,
+    y: position.y + 36
+  });
+  state.flow.nodes = [...state.flow.nodes, copy];
+  state.selectedNodeId = copy.id;
+  state.helpNodeId = '';
+  api.writeLog('node.copy', `Copied node: ${source.id}`);
+}
+
+function createCopiedNodeId(state, sourceId) {
+  const base = `${sourceId}-copy`;
+  const ids = new Set(state.flow.nodes.map((node) => node.id));
+  if (!ids.has(base)) {
+    return base;
+  }
+  let index = 2;
+  while (ids.has(`${base}-${index}`)) {
+    index += 1;
+  }
+  return `${base}-${index}`;
 }
 
 function updateSelectedNode(state, field, value) {
@@ -738,8 +888,7 @@ function findInputNodeAtPoint(state, point, fromNodeId) {
       return false;
     }
     const position = node.ui?.position || { x: 0, y: 0 };
-    const portX = position.x;
-    const portY = position.y + DEFAULT_NODE_HEIGHT / 2;
+    const { x: portX, y: portY } = getInputPortPoint(position);
     return Math.abs(point.x - portX) <= 24 && Math.abs(point.y - portY) <= 24;
   }) || null;
 }
@@ -786,6 +935,17 @@ function getNodeContentRows(options, node) {
     [options.labels?.risk || 'Risk', node.risk || 'low'],
     [options.labels?.params || 'Params', summarizeParams(node.params || {})]
   ];
+}
+
+function getWorkbenchNodeDefinition(options, node) {
+  return getWorkbenchNodeTypes(options).find((item) => {
+    const type = item.type || item[0];
+    const capability = item.capability || '';
+    if (capability && node.capability && capability === node.capability) {
+      return true;
+    }
+    return type === node.type;
+  }) || null;
 }
 
 function summarizeParams(params) {
@@ -843,6 +1003,7 @@ function createLabels(labels = {}) {
     selectTarget: 'Select target',
     deleteNode: 'Delete node',
     result: 'Run result',
+    defaultHelpDescription: 'Configure this node with its capability, risk level, and JSON params, then connect its output port to the next node input port.',
     summary: (nodes, edges) => `${nodes} nodes, ${edges} edges`,
     ...labels
   };

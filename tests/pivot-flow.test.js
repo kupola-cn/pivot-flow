@@ -1861,6 +1861,43 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   });
   assert.match(portHTML, /data-port-id="input\.query"/);
   assert.match(portHTML, /data-port-id="output\.records"/);
+  assert.match(portHTML, /flow-workbench__node-icon--query/);
+  assert.match(portHTML, /data-flow-workbench-action="copy-node"/);
+  assert.match(portHTML, /data-flow-workbench-action="remove-node-by-id"/);
+  assert.match(portHTML, /data-flow-workbench-action="show-node-help"/);
+  assert.doesNotMatch(portHTML, /flow-workbench__node-type/);
+  const helpHTML = renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'workbench-help-flow',
+      name: 'Workbench help flow',
+      nodes: [
+        {
+          id: 'query-users',
+          type: 'data.query',
+          label: 'Query users',
+          capability: 'users.query',
+          params: { filters: [{ field: 'name', operator: 'eq', value: '{{intent.name}}' }] },
+          ui: { position: { x: 80, y: 80 } }
+        }
+      ]
+    }),
+    selectedNodeId: '',
+    helpNodeId: 'query-users',
+    prompt: '',
+    resultHTML: '',
+    logs: [],
+    paletteOpen: false,
+    resultOpen: false,
+    pan: { x: 0, y: 0 },
+    zoom: 1
+  }, {
+    nodeTypes: [
+      { type: 'data.query', label: 'Query', description: 'Query records.' }
+    ]
+  });
+  assert.match(helpHTML, /ds-modal-container/);
+  assert.match(helpHTML, /ds-modal-mask is-visible/);
+  assert.match(helpHTML, /Query records\./);
 
   designer.destroy();
   workbench.destroy();
@@ -1893,6 +1930,87 @@ test('provides generic workbench nodes for common flow patterns', () => {
   assert.equal(plan.nodes[0].capability, 'record.update');
   assert.equal(plan.nodes[0].params.action, 'update');
   assert.equal(plan.nodes[0].params.where.id, 'r-1');
+});
+
+test('workbench node title actions copy, remove, and open help', () => {
+  let clickHandler = null;
+  const target = {
+    innerHTML: '',
+    addEventListener(type, handler) {
+      if (type === 'click') {
+        clickHandler = handler;
+      }
+    },
+    removeEventListener() {},
+    contains() {
+      return true;
+    },
+    querySelector() {
+      return null;
+    }
+  };
+  const workbench = FlowWorkbench({
+    target,
+    flow: createFlow({
+      id: 'node-actions-flow',
+      name: 'Node actions flow',
+      nodes: [
+        {
+          id: 'query-users',
+          type: 'data.query',
+          label: 'Query users',
+          capability: 'users.query',
+          params: { limit: 20 },
+          ui: { position: { x: 80, y: 80 } }
+        },
+        {
+          id: 'show-users',
+          type: 'ui.display',
+          label: 'Show users',
+          capability: 'ui.display',
+          params: { renderer: 'table' },
+          ui: { position: { x: 360, y: 80 } }
+        }
+      ],
+      edges: [
+        { id: 'edge:query-users:show-users', from: 'query-users', to: 'show-users' }
+      ]
+    }),
+    nodeTypes: [
+      { type: 'data.query', label: 'Query', description: 'Query records.' }
+    ],
+    runtimeFactory: () => createPivotRuntime()
+  });
+  const dispatchAction = (action, nodeId) => {
+    const actionEl = {
+      dataset: { flowWorkbenchAction: action, nodeId }
+    };
+    clickHandler({
+      preventDefault() {},
+      target: {
+        closest(selector) {
+          if (selector === 'button' || selector === '[data-flow-workbench-action]') {
+            return actionEl;
+          }
+          return null;
+        }
+      }
+    });
+  };
+
+  dispatchAction('copy-node', 'query-users');
+  assert.equal(workbench.getFlow().nodes.length, 3);
+  assert.deepEqual(workbench.getFlow().nodes.find((node) => node.id === 'query-users-copy')?.params, { limit: 20 });
+
+  dispatchAction('show-node-help', 'query-users');
+  assert.match(target.innerHTML, /ds-modal-container/);
+  assert.match(target.innerHTML, /Query records\./);
+
+  dispatchAction('remove-node-by-id', 'query-users');
+  const flow = workbench.getFlow();
+  assert.equal(flow.nodes.some((node) => node.id === 'query-users'), false);
+  assert.equal(flow.edges.some((edge) => edge.from === 'query-users' || edge.to === 'query-users'), false);
+  workbench.destroy();
 });
 
 test('renders editable node inspector controls', () => {
