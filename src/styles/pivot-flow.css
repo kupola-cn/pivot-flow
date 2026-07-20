@@ -3485,6 +3485,7 @@
 .flow-workbench__palette,
 .flow-workbench__inspector,
 .flow-workbench__result,
+.flow-workbench__status,
 .flow-workbench__result-toggle {
   position: absolute;
   z-index: 20;
@@ -3806,6 +3807,38 @@
   left: var(--spacer-12);
 }
 
+.flow-workbench__status {
+  align-items: center;
+  background: var(--bg-base-default);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  bottom: calc(var(--flow-workbench-bottom-reserve) + var(--spacer-12));
+  box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
+  color: var(--status-success-default);
+  display: inline-flex;
+  font-size: var(--body-xs-font-size);
+  font-weight: 700;
+  gap: var(--spacer-6);
+  min-height: 32px;
+  padding: 0 var(--spacer-10);
+  right: var(--spacer-12);
+  white-space: nowrap;
+}
+
+.flow-workbench__status--connecting {
+  color: var(--status-warning-default);
+}
+
+.flow-workbench__status-dot {
+  background: currentColor;
+  border-radius: 50%;
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 8px;
+  width: 8px;
+}
+
 .flow-workbench__result {
   background: var(--bg-base-default);
   border: 1px solid var(--border-neutral-l1);
@@ -3820,6 +3853,10 @@
 }
 
 .flow-workbench.is-result-open .flow-workbench__result-toggle {
+  bottom: calc(var(--flow-workbench-bottom-reserve) + var(--flow-workbench-result-height) + var(--spacer-24));
+}
+
+.flow-workbench.is-result-open .flow-workbench__status {
   bottom: calc(var(--flow-workbench-bottom-reserve) + var(--flow-workbench-result-height) + var(--spacer-24));
 }
 

@@ -292,6 +292,7 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
     '</div>',
     '</header>',
     renderCanvasToolbar(state, options, labels),
+    renderWorkbenchStatus(state, labels),
     state.paletteOpen && !state.selectedNodeId ? [
       '<aside class="flow-workbench__palette">',
     renderPalette(state, options, labels),
@@ -503,7 +504,6 @@ function renderCanvasToolbar(state, options, labels) {
       '</button>'
     ].join('')).join(''),
     '</div>',
-    `<span class="ds-badge ds-badge--success">${escapeHTML(state.connectionDraft ? labels.connecting : labels.ready)}</span>`,
     '</div>',
     '<div class="flow-workbench__zoom-toolbar">',
     '<div class="flow-workbench__zoom-controls">',
@@ -512,6 +512,17 @@ function renderCanvasToolbar(state, options, labels) {
     renderToolbarButton('zoom-in', '+', 'secondary'),
     renderToolbarButton('reset-viewport', labels.fit, 'secondary'),
     '</div>',
+    '</div>'
+  ].join('');
+}
+
+function renderWorkbenchStatus(state, labels) {
+  const status = state.connectionDraft ? 'connecting' : 'ready';
+  const label = state.connectionDraft ? labels.connecting : labels.ready;
+  return [
+    `<div class="flow-workbench__status flow-workbench__status--${escapeAttr(status)}" role="status">`,
+    '<span class="flow-workbench__status-dot" aria-hidden="true"></span>',
+    `<span>${escapeHTML(label)}</span>`,
     '</div>'
   ].join('');
 }

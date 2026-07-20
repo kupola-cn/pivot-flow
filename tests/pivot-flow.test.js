@@ -1807,6 +1807,9 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   assert.match(defaultWorkbenchHTML, /flow-workbench__palette-item/);
   assert.match(defaultWorkbenchHTML, /data-flow-workbench-palette-description="Query records from a business resource\."/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__canvas-toolbar/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__status flow-workbench__status--ready/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__status-dot/);
+  assert.doesNotMatch(defaultWorkbenchHTML, /ds-badge ds-badge--success/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__zoom-toolbar/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__zoom-trigger/);
   assert.match(defaultWorkbenchHTML, /data-flow-workbench-action="toggle-zoom-menu"/);
@@ -1835,6 +1838,24 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   assert.match(openZoomWorkbenchHTML, /flow-workbench__zoom-options/);
   assert.match(openZoomWorkbenchHTML, /data-flow-workbench-action="set-zoom"/);
   assert.match(openZoomWorkbenchHTML, /aria-selected="true">125%/);
+  const connectingStatusHTML = renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'connecting-status-workbench-flow',
+      name: 'Connecting status workbench flow',
+      nodes: []
+    }),
+    selectedNodeId: '',
+    prompt: '',
+    resultHTML: '',
+    logs: [],
+    paletteOpen: false,
+    resultOpen: false,
+    connectionDraft: { from: 'source', point: { x: 0, y: 0 } },
+    pan: { x: 0, y: 0 },
+    zoom: 1
+  });
+  assert.match(connectingStatusHTML, /flow-workbench__status flow-workbench__status--connecting/);
+  assert.match(connectingStatusHTML, />Connecting</);
   const filteredPaletteHTML = renderFlowWorkbenchToHTML({
     flow: createFlow({
       id: 'filtered-palette-workbench-flow',
