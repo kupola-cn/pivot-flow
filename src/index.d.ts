@@ -1569,6 +1569,9 @@ export interface FlowWorkbenchLabels {
   deleteNode?: string;
   result?: string;
   type?: string;
+  paletteSearch?: string;
+  paletteEmpty?: string;
+  defaultHelpDescription?: string;
   summary?: (nodes: number, edges: number) => string;
 }
 
@@ -1582,6 +1585,7 @@ export interface FlowWorkbenchOptions {
   quickPrompts?: Array<string | { label: string; value: string }>;
   nodeTypes?: Array<FlowWorkbenchNodeType | [string, string, string?]>;
   nodeTypeLabels?: Record<string, string>;
+  paletteGroupLabels?: Record<string, string>;
   labels?: FlowWorkbenchLabels;
   selectedNodeId?: string;
   paletteOpen?: boolean;

@@ -8,6 +8,33 @@ const DEFAULT_NODE_WIDTH = 238;
 const DEFAULT_NODE_HEIGHT = 132;
 const DEFAULT_BOARD_WIDTH = 2200;
 const DEFAULT_BOARD_HEIGHT = 1400;
+const PALETTE_GROUP_ORDER = ['extension', 'workflow', 'business', 'input-output', 'database', 'custom'];
+const PALETTE_GROUP_KEY_MAP = Object.freeze({
+  capability: 'extension',
+  custom: 'extension',
+  flow: 'workflow',
+  control: 'business',
+  human: 'business',
+  input: 'input-output',
+  feedback: 'input-output',
+  data: 'database'
+});
+const PALETTE_GROUP_LABELS_EN = Object.freeze({
+  extension: 'Extensions',
+  workflow: 'Workflow',
+  business: 'Business logic',
+  'input-output': 'Input & output',
+  database: 'Database',
+  custom: 'Custom'
+});
+const PALETTE_GROUP_LABELS_ZH = Object.freeze({
+  extension: '插件',
+  workflow: '工作流',
+  business: '业务逻辑',
+  'input-output': '输入&输出',
+  database: '数据库',
+  custom: '自定义'
+});
 const NODE_ICON_CLASS_MAP = Object.freeze({
   'intent.input': 'parameter',
   'api.call': 'capability',
@@ -72,10 +99,17 @@ export function FlowWorkbench(options = {}) {
 
     const actionEl = event.target.closest('[data-flow-workbench-action]');
     if (!actionEl || !target.contains(actionEl)) {
+      if (state.zoomMenuOpen && !event.target.closest('.flow-workbench__zoom-menu')) {
+        state.zoomMenuOpen = false;
+        render();
+      }
       return;
     }
 
     const action = actionEl.dataset.flowWorkbenchAction;
+    if (action !== 'toggle-zoom-menu' && action !== 'set-zoom') {
+      state.zoomMenuOpen = false;
+    }
     if (action === 'select-node') {
       state.selectedNodeId = actionEl.dataset.nodeId || state.selectedNodeId;
       state.paletteOpen = false;
@@ -95,6 +129,11 @@ export function FlowWorkbench(options = {}) {
     } else if (action === 'reset-viewport') {
       state.pan = { x: 0, y: 0 };
       state.zoom = 1;
+    } else if (action === 'toggle-zoom-menu') {
+      state.zoomMenuOpen = !state.zoomMenuOpen;
+    } else if (action === 'set-zoom') {
+      updateZoom(state, actionEl.dataset.zoom);
+      state.zoomMenuOpen = false;
     } else if (action === 'add-node') {
       addNode(state, options, actionEl.dataset.nodeTemplate || actionEl.dataset.nodeType);
       state.paletteOpen = false;
@@ -115,6 +154,8 @@ export function FlowWorkbench(options = {}) {
       state.connectionDraft = null;
       state.draggingNodeId = '';
       state.helpNodeId = '';
+      state.paletteQuery = '';
+      state.zoomMenuOpen = false;
       state.pan = createPoint(options.pan, { x: 0, y: 0 });
       state.zoom = normalizeZoom(options.zoom);
       api.writeLog('ready', options.resetMessage || 'Flow was reset.');
@@ -129,7 +170,11 @@ export function FlowWorkbench(options = {}) {
 
   const handleInput = (event) => {
     const input = event.target;
-    if (input.dataset.flowWorkbenchPromptInput !== undefined) {
+    if (input.dataset.flowWorkbenchPaletteSearch !== undefined) {
+      state.paletteQuery = input.value;
+      render();
+      restorePaletteSearchFocus(target, state.paletteQuery);
+    } else if (input.dataset.flowWorkbenchPromptInput !== undefined) {
       state.prompt = input.value;
     } else if (input.dataset.flowWorkbenchField) {
       const node = updateSelectedNode(state, input.dataset.flowWorkbenchField, input.value);
@@ -176,15 +221,39 @@ export function FlowWorkbench(options = {}) {
     }
   };
 
+  const handlePaletteTooltipShow = (event) => {
+    const item = event.target.closest?.('[data-flow-workbench-palette-description]');
+    if (!item || !target.contains(item)) {
+      return;
+    }
+    showPaletteTooltip(target, item);
+  };
+
+  const handlePaletteTooltipHide = (event) => {
+    const item = event.target.closest?.('[data-flow-workbench-palette-description]');
+    if (item && item.contains?.(event.relatedTarget)) {
+      return;
+    }
+    hidePaletteTooltip(target);
+  };
+
   target.addEventListener('click', handleClick);
   target.addEventListener('input', handleInput);
   target.addEventListener('change', handleChange);
   target.addEventListener('pointerdown', handlePointerDown);
+  target.addEventListener('pointerover', handlePaletteTooltipShow);
+  target.addEventListener('pointerout', handlePaletteTooltipHide);
+  target.addEventListener('focusin', handlePaletteTooltipShow);
+  target.addEventListener('focusout', handlePaletteTooltipHide);
   cleanups.push(
     () => target.removeEventListener('click', handleClick),
     () => target.removeEventListener('input', handleInput),
     () => target.removeEventListener('change', handleChange),
-    () => target.removeEventListener('pointerdown', handlePointerDown)
+    () => target.removeEventListener('pointerdown', handlePointerDown),
+    () => target.removeEventListener('pointerover', handlePaletteTooltipShow),
+    () => target.removeEventListener('pointerout', handlePaletteTooltipHide),
+    () => target.removeEventListener('focusin', handlePaletteTooltipShow),
+    () => target.removeEventListener('focusout', handlePaletteTooltipHide)
   );
 
   api.writeLog('ready', options.readyMessage || 'Flow workbench is ready.');
@@ -216,19 +285,16 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
       '</div>'
     ].join('') : '',
     '<div class="flow-workbench__actions">',
-    renderToolbarButton('toggle-palette', labels.components, 'secondary'),
-    renderToolbarButton('reset', labels.reset, 'secondary'),
-    renderToolbarButton('preview', labels.preview, 'secondary'),
-    renderToolbarButton('execute', labels.execute, 'brand'),
+    renderToolbarButton('toggle-palette', labels.components, 'secondary', { icon: 'components' }),
+    renderToolbarButton('reset', labels.reset, 'secondary', { icon: 'reset' }),
+    renderToolbarButton('preview', labels.preview, 'secondary', { icon: 'preview' }),
+    renderToolbarButton('execute', labels.execute, 'brand', { icon: 'execute' }),
     '</div>',
     '</header>',
     renderCanvasToolbar(state, options, labels),
     state.paletteOpen && !state.selectedNodeId ? [
       '<aside class="flow-workbench__palette">',
-    `<div class="flow-workbench__panel-title">${escapeHTML(labels.palette)}</div>`,
-    '<div class="flow-workbench__node-list">',
-    renderPalette(options),
-    '</div>',
+    renderPalette(state, options, labels),
     '</aside>',
     ].join('') : '',
     state.selectedNodeId ? [
@@ -241,7 +307,8 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
     '</aside>',
     ].join('') : '',
     '<button type="button" class="flow-workbench__result-toggle ds-btn ds-btn--secondary ds-btn--sm" data-flow-workbench-action="toggle-result">',
-    escapeHTML(labels.result),
+    '<span class="flow-workbench__button-icon flow-workbench__button-icon--result" aria-hidden="true"></span>',
+    `<span>${escapeHTML(labels.result)}</span>`,
     '</button>',
     state.resultOpen ? [
       '<section class="flow-workbench__result">',
@@ -249,6 +316,7 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
     `<div class="flow-workbench__log">${state.logs.map(renderLogEntry).join('')}</div>`,
     '</section>',
     ].join('') : '',
+    state.paletteOpen && !state.selectedNodeId ? '<div class="flow-workbench__palette-tooltip" role="tooltip" hidden></div>' : '',
     renderNodeHelpModal(state, options, labels),
     '</section>'
   ].join('');
@@ -263,8 +331,10 @@ function createWorkbenchState(options) {
     resultHTML: options.emptyResultHTML || '<div class="flow-workbench__empty">Run the flow to show output.</div>',
     logs: [],
     paletteOpen: Boolean(options.paletteOpen),
+    paletteQuery: options.paletteQuery || '',
     resultOpen: Boolean(options.resultOpen),
     helpNodeId: options.helpNodeId || '',
+    zoomMenuOpen: Boolean(options.zoomMenuOpen),
     pan: createPoint(options.pan, { x: 0, y: 0 }),
     zoom: normalizeZoom(options.zoom),
     connectionDraft: null,
@@ -293,25 +363,129 @@ function createWorkbenchApi(state, options) {
   };
 }
 
-function renderToolbarButton(action, label, variant) {
-  return `<button type="button" class="ds-btn ds-btn--${escapeAttr(variant)} ds-btn--sm" data-flow-workbench-action="${escapeAttr(action)}">${escapeHTML(label)}</button>`;
+function renderToolbarButton(action, label, variant, options = {}) {
+  const icon = options.icon
+    ? `<span class="flow-workbench__button-icon flow-workbench__button-icon--${escapeAttr(options.icon)}" aria-hidden="true"></span>`
+    : '';
+  return [
+    `<button type="button" class="ds-btn ds-btn--${escapeAttr(variant)} ds-btn--sm flow-workbench__toolbar-button" data-flow-workbench-action="${escapeAttr(action)}">`,
+    icon,
+    `<span>${escapeHTML(label)}</span>`,
+    '</button>'
+  ].join('');
 }
 
-function renderPalette(options) {
-  const nodeTypes = getWorkbenchNodeTypes(options);
-  return nodeTypes.map((item) => {
-    const template = item.id || item.key || item.type || item[0];
-    const type = item.type || item[0];
-    const label = item.label || item[1] || type;
-    const description = item.description || item[2] || '';
-    return [
-      '<button type="button" class="flow-workbench__palette-card" ',
-      `data-flow-workbench-action="add-node" data-node-template="${escapeAttr(template)}" data-node-type="${escapeAttr(type)}">`,
-      `<strong>${escapeHTML(label)}</strong>`,
-      `<span>${escapeHTML(description)}</span>`,
-      '</button>'
-    ].join('');
-  }).join('');
+function renderPalette(state, options, labels) {
+  const query = String(state.paletteQuery || '').trim().toLowerCase();
+  const groups = groupPaletteItems(
+    getWorkbenchNodeTypes(options)
+      .map(normalizePaletteItem)
+      .filter((item) => matchesPaletteQuery(item, query))
+  );
+
+  return [
+    '<div class="flow-workbench__palette-search">',
+    '<label class="flow-workbench__palette-search-field">',
+    `<span class="flow-workbench__visually-hidden">${escapeHTML(labels.palette)}</span>`,
+    `<input class="ds-input ds-input--sm flow-workbench__palette-search-input" data-flow-workbench-palette-search placeholder="${escapeAttr(getPaletteSearchPlaceholder(options, labels))}" value="${escapeAttr(state.paletteQuery || '')}">`,
+    '</label>',
+    '</div>',
+    '<div class="flow-workbench__node-list flow-workbench__palette-list">',
+    groups.length ? groups.map((group) => [
+      '<section class="flow-workbench__palette-group">',
+      `<div class="flow-workbench__palette-group-title">${escapeHTML(getPaletteGroupLabel(group.key, options))}</div>`,
+      '<div class="flow-workbench__palette-grid">',
+      group.items.map((item) => renderPaletteItem(item)).join(''),
+      '</div>',
+      '</section>'
+    ].join('')).join('') : `<div class="flow-workbench__empty">${escapeHTML(getPaletteEmptyMessage(options, labels))}</div>`,
+    '</div>'
+  ].join('');
+}
+
+function renderPaletteItem(item) {
+  return [
+    `<button type="button" class="flow-workbench__palette-item flow-workbench__palette-item--${escapeAttr(item.groupKey)}" `,
+    `data-flow-workbench-action="add-node" data-node-template="${escapeAttr(item.template)}" data-node-type="${escapeAttr(item.type)}" `,
+    `data-flow-workbench-palette-description="${escapeAttr(item.description)}" aria-label="${escapeAttr(item.description ? `${item.label}: ${item.description}` : item.label)}">`,
+    '<span class="flow-workbench__palette-item-icon" aria-hidden="true">',
+    `<span class="flow-workbench__node-icon flow-workbench__node-icon--${escapeAttr(item.iconClass)}"></span>`,
+    '</span>',
+    `<span class="flow-workbench__palette-item-label">${escapeHTML(item.label)}</span>`,
+    '</button>'
+  ].join('');
+}
+
+function normalizePaletteItem(item) {
+  const template = item.id || item.key || item.type || item[0];
+  const type = item.type || item[0];
+  const label = item.label || item[1] || type;
+  const description = item.description || item[2] || '';
+  const group = item.group || 'custom';
+  const groupKey = getPaletteGroupKey(group);
+  return {
+    template,
+    type,
+    label,
+    description,
+    group,
+    groupKey,
+    iconClass: getNodeIconClass(type)
+  };
+}
+
+function matchesPaletteQuery(item, query) {
+  if (!query) {
+    return true;
+  }
+  return [item.template, item.type, item.label, item.description, item.group, item.groupKey]
+    .some((value) => String(value || '').toLowerCase().includes(query));
+}
+
+function groupPaletteItems(items) {
+  const byGroup = new Map();
+  items.forEach((item) => {
+    if (!byGroup.has(item.groupKey)) {
+      byGroup.set(item.groupKey, []);
+    }
+    byGroup.get(item.groupKey).push(item);
+  });
+  return Array.from(byGroup.entries())
+    .sort(([a], [b]) => getPaletteGroupOrder(a) - getPaletteGroupOrder(b) || a.localeCompare(b))
+    .map(([key, groupItems]) => ({ key, items: groupItems }));
+}
+
+function getPaletteGroupKey(group) {
+  const key = String(group || 'custom').trim().toLowerCase();
+  return PALETTE_GROUP_KEY_MAP[key] || key || 'custom';
+}
+
+function getPaletteGroupOrder(groupKey) {
+  const index = PALETTE_GROUP_ORDER.indexOf(groupKey);
+  return index === -1 ? PALETTE_GROUP_ORDER.length : index;
+}
+
+function getPaletteGroupLabel(groupKey, options) {
+  const customLabel = options.paletteGroupLabels?.[groupKey];
+  if (customLabel) {
+    return customLabel;
+  }
+  const labels = isChineseLocale(options.locale) ? PALETTE_GROUP_LABELS_ZH : PALETTE_GROUP_LABELS_EN;
+  return labels[groupKey] || groupKey;
+}
+
+function getPaletteSearchPlaceholder(options, labels) {
+  if (labels.paletteSearch) {
+    return labels.paletteSearch;
+  }
+  return isChineseLocale(options.locale) ? '搜索节点、插件、工作流' : 'Search nodes, plugins, workflows';
+}
+
+function getPaletteEmptyMessage(options, labels) {
+  if (labels.paletteEmpty) {
+    return labels.paletteEmpty;
+  }
+  return isChineseLocale(options.locale) ? '没有匹配的节点。' : 'No matching nodes.';
 }
 
 function renderCanvasToolbar(state, options, labels) {
@@ -334,9 +508,7 @@ function renderCanvasToolbar(state, options, labels) {
     '<div class="flow-workbench__zoom-toolbar">',
     '<div class="flow-workbench__zoom-controls">',
     renderToolbarButton('zoom-out', '-', 'secondary'),
-    '<select class="flow-workbench__zoom-select" data-flow-workbench-zoom aria-label="Zoom">',
-    renderZoomOptions(state.zoom),
-    '</select>',
+    renderZoomMenu(state),
     renderToolbarButton('zoom-in', '+', 'secondary'),
     renderToolbarButton('reset-viewport', labels.fit, 'secondary'),
     '</div>',
@@ -350,7 +522,87 @@ function renderZoomOptions(currentZoom) {
     levels.push(currentZoom);
     levels.sort((a, b) => a - b);
   }
-  return levels.map((zoom) => `<option value="${zoom}"${Math.abs(currentZoom - zoom) < 0.001 ? ' selected' : ''}>${Math.round(zoom * 100)}%</option>`).join('');
+  return levels;
+}
+
+function renderZoomMenu(state) {
+  const levels = renderZoomOptions(state.zoom);
+  const currentLabel = `${Math.round(state.zoom * 100)}%`;
+  return [
+    '<div class="flow-workbench__zoom-menu">',
+    '<button type="button" class="flow-workbench__zoom-select flow-workbench__zoom-trigger" ',
+    `data-flow-workbench-action="toggle-zoom-menu" aria-haspopup="listbox" aria-expanded="${state.zoomMenuOpen ? 'true' : 'false'}">`,
+    '<span class="flow-workbench__button-icon flow-workbench__button-icon--zoom" aria-hidden="true"></span>',
+    `<span>${escapeHTML(currentLabel)}</span>`,
+    '<span class="flow-workbench__button-icon flow-workbench__button-icon--chevron" aria-hidden="true"></span>',
+    '</button>',
+    state.zoomMenuOpen ? [
+      '<div class="flow-workbench__zoom-options" role="listbox" aria-label="Zoom">',
+      levels.map((zoom) => {
+        const selected = Math.abs(state.zoom - zoom) < 0.001;
+        return [
+          '<button type="button" ',
+          `class="flow-workbench__zoom-option${selected ? ' is-selected' : ''}" `,
+          `data-flow-workbench-action="set-zoom" data-zoom="${escapeAttr(zoom)}" `,
+          `role="option" aria-selected="${selected ? 'true' : 'false'}">`,
+          `${Math.round(zoom * 100)}%`,
+          '</button>'
+        ].join('');
+      }).join(''),
+      '</div>'
+    ].join('') : '',
+    '</div>'
+  ].join('');
+}
+
+function restorePaletteSearchFocus(target, value) {
+  const input = target.querySelector?.('[data-flow-workbench-palette-search]');
+  if (!input) {
+    return;
+  }
+  input.focus?.();
+  const position = String(value || '').length;
+  try {
+    input.setSelectionRange?.(position, position);
+  } catch {
+    // Some input implementations do not support selection APIs.
+  }
+}
+
+function showPaletteTooltip(target, item) {
+  const description = item.dataset.flowWorkbenchPaletteDescription || '';
+  const tooltip = target.querySelector?.('.flow-workbench__palette-tooltip');
+  if (!tooltip || !description) {
+    return;
+  }
+  tooltip.textContent = description;
+  tooltip.hidden = false;
+  positionPaletteTooltip(tooltip, item);
+}
+
+function hidePaletteTooltip(target) {
+  const tooltip = target.querySelector?.('.flow-workbench__palette-tooltip');
+  if (tooltip) {
+    tooltip.hidden = true;
+  }
+}
+
+function positionPaletteTooltip(tooltip, item) {
+  const rect = item.getBoundingClientRect?.();
+  if (!rect) {
+    return;
+  }
+  const gap = 12;
+  const viewportWidth = globalThis.window?.innerWidth || 0;
+  const placeRight = viewportWidth > 0 && rect.left < 300 && rect.right + 300 < viewportWidth;
+  tooltip.style.top = `${rect.top + rect.height / 2}px`;
+  if (placeRight) {
+    tooltip.style.left = `${rect.right + gap}px`;
+    tooltip.style.transform = 'translateY(-50%)';
+  } else {
+    tooltip.style.left = `${Math.max(gap, rect.left - gap)}px`;
+    tooltip.style.transform = 'translate(-100%, -50%)';
+  }
 }
 
 function renderCanvas(state, options) {
@@ -442,8 +694,8 @@ function renderNode(state, options, node) {
     '</div>',
     '<div class="flow-workbench__node-actions">',
     renderNodeActionButton('copy-node', node.id, 'copy', 'Copy node'),
-    renderNodeActionButton('remove-node-by-id', node.id, 'delete', 'Delete node'),
-    renderNodeActionButton('show-node-help', node.id, 'help', 'Node help'),
+    renderNodeActionButton('remove-node-by-id', node.id, 'delete', 'Delete node', 'x'),
+    renderNodeActionButton('show-node-help', node.id, 'help', 'Node help', '?'),
     '</div>',
     '</div>',
     `<div class="flow-workbench__node-content">${rows}</div>`,
@@ -451,11 +703,13 @@ function renderNode(state, options, node) {
   ].join('');
 }
 
-function renderNodeActionButton(action, nodeId, icon, label) {
+function renderNodeActionButton(action, nodeId, icon, label, glyph = '') {
   return [
     `<button type="button" class="flow-workbench__node-action flow-workbench__node-action--${escapeAttr(icon)}" `,
     `data-flow-workbench-action="${escapeAttr(action)}" data-node-id="${escapeAttr(nodeId)}" `,
-    `aria-label="${escapeAttr(label)}" title="${escapeAttr(label)}"></button>`
+    `aria-label="${escapeAttr(label)}" title="${escapeAttr(label)}">`,
+    glyph ? `<span class="flow-workbench__node-action-glyph" aria-hidden="true">${escapeHTML(glyph)}</span>` : '',
+    '</button>'
   ].join('');
 }
 
@@ -1055,6 +1309,10 @@ function defaultParams(type) {
   return {};
 }
 
+function isChineseLocale(locale) {
+  return String(locale || '').toLowerCase().startsWith('zh');
+}
+
 function createLabels(labels = {}) {
   return {
     title: 'Flow workbench',
@@ -1077,6 +1335,8 @@ function createLabels(labels = {}) {
     selectTarget: 'Select target',
     deleteNode: 'Delete node',
     result: 'Run result',
+    paletteSearch: '',
+    paletteEmpty: '',
     defaultHelpDescription: 'Configure this node with its capability, risk level, and JSON params, then connect its output port to the next node input port.',
     summary: (nodes, edges) => `${nodes} nodes, ${edges} edges`,
     ...labels

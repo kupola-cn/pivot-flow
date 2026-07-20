@@ -1801,10 +1801,76 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
     zoom: 1
   });
   assert.match(defaultWorkbenchHTML, /data-node-template="data\.query"/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__palette-search-input/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__palette-group-title/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__palette-grid/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__palette-item/);
+  assert.match(defaultWorkbenchHTML, /data-flow-workbench-palette-description="Query records from a business resource\."/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__canvas-toolbar/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__zoom-toolbar/);
-  assert.match(defaultWorkbenchHTML, /class="flow-workbench__zoom-select"/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__zoom-trigger/);
+  assert.match(defaultWorkbenchHTML, /data-flow-workbench-action="toggle-zoom-menu"/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--components/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--reset/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--preview/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--execute/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--result/);
   assert.equal(defaultWorkbenchHTML.indexOf('flow-workbench__canvas-toolbar') < defaultWorkbenchHTML.indexOf('flow-workbench__zoom-toolbar'), true);
+  const openZoomWorkbenchHTML = renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'open-zoom-workbench-flow',
+      name: 'Open zoom workbench flow',
+      nodes: []
+    }),
+    selectedNodeId: '',
+    prompt: '',
+    resultHTML: '',
+    logs: [],
+    paletteOpen: false,
+    resultOpen: false,
+    zoomMenuOpen: true,
+    pan: { x: 0, y: 0 },
+    zoom: 1.25
+  });
+  assert.match(openZoomWorkbenchHTML, /flow-workbench__zoom-options/);
+  assert.match(openZoomWorkbenchHTML, /data-flow-workbench-action="set-zoom"/);
+  assert.match(openZoomWorkbenchHTML, /aria-selected="true">125%/);
+  const filteredPaletteHTML = renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'filtered-palette-workbench-flow',
+      name: 'Filtered palette workbench flow',
+      nodes: []
+    }),
+    selectedNodeId: '',
+    prompt: '',
+    resultHTML: '',
+    logs: [],
+    paletteOpen: true,
+    paletteQuery: 'query',
+    resultOpen: false,
+    pan: { x: 0, y: 0 },
+    zoom: 1
+  });
+  assert.match(filteredPaletteHTML, /data-node-template="data\.query"/);
+  assert.doesNotMatch(filteredPaletteHTML, /data-node-template="data\.create"/);
+  const zhPaletteHTML = renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'zh-palette-workbench-flow',
+      name: 'ZH palette workbench flow',
+      nodes: []
+    }),
+    selectedNodeId: '',
+    prompt: '',
+    resultHTML: '',
+    logs: [],
+    paletteOpen: true,
+    resultOpen: false,
+    pan: { x: 0, y: 0 },
+    zoom: 1
+  }, { locale: 'zh-CN' });
+  assert.match(zhPaletteHTML, /placeholder="搜索节点、插件、工作流"/);
+  assert.match(zhPaletteHTML, />业务逻辑</);
+  assert.match(zhPaletteHTML, />数据库</);
   const actionsOnlyHTML = renderFlowWorkbenchToHTML({
     flow: createFlow({
       id: 'actions-only-workbench-flow',
@@ -1866,6 +1932,8 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   assert.match(portHTML, /data-flow-workbench-action="copy-node"/);
   assert.match(portHTML, /data-flow-workbench-action="remove-node-by-id"/);
   assert.match(portHTML, /data-flow-workbench-action="show-node-help"/);
+  assert.match(portHTML, /flow-workbench__node-action--delete[\s\S]*?>[\s\S]*?<span class="flow-workbench__node-action-glyph" aria-hidden="true">x<\/span>/);
+  assert.match(portHTML, /flow-workbench__node-action--help[\s\S]*?>[\s\S]*?<span class="flow-workbench__node-action-glyph" aria-hidden="true">\?<\/span>/);
   assert.doesNotMatch(portHTML, /flow-workbench__node-type/);
   const helpHTML = renderFlowWorkbenchToHTML({
     flow: createFlow({
