@@ -39,6 +39,7 @@ export * from './components/FlowRunPanel.js';
 export * from './components/FlowSnapshotList.js';
 export * from './components/FlowTestPanel.js';
 export * from './components/FlowTemplateList.js';
+export * from './components/FlowWorkbench.js';
 export * from './components/IntentPatternEditor.js';
 export * from './components/NodeInspector.js';
 export * from './components/NodePalette.js';

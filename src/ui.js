@@ -2,6 +2,7 @@ export { createFlowDesigner, createPivotFlowApp } from './pivot-flow-app.js';
 export { FlowAssistantDrawer } from './components/FlowAssistantDrawer.js';
 export { FlowDesigner, renderFlowDesignerToHTML } from './components/FlowDesigner.js';
 export { FlowManager } from './components/FlowManager.js';
+export { FlowWorkbench, renderFlowWorkbenchToHTML } from './components/FlowWorkbench.js';
 export { renderFlowCanvasToHTML } from './components/FlowCanvas.js';
 export { renderFlowListToHTML } from './components/FlowList.js';
 export { renderNodeInspectorToHTML } from './components/NodeInspector.js';

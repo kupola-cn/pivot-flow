@@ -12,6 +12,7 @@ import {
   createCapabilityManifestSummary,
   createFlowFromTemplate,
   createFlowDesigner,
+  FlowWorkbench,
   createHttpFlowStore,
   canConnectFlowNodes,
   createLocalIntentMapper,
@@ -107,6 +108,7 @@ import {
   renderFlowSettingsToHTML,
   renderFlowTestPanelToHTML,
   renderFlowTemplateListToHTML,
+  renderFlowWorkbenchToHTML,
   renderVariableMapperToHTML,
   restoreFlowSnapshot,
   recommendFlowCapabilities,
@@ -1756,15 +1758,37 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
       ]
     })
   });
+  const workbenchTarget = createElementStub();
+  const workbench = FlowWorkbench({
+    target: workbenchTarget,
+    flow: createFlow({
+      id: 'workbench-helper-flow',
+      name: 'Workbench helper flow',
+      nodes: [
+        { id: 'message', type: 'message.show', label: 'Message', ui: { position: { x: 80, y: 80 } } }
+      ]
+    }),
+    nodeTypes: [
+      { type: 'message.show', label: 'Message', description: 'Show a message.' }
+    ],
+    runtimeFactory: () => createPivotRuntime()
+  });
 
   assert.equal(typeof createPivotFlowApp, 'function');
   assert.equal(typeof createFlowDesigner, 'function');
+  assert.equal(typeof FlowWorkbench, 'function');
+  assert.equal(typeof renderFlowWorkbenchToHTML, 'function');
   assert.equal(ui.createPivotFlowApp, createPivotFlowApp);
   assert.equal(ui.createFlowDesigner, createFlowDesigner);
+  assert.equal(ui.FlowWorkbench, FlowWorkbench);
+  assert.equal(ui.renderFlowWorkbenchToHTML, renderFlowWorkbenchToHTML);
   assert.match(target.innerHTML, /flow-designer/);
+  assert.match(workbenchTarget.innerHTML, /flow-workbench/);
 
   designer.destroy();
+  workbench.destroy();
   assert.equal(target.innerHTML, '');
+  assert.equal(workbenchTarget.innerHTML, '');
 });
 
 test('renders editable node inspector controls', () => {

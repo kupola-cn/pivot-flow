@@ -1520,8 +1520,71 @@ export interface FlowDesignerOptions {
   onPreview?: (plan: PivotPlan) => void;
 }
 
+export interface FlowWorkbenchNodeType {
+  type: string;
+  label?: string;
+  description?: string;
+  capability?: string;
+  risk?: FlowRisk | string;
+  params?: Record<string, unknown>;
+  nodeLabel?: string;
+}
+
+export interface FlowWorkbenchLabels {
+  title?: string;
+  reset?: string;
+  preview?: string;
+  execute?: string;
+  palette?: string;
+  inspector?: string;
+  prompt?: string;
+  ready?: string;
+  connecting?: string;
+  emptyInspector?: string;
+  nodeName?: string;
+  capability?: string;
+  risk?: string;
+  params?: string;
+  connectTo?: string;
+  selectTarget?: string;
+  deleteNode?: string;
+  type?: string;
+  summary?: (nodes: number, edges: number) => string;
+}
+
+export interface FlowWorkbenchOptions {
+  target: string | Element;
+  flow: FlowDefinition;
+  title?: string;
+  description?: string;
+  prompt?: string;
+  quickPrompts?: Array<string | { label: string; value: string }>;
+  nodeTypes?: Array<FlowWorkbenchNodeType | [string, string, string?]>;
+  nodeTypeLabels?: Record<string, string>;
+  labels?: FlowWorkbenchLabels;
+  selectedNodeId?: string;
+  emptyResultHTML?: string;
+  readyMessage?: string;
+  resetMessage?: string;
+  locale?: string;
+  maxLogs?: number;
+  context?: Record<string, unknown>;
+  contextProvider?: () => Record<string, unknown> | Promise<Record<string, unknown>>;
+  extractSlots?: (prompt: string, flow: FlowDefinition) => Record<string, unknown>;
+  nodeContentRows?: (node: FlowNode) => Array<[string, string]>;
+  runtimeFactory?: (api: {
+    getState(): Record<string, unknown>;
+    getFlow(): FlowDefinition;
+    setResultHTML(html: string): void;
+    writeLog(type: string, message: string): void;
+    escapeHTML(value: unknown): string;
+  }) => PivotRuntime | Promise<PivotRuntime>;
+}
+
 export function FlowManager(options: FlowManagerOptions): { element: Element; refresh(): Promise<void>; destroy(): void };
 export function FlowDesigner(options: FlowDesignerOptions): { element: Element; update(flow: FlowDefinition): void; destroy(): void };
+export function FlowWorkbench(options: FlowWorkbenchOptions): { element: Element; getFlow(): FlowDefinition; update(flow: FlowDefinition): void; refresh(flow?: FlowDefinition): void; destroy(): void };
+export function renderFlowWorkbenchToHTML(state: Record<string, unknown>, options?: Partial<FlowWorkbenchOptions>): string;
 export function createPivotFlowApp(options: FlowManagerOptions): ReturnType<typeof FlowManager>;
 export function createFlowDesigner(options: FlowDesignerOptions): ReturnType<typeof FlowDesigner>;
 

@@ -12,6 +12,8 @@ export {
   renderFlowRunPanelToHTML,
   renderFlowTemplateListToHTML,
   renderFlowTestPanelToHTML,
+  FlowWorkbench,
+  renderFlowWorkbenchToHTML,
   renderNodeInspectorToHTML,
   renderNodePaletteToHTML,
   renderVariableMapperToHTML
