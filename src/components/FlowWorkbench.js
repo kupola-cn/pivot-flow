@@ -1,7 +1,7 @@
 import { Tooltip } from '@kupola/kupola/components/tooltip';
 import { cloneFlow, createFlowNode } from '../flow-schema.js';
 import { flowToPlan } from '../flow-to-plan.js';
-import { canConnectFlowNodes, getFlowNodePorts } from '../flow-validation.js';
+import { canConnectFlowNodes, getFlowNodePorts, validateFlow } from '../flow-validation.js';
 import { createDefaultFlowWorkbenchNodeTypes, getDefaultCapabilityForNodeType } from '../node-types.js';
 import { escapeAttr, escapeHTML, resolveTarget, setHTML } from './dom.js';
 
@@ -141,9 +141,31 @@ export function FlowWorkbench(options = {}) {
       state.paletteOpen = !state.paletteOpen;
       if (state.paletteOpen) {
         state.selectedNodeId = '';
+        state.flowListOpen = false;
       }
     } else if (action === 'toggle-result') {
       state.resultOpen = !state.resultOpen;
+    } else if (action === 'toggle-flow-list') {
+      state.flowListOpen = !state.flowListOpen;
+      state.paletteOpen = false;
+      state.selectedNodeId = '';
+      if (state.flowListOpen) {
+        state.flowListLoading = true;
+        render();
+        await loadWorkbenchFlowList(state, options, api);
+      }
+    } else if (action === 'close-flow-list') {
+      state.flowListOpen = false;
+    } else if (action === 'refresh-flow-list') {
+      state.flowListLoading = true;
+      render();
+      await loadWorkbenchFlowList(state, options, api);
+    } else if (action === 'load-flow') {
+      await loadWorkbenchFlow(state, options, api, actionEl.dataset.flowId);
+    } else if (action === 'save-flow') {
+      await saveWorkbenchFlow(state, options, api);
+    } else if (action === 'publish-flow') {
+      await publishWorkbenchFlow(state, options, api);
     } else if (action === 'close-inspector') {
       state.selectedNodeId = '';
     } else if (action === 'zoom-in') {
@@ -198,6 +220,10 @@ export function FlowWorkbench(options = {}) {
       state.paletteQuery = input.value;
       render();
       restorePaletteSearchFocus(target, state.paletteQuery);
+    } else if (input.dataset.flowWorkbenchFlowSearch !== undefined) {
+      state.flowListQuery = input.value;
+      render();
+      restoreFlowSearchFocus(target, state.flowListQuery);
     } else if (input.dataset.flowWorkbenchPromptInput !== undefined) {
       state.prompt = input.value;
     } else if (input.dataset.flowWorkbenchField) {
@@ -213,6 +239,9 @@ export function FlowWorkbench(options = {}) {
     const input = event.target;
     if (input.dataset.flowWorkbenchConnectTo) {
       connectNodes(state, api, state.selectedNodeId, input.value, getDefaultConnectionPorts(state, state.selectedNodeId, input.value));
+      render();
+    } else if (input.dataset.flowWorkbenchFlowStatus !== undefined) {
+      state.flowListStatus = input.value;
       render();
     } else if (input.dataset.flowWorkbenchZoom !== undefined) {
       updateZoom(state, input.value);
@@ -311,6 +340,9 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
     ].join('') : '',
     '<div class="flow-workbench__actions">',
     renderToolbarButton('reset', labels.reset, 'secondary', { icon: 'reset' }),
+    options.flowStore ? renderToolbarButton('toggle-flow-list', labels.flows, 'secondary', { icon: 'flows' }) : '',
+    options.flowStore ? renderToolbarButton('save-flow', labels.save, 'secondary', { icon: 'save' }) : '',
+    options.flowStore ? renderToolbarButton('publish-flow', labels.publish, 'secondary', { icon: 'publish' }) : '',
     renderToolbarButton('preview', labels.preview, 'secondary', { icon: 'preview' }),
     renderToolbarButton('execute', labels.execute, 'brand', { icon: 'execute' }),
     '</div>',
@@ -341,6 +373,7 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
     `<div class="flow-workbench__log">${state.logs.map(renderLogEntry).join('')}</div>`,
     '</section>',
     ].join('') : '',
+    state.flowListOpen ? renderFlowListModal(state, options, labels) : '',
     renderNodeHelpModal(state, options, labels),
     '</section>'
   ].join('');
@@ -366,7 +399,13 @@ function createWorkbenchState(options) {
     draggingNodeId: '',
     dragOffset: null,
     paletteTooltip: null,
-    paletteTooltipTarget: null
+    paletteTooltipTarget: null,
+    flowListOpen: Boolean(options.flowListOpen),
+    flowListItems: [],
+    flowListLoading: false,
+    flowListError: '',
+    flowListQuery: options.flowListQuery || '',
+    flowListStatus: options.flowListStatus || ''
   };
 }
 
@@ -605,6 +644,253 @@ function restorePaletteSearchFocus(target, value) {
     input.setSelectionRange?.(position, position);
   } catch {
     // Some input implementations do not support selection APIs.
+  }
+}
+
+function restoreFlowSearchFocus(target, value) {
+  const input = target.querySelector?.('[data-flow-workbench-flow-search]');
+  if (!input) {
+    return;
+  }
+  input.focus?.();
+  const position = String(value || '').length;
+  try {
+    input.setSelectionRange?.(position, position);
+  } catch {
+    // Some input implementations do not support selection APIs.
+  }
+}
+
+function renderFlowListModal(state, options, labels) {
+  const flows = getFilteredFlowListItems(state);
+  return [
+    '<div class="ds-modal-container flow-workbench__flow-list-container is-open" role="presentation">',
+    '<button type="button" class="ds-modal-mask is-visible" data-flow-workbench-action="close-flow-list" aria-label="Close flow list"></button>',
+    '<section class="ds-modal flow-workbench__flow-list-dialog" role="dialog" aria-modal="true" aria-labelledby="flowWorkbenchFlowListTitle">',
+    '<header class="ds-modal__header">',
+    `<h3 id="flowWorkbenchFlowListTitle" class="ds-modal__title">${escapeHTML(labels.flows)}</h3>`,
+    '<button type="button" class="ds-modal__close" data-flow-workbench-action="close-flow-list" aria-label="Close">×</button>',
+    '</header>',
+    '<div class="ds-modal__body flow-workbench__flow-list-body">',
+    '<div class="flow-workbench__flow-list-filters">',
+    `<input class="ds-input ds-input--sm" data-flow-workbench-flow-search placeholder="${escapeAttr(labels.flowSearch)}" value="${escapeAttr(state.flowListQuery || '')}">`,
+    `<select class="ds-select ds-select--sm" data-flow-workbench-flow-status>${renderFlowStatusOptions(state.flowListStatus, labels)}</select>`,
+    renderToolbarButton('refresh-flow-list', labels.refresh, 'secondary', { icon: 'refresh' }),
+    '</div>',
+    state.flowListError ? `<div class="flow-workbench__flow-list-error">${escapeHTML(state.flowListError)}</div>` : '',
+    state.flowListLoading ? `<div class="flow-workbench__empty">${escapeHTML(labels.loadingFlows)}</div>` : renderFlowListItems(flows, state, labels),
+    '</div>',
+    '<footer class="ds-modal__footer">',
+    '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-workbench-action="close-flow-list">Close</button>',
+    '</footer>',
+    '</section>',
+    '</div>'
+  ].join('');
+}
+
+function renderFlowStatusOptions(currentStatus, labels) {
+  return [
+    ['', labels.allFlows],
+    ['draft', labels.draft],
+    ['published', labels.published],
+    ['disabled', labels.disabled],
+    ['archived', labels.archived]
+  ].map(([value, label]) => `<option value="${escapeAttr(value)}"${value === currentStatus ? ' selected' : ''}>${escapeHTML(label)}</option>`).join('');
+}
+
+function renderFlowListItems(flows, state, labels) {
+  if (!flows.length) {
+    return `<div class="flow-workbench__empty">${escapeHTML(labels.emptyFlows)}</div>`;
+  }
+
+  return [
+    '<ol class="flow-workbench__flow-list">',
+    flows.map((flow) => [
+      `<li class="flow-workbench__flow-list-item${flow.id === state.flow.id ? ' is-current' : ''}">`,
+      '<button type="button" class="flow-workbench__flow-list-button" data-flow-workbench-action="load-flow" ',
+      `data-flow-id="${escapeAttr(flow.id)}">`,
+      '<span class="flow-workbench__flow-list-main">',
+      `<strong>${escapeHTML(flow.name || flow.id)}</strong>`,
+      `<small>${escapeHTML(flow.description || flow.id)}</small>`,
+      '</span>',
+      '<span class="flow-workbench__flow-list-meta">',
+      `<span class="ds-badge ds-badge--neutral">${escapeHTML(flow.status || 'draft')}</span>`,
+      `<small>${escapeHTML(formatFlowListMeta(flow))}</small>`,
+      '</span>',
+      '</button>',
+      '</li>'
+    ].join('')).join(''),
+    '</ol>'
+  ].join('');
+}
+
+function getFilteredFlowListItems(state) {
+  const keyword = String(state.flowListQuery || '').trim().toLowerCase();
+  const status = String(state.flowListStatus || '').trim();
+  return (state.flowListItems || []).filter((flow) => {
+    if (status && flow.status !== status) {
+      return false;
+    }
+    if (!keyword) {
+      return true;
+    }
+    return [flow.id, flow.name, flow.description, flow.status]
+      .some((value) => String(value || '').toLowerCase().includes(keyword));
+  });
+}
+
+function formatFlowListMeta(flow) {
+  const nodeCount = Array.isArray(flow.nodes) ? flow.nodes.length : Number(flow.nodeCount || 0);
+  const edgeCount = Array.isArray(flow.edges) ? flow.edges.length : Number(flow.edgeCount || 0);
+  const version = flow.publishedVersion || flow.published_version || flow.version || '';
+  const updated = flow.updatedAt || flow.updated_at || flow.publishedAt || flow.published_at || '';
+  return [
+    `${nodeCount} nodes`,
+    `${edgeCount} edges`,
+    version ? `v${version}` : '',
+    updated ? String(updated).slice(0, 10) : ''
+  ].filter(Boolean).join(' · ');
+}
+
+async function loadWorkbenchFlowList(state, options, api) {
+  const flowStore = getWorkbenchFlowStore(options);
+  if (!flowStore || typeof flowStore.list !== 'function') {
+    state.flowListError = 'flowStore.list is required.';
+    state.flowListLoading = false;
+    return;
+  }
+
+  try {
+    const items = await flowStore.list({
+      keyword: state.flowListQuery || '',
+      status: state.flowListStatus || ''
+    });
+    state.flowListItems = Array.isArray(items) ? items.map(cloneFlow) : [];
+    state.flowListError = '';
+  } catch (error) {
+    state.flowListError = error?.message || 'Failed to load flows.';
+    api.writeLog('flow.list.fail', state.flowListError);
+  } finally {
+    state.flowListLoading = false;
+  }
+}
+
+async function loadWorkbenchFlow(state, options, api, id) {
+  const flowStore = getWorkbenchFlowStore(options);
+  if (!flowStore || typeof flowStore.get !== 'function' || !id) {
+    return;
+  }
+
+  try {
+    const flow = await flowStore.get(id);
+    if (!flow) {
+      throw new Error(`Flow was not found: ${id}`);
+    }
+    assertWorkbenchFlowValid(flow, options);
+    state.flow = cloneFlow(flow);
+    state.selectedNodeId = '';
+    state.connectionDraft = null;
+    state.draggingNodeId = '';
+    state.paletteOpen = false;
+    state.flowListOpen = false;
+    state.prompt = state.flow.intent?.examples?.[0] || state.flow.name || state.prompt || '';
+    api.writeLog('flow.load', `Loaded flow: ${state.flow.name || state.flow.id}`);
+    await options.onLoadFlow?.(cloneFlow(state.flow), api);
+  } catch (error) {
+    state.flowListError = error?.message || 'Failed to load flow.';
+    api.writeLog('flow.load.fail', state.flowListError);
+  }
+}
+
+async function saveWorkbenchFlow(state, options, api, saveOptions = {}) {
+  const flowStore = getWorkbenchFlowStore(options);
+  if (!flowStore) {
+    api.writeLog('flow.save.fail', 'flowStore is required.');
+    return null;
+  }
+
+  try {
+    const draft = {
+      ...cloneFlow(state.flow),
+      status: saveOptions.status || 'draft',
+      updatedAt: new Date().toISOString()
+    };
+    assertWorkbenchFlowValid(draft, options);
+
+    let saved;
+    if (typeof flowStore.save === 'function') {
+      saved = await flowStore.save(draft);
+    } else {
+      const existing = typeof flowStore.get === 'function' ? await flowStore.get(draft.id) : null;
+      if (existing && typeof flowStore.update === 'function') {
+        saved = await flowStore.update(draft.id, draft);
+      } else if (typeof flowStore.create === 'function') {
+        saved = await flowStore.create(draft);
+      } else {
+        throw new Error('flowStore.save, create, or update is required.');
+      }
+    }
+
+    state.flow = cloneFlow(saved || draft);
+    if (!saveOptions.silent) {
+      api.writeLog('flow.save', `Saved flow: ${state.flow.name || state.flow.id}`);
+    }
+    await options.onSaveFlow?.(cloneFlow(state.flow), api);
+    await loadWorkbenchFlowList(state, options, api);
+    return state.flow;
+  } catch (error) {
+    const message = error?.message || 'Failed to save flow.';
+    api.writeLog('flow.save.fail', message);
+    state.flowListError = message;
+    return null;
+  }
+}
+
+async function publishWorkbenchFlow(state, options, api) {
+  const flowStore = getWorkbenchFlowStore(options);
+  if (!flowStore || typeof flowStore.publish !== 'function') {
+    api.writeLog('flow.publish.fail', 'flowStore.publish is required.');
+    return null;
+  }
+
+  try {
+    const saved = await saveWorkbenchFlow(state, options, api, { silent: true, status: 'draft' });
+    if (!saved) {
+      return null;
+    }
+    const published = await flowStore.publish(saved.id, {
+      changeSummary: options.publishChangeSummary || `Published from ${saved.name || saved.id}`
+    });
+    state.flow = cloneFlow(published || {
+      ...saved,
+      status: 'published',
+      publishedAt: new Date().toISOString()
+    });
+    api.writeLog('flow.publish', `Published flow: ${state.flow.name || state.flow.id}`);
+    await options.onPublishFlow?.(cloneFlow(state.flow), api);
+    await loadWorkbenchFlowList(state, options, api);
+    return state.flow;
+  } catch (error) {
+    const message = error?.message || 'Failed to publish flow.';
+    api.writeLog('flow.publish.fail', message);
+    state.flowListError = message;
+    return null;
+  }
+}
+
+function getWorkbenchFlowStore(options) {
+  return options.flowStore || null;
+}
+
+function assertWorkbenchFlowValid(flow, options) {
+  const validation = validateFlow(flow, {
+    capabilities: options.capabilities,
+    resources: options.resources,
+    resourceSchemas: options.resourceSchemas,
+    subflows: options.subflows
+  });
+  if (!validation.valid) {
+    throw new Error(validation.errors.join('; '));
   }
 }
 
@@ -1360,6 +1646,10 @@ function createLabels(labels = {}) {
     fit: 'Fit',
     preview: 'Preview',
     execute: 'Run',
+    flows: 'Flows',
+    save: 'Save',
+    publish: 'Publish',
+    refresh: 'Refresh',
     palette: 'Node palette',
     inspector: 'Node inspector',
     prompt: 'Prompt',
@@ -1374,6 +1664,14 @@ function createLabels(labels = {}) {
     selectTarget: 'Select target',
     deleteNode: 'Delete node',
     result: 'Run result',
+    flowSearch: 'Search flows',
+    allFlows: 'All',
+    draft: 'Draft',
+    published: 'Published',
+    disabled: 'Disabled',
+    archived: 'Archived',
+    loadingFlows: 'Loading flows...',
+    emptyFlows: 'No flows found.',
     paletteSearch: '',
     paletteEmpty: '',
     defaultHelpDescription: 'Configure this node with its capability, risk level, and JSON params, then connect its output port to the next node input port.',

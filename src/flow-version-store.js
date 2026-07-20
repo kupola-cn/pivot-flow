@@ -123,9 +123,9 @@ export function createVersionedFlowStore(flowStore, options = {}) {
       return await flowStore.update(id, patch);
     },
 
-    async publish(id) {
+    async publish(id, options = {}) {
       await createSnapshotBefore('publish', id);
-      return await flowStore.publish(id);
+      return await flowStore.publish(id, options);
     },
 
     async disable(id) {

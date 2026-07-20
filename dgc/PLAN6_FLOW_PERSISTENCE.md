@@ -8,6 +8,14 @@
 
 ## 当前状态
 
+状态：已完成第一阶段闭环。
+
+- 后端已补齐 Flow 版本表、草稿/发布版本字段、运行记录扩展字段和种子数据。
+- `@kupola/pivot-flow` 已在 `FlowWorkbench` 中封装流程列表弹窗、搜索、状态筛选、加载、保存和发布入口。
+- HIS `his-flow-designer` 已接入 `/api/pivot-flows` 和 `/api/pivot-flow-runs`。
+- 本地数据库已加入编排员、普通用户、示例流程和发布版本数据。
+- 已完成必要检查：pivot-flow 测试、打包检查、HIS 前端构建、HIS 后端测试。
+
 HIS 后端已经有基础接口和表模型：
 
 - `GET /api/pivot-flows`
@@ -329,37 +337,37 @@ FlowWorkbench({
 
 ### 第 1 轮：文档与现状对齐
 
-- 完成本文档。
-- 确认现有 HIS 表和接口缺口。
-- 不修改功能代码。
+- [x] 完成本文档。
+- [x] 确认现有 HIS 表和接口缺口。
+- [x] 不修改功能代码。
 
 ### 第 2 轮：补后端数据模型和 API
 
-- 增加 `PivotFlowVersion` 模型。
-- 扩展 `PivotFlow` 字段：版本、负责人、发布人。
-- 扩展 `PivotFlowRun` 字段：版本、输入、输出、trace、耗时。
-- 调整 `HandleList` 返回轻量列表摘要。
-- 调整 `HandleGet` 返回完整 Flow。
-- 调整 `HandleUpdate` 保存草稿并递增 draft version。
-- 调整 `HandlePublish` 写入 `pivot_flow_versions`。
-- 增加必要测试或最小 API 验证。
+- [x] 增加 `PivotFlowVersion` 模型。
+- [x] 扩展 `PivotFlow` 字段：版本、负责人、发布人。
+- [x] 扩展 `PivotFlowRun` 字段：版本、输入、输出、trace、耗时。
+- [x] 调整 `HandleList` 返回轻量列表摘要。
+- [x] 调整 `HandleGet` 返回完整 Flow。
+- [x] 调整 `HandleUpdate` 保存草稿并递增 draft version。
+- [x] 调整 `HandlePublish` 写入 `pivot_flow_versions`。
+- [x] 增加必要测试或最小 API 验证。
 
 ### 第 3 轮：封装 Flow List UI 到 pivot-flow
 
-- 在 `FlowWorkbench` 增加“流程”按钮。
-- 使用 Kupola Dialog 实现 Flow List 弹窗。
-- 增加 list/search/status/loading/error/empty 状态。
-- 增加 `flowStore` 接口。
-- 加载 Flow 前后校验，成功后刷新画布。
-- 增加测试。
+- [x] 在 `FlowWorkbench` 增加“流程”按钮。
+- [x] 使用 Kupola Dialog 实现 Flow List 弹窗。
+- [x] 增加 list/search/status/loading/error/empty 状态。
+- [x] 增加 `flowStore` 接口。
+- [x] 加载 Flow 前后校验，成功后刷新画布。
+- [x] 增加测试。
 
 ### 第 4 轮：HIS 接入 Flow Store
 
-- `his-flow-designer.js` 接入后端 API。
-- 保存草稿按钮接 `save`。
-- 发布按钮接 `publish`。
-- 流程弹窗选择 Flow 后加载到画布。
-- HIS 页面验证加载后节点、连接、属性都正常。
+- [x] `his-flow-designer.js` 接入后端 API。
+- [x] 保存草稿按钮接 `save`。
+- [x] 发布按钮接 `publish`。
+- [x] 流程弹窗选择 Flow 后加载到画布。
+- [x] HIS 页面验证加载后节点、连接、属性都正常。
 
 ### 第 5 轮：运行与审计闭环
 

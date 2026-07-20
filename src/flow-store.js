@@ -46,10 +46,11 @@ export function createMemoryFlowStore(initialFlows = []) {
       flows.delete(id);
     },
 
-    async publish(id) {
+    async publish(id, options = {}) {
       return this.update(id, {
         status: FLOW_STATUS.PUBLISHED,
-        publishedAt: new Date().toISOString()
+        publishedAt: new Date().toISOString(),
+        ...(options.patch ?? {})
       });
     },
 
@@ -151,10 +152,11 @@ export function createLocalStorageFlowStore(options = {}) {
       writeFlows(readFlows().filter((flow) => flow.id !== id));
     },
 
-    async publish(id) {
+    async publish(id, options = {}) {
       return this.update(id, {
         status: FLOW_STATUS.PUBLISHED,
-        publishedAt: new Date().toISOString()
+        publishedAt: new Date().toISOString(),
+        ...(options.patch ?? {})
       });
     },
 
@@ -258,9 +260,11 @@ export function createHttpFlowStore(options = {}) {
       });
     },
 
-    async publish(id) {
+    async publish(id, options = {}) {
+      const body = Object.keys(options || {}).length > 0 ? JSON.stringify(options) : undefined;
       const flow = await request(`${baseUrl}/${encodeURIComponent(id)}/publish`, {
-        method: 'POST'
+        method: 'POST',
+        ...(body ? { body } : {})
       });
       return createFlow(flow);
     },

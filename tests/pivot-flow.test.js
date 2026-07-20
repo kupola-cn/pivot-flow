@@ -1471,13 +1471,17 @@ test('summarizes flow run results for reusable diagnostics', () => {
 });
 
 test('filters and renders flow run history', () => {
+  const now = new Date();
+  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000).toISOString();
+  const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString();
+  const twoDaysAgo = new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString();
   const runs = [
     {
       id: 'run-1',
       flowId: 'org-create',
       prompt: '在集团下增加分机构 C',
       ok: true,
-      timestamp: '2026-07-19T08:00:00.000Z',
+      timestamp: twoHoursAgo,
       message: 'Created',
       result: {
         ok: true,
@@ -1494,7 +1498,7 @@ test('filters and renders flow run history', () => {
       flowId: 'org-create',
       prompt: '删除角色 admin',
       ok: false,
-      timestamp: '2026-07-19T09:00:00.000Z',
+      timestamp: oneHourAgo,
       message: 'Forbidden',
       result: {
         ok: false,
@@ -1511,7 +1515,7 @@ test('filters and renders flow run history', () => {
       flowId: 'material-query',
       prompt: '查询耗材',
       ok: true,
-      timestamp: '2026-07-18T09:00:00.000Z',
+      timestamp: twoDaysAgo,
       result: { ok: true, data: {} }
     }
   ];
@@ -1519,7 +1523,7 @@ test('filters and renders flow run history', () => {
   const filtered = filterFlowRuns(runs, { flowId: 'org-create', status: 'failed', keyword: '角色' });
   const recent = filterFlowRuns(runs, {
     dateRange: '24h',
-    now: '2026-07-19T10:00:00.000Z'
+    now: now.toISOString()
   });
   const summary = createFlowRunHistorySummary(runs, { flowId: 'org-create' });
   const html = renderFlowRunHistoryToHTML(runs, { flowId: 'org-create', status: 'failed', keyword: '角色', dateRange: '24h' });
@@ -1860,9 +1864,62 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--preview/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--execute/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--result/);
+  assert.doesNotMatch(defaultWorkbenchHTML, /data-flow-workbench-action="toggle-flow-list"/);
   assert.equal(defaultWorkbenchHTML.indexOf('flow-workbench__canvas-toolbar') < defaultWorkbenchHTML.indexOf('flow-workbench__zoom-toolbar'), true);
   assert.equal(defaultWorkbenchHTML.indexOf('data-flow-workbench-action="toggle-palette"') > defaultWorkbenchHTML.indexOf('flow-workbench__zoom-toolbar'), true);
   assert.equal(defaultWorkbenchHTML.indexOf('data-flow-workbench-action="toggle-palette"') < defaultWorkbenchHTML.indexOf('data-flow-workbench-action="zoom-out"'), true);
+  const flowStoreWorkbenchHTML = renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'store-workbench-flow',
+      name: 'Store workbench flow',
+      nodes: []
+    }),
+    selectedNodeId: '',
+    prompt: '',
+    resultHTML: '',
+    logs: [],
+    paletteOpen: false,
+    resultOpen: false,
+    flowListOpen: true,
+    flowListItems: [
+      createFlow({
+        id: 'published-search-flow',
+        name: 'Published search flow',
+        description: 'Search a user by name.',
+        status: 'published',
+        nodes: [{ id: 'query-users', type: 'data.query', capability: 'user.query' }],
+        edges: []
+      }),
+      createFlow({
+        id: 'draft-message-flow',
+        name: 'Draft message flow',
+        status: 'draft',
+        nodes: [{ id: 'show-message', type: 'message.show', capability: 'message.show' }],
+        edges: []
+      })
+    ],
+    flowListQuery: 'search',
+    flowListStatus: 'published',
+    pan: { x: 0, y: 0 },
+    zoom: 1
+  }, {
+    flowStore: createMemoryFlowStore(),
+    labels: {
+      flows: 'Flows',
+      save: 'Save',
+      publish: 'Publish',
+      refresh: 'Refresh'
+    }
+  });
+  assert.match(flowStoreWorkbenchHTML, /data-flow-workbench-action="toggle-flow-list"/);
+  assert.match(flowStoreWorkbenchHTML, /flow-workbench__button-icon--flows/);
+  assert.match(flowStoreWorkbenchHTML, /flow-workbench__button-icon--save/);
+  assert.match(flowStoreWorkbenchHTML, /flow-workbench__button-icon--publish/);
+  assert.match(flowStoreWorkbenchHTML, /flow-workbench__flow-list-dialog/);
+  assert.match(flowStoreWorkbenchHTML, /data-flow-workbench-flow-search/);
+  assert.match(flowStoreWorkbenchHTML, /data-flow-workbench-flow-status/);
+  assert.match(flowStoreWorkbenchHTML, /Published search flow/);
+  assert.doesNotMatch(flowStoreWorkbenchHTML, /Draft message flow/);
   const openZoomWorkbenchHTML = renderFlowWorkbenchToHTML({
     flow: createFlow({
       id: 'open-zoom-workbench-flow',

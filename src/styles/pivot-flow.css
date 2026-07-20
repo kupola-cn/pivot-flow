@@ -3539,6 +3539,22 @@
   --flow-workbench-button-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z'/%3E%3C/svg%3E");
 }
 
+.flow-workbench__button-icon--flows {
+  --flow-workbench-button-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 4h16v4H4V4Zm0 6h16v4H4v-4Zm0 6h16v4H4v-4Zm2-10v0h12v0H6Zm0 6v0h12v0H6Zm0 6v0h12v0H6Z'/%3E%3C/svg%3E");
+}
+
+.flow-workbench__button-icon--save {
+  --flow-workbench-button-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M5 3h12l2 2v16H5V3Zm2 2v14h10V7.8L14.2 5H7Zm2 0h4v5H9V5Zm0 10h6v2H9v-2Z'/%3E%3C/svg%3E");
+}
+
+.flow-workbench__button-icon--publish {
+  --flow-workbench-button-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M12 3 4 11h5v8h6v-8h5L12 3Zm0 3.8 3.2 3.2H13v7h-2v-7H8.8L12 6.8Z'/%3E%3C/svg%3E");
+}
+
+.flow-workbench__button-icon--refresh {
+  --flow-workbench-button-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M7 7h9.2l-2.1-2.1 1.4-1.4L20 8l-4.5 4.5-1.4-1.4L16.2 9H7a3 3 0 0 0 0 6h1v2H7A5 5 0 0 1 7 7Zm10 10H7.8l2.1 2.1-1.4 1.4L4 16l4.5-4.5 1.4 1.4L7.8 15H17a3 3 0 0 0 0-6h-1V7h1a5 5 0 0 1 0 10Z'/%3E%3C/svg%3E");
+}
+
 .flow-workbench__button-icon--reset {
   --flow-workbench-button-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M7 7h9.2l-2.1-2.1 1.4-1.4L20 8l-4.5 4.5-1.4-1.4L16.2 9H7a3 3 0 0 0 0 6h2v2H7A5 5 0 1 1 7 7Zm10 10H7.8l2.1 2.1-1.4 1.4L4 16l4.5-4.5 1.4 1.4L7.8 15H17a3 3 0 0 0 0-6h-2V7h2a5 5 0 0 1 0 10Z'/%3E%3C/svg%3E");
 }
@@ -3756,6 +3772,89 @@
   top: 60px;
   width: 340px;
   padding: var(--spacer-12);
+}
+
+.flow-workbench__flow-list-dialog {
+  max-width: min(760px, calc(100vw - var(--spacer-24)));
+  width: min(760px, calc(100vw - var(--spacer-24)));
+}
+
+.flow-workbench__flow-list-body {
+  display: grid;
+  gap: var(--spacer-12);
+  max-height: min(560px, calc(100dvh - 180px));
+  overflow: auto;
+}
+
+.flow-workbench__flow-list-filters {
+  align-items: center;
+  display: grid;
+  gap: var(--spacer-8);
+  grid-template-columns: minmax(0, 1fr) 140px auto;
+}
+
+.flow-workbench__flow-list {
+  display: grid;
+  gap: var(--spacer-8);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.flow-workbench__flow-list-button {
+  align-items: center;
+  appearance: none;
+  background: var(--bg-base-default);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  box-sizing: border-box;
+  color: var(--text-default);
+  cursor: pointer;
+  display: grid;
+  gap: var(--spacer-12);
+  grid-template-columns: minmax(0, 1fr) auto;
+  min-height: 68px;
+  padding: var(--spacer-10) var(--spacer-12);
+  text-align: left;
+  width: 100%;
+}
+
+.flow-workbench__flow-list-button:hover,
+.flow-workbench__flow-list-button:focus-visible,
+.flow-workbench__flow-list-item.is-current .flow-workbench__flow-list-button {
+  background: var(--bg-overlay-l1);
+  border-color: var(--border-brand);
+  outline: 0;
+}
+
+.flow-workbench__flow-list-main,
+.flow-workbench__flow-list-meta {
+  display: grid;
+  gap: var(--spacer-4);
+  min-width: 0;
+}
+
+.flow-workbench__flow-list-main strong,
+.flow-workbench__flow-list-main small,
+.flow-workbench__flow-list-meta small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flow-workbench__flow-list-main small,
+.flow-workbench__flow-list-meta small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+}
+
+.flow-workbench__flow-list-error {
+  background: var(--bg-danger-subtle, var(--bg-overlay-l1));
+  border: 1px solid var(--status-danger-default, var(--border-neutral-l1));
+  border-radius: var(--radius-4);
+  color: var(--status-danger-default, var(--text-default));
+  font-size: var(--body-sm-font-size);
+  padding: var(--spacer-8) var(--spacer-10);
 }
 
 .flow-workbench__panel-close {

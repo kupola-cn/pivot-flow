@@ -208,7 +208,7 @@ export interface FlowStore {
   create(flow: Partial<FlowDefinition>): Promise<FlowDefinition>;
   update(id: string, patch: Partial<FlowDefinition>): Promise<FlowDefinition>;
   remove(id: string): Promise<void>;
-  publish(id: string): Promise<FlowDefinition>;
+  publish(id: string, options?: { changeSummary?: string; patch?: Partial<FlowDefinition>; [key: string]: unknown }): Promise<FlowDefinition>;
   disable(id: string): Promise<FlowDefinition>;
   recordRun?(record: Record<string, unknown>): Promise<Record<string, unknown>>;
   listRuns?(flowId?: string): Promise<Record<string, unknown>[]>;
@@ -1602,6 +1602,10 @@ export interface FlowWorkbenchLabels {
   fit?: string;
   preview?: string;
   execute?: string;
+  flows?: string;
+  save?: string;
+  publish?: string;
+  refresh?: string;
   palette?: string;
   inspector?: string;
   prompt?: string;
@@ -1617,6 +1621,14 @@ export interface FlowWorkbenchLabels {
   deleteNode?: string;
   result?: string;
   type?: string;
+  flowSearch?: string;
+  allFlows?: string;
+  draft?: string;
+  published?: string;
+  disabled?: string;
+  archived?: string;
+  loadingFlows?: string;
+  emptyFlows?: string;
   paletteSearch?: string;
   paletteEmpty?: string;
   defaultHelpDescription?: string;
@@ -1637,6 +1649,9 @@ export interface FlowWorkbenchOptions {
   labels?: FlowWorkbenchLabels;
   selectedNodeId?: string;
   paletteOpen?: boolean;
+  flowListOpen?: boolean;
+  flowListQuery?: string;
+  flowListStatus?: FlowStatus | string;
   resultOpen?: boolean;
   pan?: { x: number; y: number };
   zoom?: number;
@@ -1645,6 +1660,12 @@ export interface FlowWorkbenchOptions {
   resetMessage?: string;
   locale?: string;
   maxLogs?: number;
+  flowStore?: FlowStore;
+  capabilities?: PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] } | unknown;
+  resourceSchemas?: Record<string, Record<string, unknown>>;
+  resources?: Record<string, Record<string, unknown>>;
+  subflows?: FlowDefinition[] | Record<string, FlowDefinition> | { list(): FlowDefinition[] };
+  publishChangeSummary?: string;
   context?: Record<string, unknown>;
   contextProvider?: () => Record<string, unknown> | Promise<Record<string, unknown>>;
   extractSlots?: (prompt: string, flow: FlowDefinition) => Record<string, unknown>;
@@ -1656,6 +1677,9 @@ export interface FlowWorkbenchOptions {
     writeLog(type: string, message: string): void;
     escapeHTML(value: unknown): string;
   }) => PivotRuntime | Promise<PivotRuntime>;
+  onLoadFlow?: (flow: FlowDefinition, api: Record<string, unknown>) => void | Promise<void>;
+  onSaveFlow?: (flow: FlowDefinition, api: Record<string, unknown>) => void | Promise<void>;
+  onPublishFlow?: (flow: FlowDefinition, api: Record<string, unknown>) => void | Promise<void>;
 }
 
 export function FlowManager(options: FlowManagerOptions): { element: Element; refresh(): Promise<void>; destroy(): void };
