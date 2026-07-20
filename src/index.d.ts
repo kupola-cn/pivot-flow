@@ -1485,7 +1485,7 @@ export function renderFlowTestPanelToHTML(state?: Record<string, unknown>): stri
 export function parseFlowTestSlots(value?: string): Record<string, unknown>;
 export function renderFlowAuditPanelToHTML(audits?: unknown[], options?: Record<string, unknown>): string;
 
-export function FlowManager(options: {
+export interface FlowManagerOptions {
   target: string | Element;
   runtime?: PivotRuntime;
   capabilities?: PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] };
@@ -1506,9 +1506,9 @@ export function FlowManager(options: {
     maxStringLength?: number;
     summaryDepth?: number;
   };
-}): { element: Element; refresh(): Promise<void>; destroy(): void };
+}
 
-export function FlowDesigner(options: {
+export interface FlowDesignerOptions {
   target: string | Element;
   flow?: FlowDefinition;
   runtime?: PivotRuntime;
@@ -1518,7 +1518,12 @@ export function FlowDesigner(options: {
   input?: Record<string, unknown>;
   context?: Record<string, unknown>;
   onPreview?: (plan: PivotPlan) => void;
-}): { element: Element; update(flow: FlowDefinition): void; destroy(): void };
+}
+
+export function FlowManager(options: FlowManagerOptions): { element: Element; refresh(): Promise<void>; destroy(): void };
+export function FlowDesigner(options: FlowDesignerOptions): { element: Element; update(flow: FlowDefinition): void; destroy(): void };
+export function createPivotFlowApp(options: FlowManagerOptions): ReturnType<typeof FlowManager>;
+export function createFlowDesigner(options: FlowDesignerOptions): ReturnType<typeof FlowDesigner>;
 
 export function FlowAssistantDrawer(options: {
   trigger?: string | Element;

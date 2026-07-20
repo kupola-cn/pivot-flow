@@ -11,6 +11,7 @@ import {
   createAIFlowDraft,
   createCapabilityManifestSummary,
   createFlowFromTemplate,
+  createFlowDesigner,
   createHttpFlowStore,
   canConnectFlowNodes,
   createLocalIntentMapper,
@@ -28,6 +29,7 @@ import {
   createFlowChangeReport,
   createFlowEditSession,
   createFlowSnapshot,
+  createPivotFlowApp,
   createVersionedFlowStore,
   createFlowPublishGate,
   createHybridIntentRouter,
@@ -153,6 +155,20 @@ function createOrganizationFlow() {
       }
     ]
   });
+}
+
+function createElementStub() {
+  return {
+    innerHTML: '',
+    addEventListener() {},
+    removeEventListener() {},
+    contains() {
+      return true;
+    },
+    querySelector() {
+      return null;
+    }
+  };
 }
 
 test('validates a published flow', () => {
@@ -1725,6 +1741,30 @@ test('renders designer reset action when a flow has unsaved changes', () => {
   assert.doesNotMatch(cleanHTML, /data-flow-action="reset-flow-edits"/);
   assert.match(dirtyHTML, /data-flow-action="reset-flow-edits"/);
   assert.match(dirtyHTML, /Reset edits/);
+});
+
+test('exports one-call UI app helpers from the main and UI entries', async () => {
+  const ui = await import('../src/ui.js');
+  const target = createElementStub();
+  const designer = createFlowDesigner({
+    target,
+    flow: createFlow({
+      id: 'designer-helper-flow',
+      name: 'Designer helper flow',
+      nodes: [
+        { id: 'message', type: 'message.show', label: 'Message' }
+      ]
+    })
+  });
+
+  assert.equal(typeof createPivotFlowApp, 'function');
+  assert.equal(typeof createFlowDesigner, 'function');
+  assert.equal(ui.createPivotFlowApp, createPivotFlowApp);
+  assert.equal(ui.createFlowDesigner, createFlowDesigner);
+  assert.match(target.innerHTML, /flow-designer/);
+
+  designer.destroy();
+  assert.equal(target.innerHTML, '');
 });
 
 test('renders editable node inspector controls', () => {

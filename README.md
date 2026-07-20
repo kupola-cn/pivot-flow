@@ -48,6 +48,58 @@ import {
 import '@kupola/pivot-flow/css';
 ```
 
+## 10 Minute Designer Setup
+
+Use the UI entry when you want the default designer and panels:
+
+```js
+import { createPivotRuntime } from '@kupola/pivot';
+import { createMemoryFlowStore, createFlowFromTemplate, registerFlowFrontendCapabilities } from '@kupola/pivot-flow';
+import { createPivotFlowApp } from '@kupola/pivot-flow/ui';
+import '@kupola/pivot-flow/css';
+
+const runtime = createPivotRuntime();
+
+runtime.registerCapability({
+  name: 'user.query',
+  resource: 'users',
+  action: 'query',
+  risk: 'low',
+  paramsSchema: {
+    filters: { type: 'array', required: true },
+    limit: { type: 'number', default: 20 }
+  },
+  execute: async ({ params }) => api.users.query(params)
+});
+
+registerFlowFrontendCapabilities(runtime, {
+  showMessage: ({ message }) => app.message.info(message),
+  selectRecord: ({ source, title }) => app.tablePicker.open({ title, rows: source }),
+  displayData: ({ data, renderer, title }) => app.renderer.show({ data, renderer, title })
+});
+
+const flowStore = createMemoryFlowStore([
+  createFlowFromTemplate('user.query-by-name')
+]);
+
+createPivotFlowApp({
+  target: '#flow-designer',
+  runtime,
+  flowStore,
+  resourceSchemas: {
+    users: {
+      fields: {
+        name: { type: 'string', label: 'Name' },
+        departmentName: { type: 'string', label: 'Department' },
+        phone: { type: 'string', label: 'Phone' }
+      }
+    }
+  }
+});
+```
+
+`@kupola/pivot-flow` is the headless API plus the default UI exports. `@kupola/pivot-flow/ui` is the UI-only subpath for `FlowManager`, `FlowDesigner`, panels, and one-call helpers. `@kupola/pivot-flow/css` provides the default styles. The UI layer is built on Kupola UI classes and tokens; projects should replace business renderers through adapters, not by forking base Table/Form/Modal/Drawer primitives.
+
 ## Core Example
 
 ```js

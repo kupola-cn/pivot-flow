@@ -24,6 +24,7 @@ export * from './flow-versioning.js';
 export * from './flow-edit-session.js';
 export * from './flow-version-store.js';
 export * from './flow-intent-router.js';
+export * from './pivot-flow-app.js';
 
 export * from './components/FlowAssistantDrawer.js';
 export * from './components/FlowAuditPanel.js';

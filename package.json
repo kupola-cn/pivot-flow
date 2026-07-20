@@ -11,6 +11,10 @@
       "import": "./src/index.js",
       "types": "./src/index.d.ts"
     },
+    "./ui": {
+      "import": "./src/ui.js",
+      "types": "./src/ui.d.ts"
+    },
     "./css": "./src/styles/pivot-flow.css"
   },
   "sideEffects": [
@@ -19,6 +23,7 @@
   ],
   "files": [
     "src/",
+    "examples/",
     "README.md",
     "LICENSE"
   ],
