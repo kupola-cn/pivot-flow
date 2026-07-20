@@ -1852,6 +1852,7 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   assert.match(defaultWorkbenchHTML, /flow-workbench__status-dot/);
   assert.doesNotMatch(defaultWorkbenchHTML, /ds-badge ds-badge--success/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__zoom-toolbar/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__component-controls/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__zoom-trigger/);
   assert.match(defaultWorkbenchHTML, /data-flow-workbench-action="toggle-zoom-menu"/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--components/);
@@ -1860,6 +1861,8 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--execute/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--result/);
   assert.equal(defaultWorkbenchHTML.indexOf('flow-workbench__canvas-toolbar') < defaultWorkbenchHTML.indexOf('flow-workbench__zoom-toolbar'), true);
+  assert.equal(defaultWorkbenchHTML.indexOf('data-flow-workbench-action="toggle-palette"') > defaultWorkbenchHTML.indexOf('flow-workbench__zoom-toolbar'), true);
+  assert.equal(defaultWorkbenchHTML.indexOf('data-flow-workbench-action="toggle-palette"') < defaultWorkbenchHTML.indexOf('data-flow-workbench-action="zoom-out"'), true);
   const openZoomWorkbenchHTML = renderFlowWorkbenchToHTML({
     flow: createFlow({
       id: 'open-zoom-workbench-flow',

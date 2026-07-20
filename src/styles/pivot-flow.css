@@ -3594,14 +3594,10 @@
 
 .flow-workbench__zoom-toolbar {
   align-items: center;
-  background: var(--bg-base-default);
-  border: 1px solid var(--border-neutral-l1);
-  border-radius: var(--radius-4);
   box-sizing: border-box;
-  box-shadow: var(--shadow-sm);
   display: flex;
+  gap: var(--spacer-8);
   min-height: var(--flow-workbench-toolbar-height);
-  padding: 0 var(--spacer-12);
   right: var(--spacer-12);
 }
 
@@ -3841,13 +3837,22 @@
   bottom: calc(var(--flow-workbench-bottom-reserve) + var(--flow-workbench-result-height) + var(--spacer-24));
 }
 
+.flow-workbench__component-controls,
 .flow-workbench__zoom-controls {
   align-items: center;
+  background: var(--bg-base-default);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
   display: flex;
   gap: var(--spacer-6);
+  min-height: var(--flow-workbench-toolbar-height);
   min-width: 0;
+  padding: 0 var(--spacer-12);
 }
 
+.flow-workbench__component-controls .ds-btn,
 .flow-workbench__zoom-controls .ds-btn {
   min-width: 20px;
 }

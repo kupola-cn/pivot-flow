@@ -310,7 +310,6 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
       '</div>'
     ].join('') : '',
     '<div class="flow-workbench__actions">',
-    renderToolbarButton('toggle-palette', labels.components, 'secondary', { icon: 'components' }),
     renderToolbarButton('reset', labels.reset, 'secondary', { icon: 'reset' }),
     renderToolbarButton('preview', labels.preview, 'secondary', { icon: 'preview' }),
     renderToolbarButton('execute', labels.execute, 'brand', { icon: 'execute' }),
@@ -532,6 +531,9 @@ function renderCanvasToolbar(state, options, labels) {
     '</div>',
     '</div>',
     '<div class="flow-workbench__zoom-toolbar">',
+    '<div class="flow-workbench__component-controls">',
+    renderToolbarButton('toggle-palette', labels.components, 'secondary', { icon: 'components' }),
+    '</div>',
     '<div class="flow-workbench__zoom-controls">',
     renderToolbarButton('zoom-out', '-', 'secondary'),
     renderZoomMenu(state),
