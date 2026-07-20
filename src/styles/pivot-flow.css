@@ -98,7 +98,6 @@
   gap: var(--spacer-12);
   min-height: 0;
   overflow: hidden;
-  padding: var(--spacer-12);
 }
 
 .flow-workbench__palette,
@@ -3496,7 +3495,6 @@
   min-height: var(--flow-workbench-toolbar-height);
   padding: 0 var(--spacer-16);
   right: var(--spacer-12);
-  top: var(--spacer-12);
 }
 
 .flow-workbench__topbar--actions-only {
@@ -3536,7 +3534,6 @@
   left: var(--spacer-12);
   min-height: var(--flow-workbench-toolbar-height);
   padding: 0 var(--spacer-12);
-  top: 78px;
 }
 
 .flow-workbench__zoom-toolbar {
@@ -3550,7 +3547,6 @@
   min-height: var(--flow-workbench-toolbar-height);
   padding: 0 var(--spacer-12);
   right: var(--spacer-12);
-  top: 78px;
 }
 
 .flow-workbench__palette {
@@ -3624,7 +3620,7 @@
 }
 
 .flow-workbench__zoom-controls .ds-btn {
-  min-width: 34px;
+  min-width: 20px;
 }
 
 .flow-workbench__zoom-select {
