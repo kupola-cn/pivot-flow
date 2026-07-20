@@ -153,14 +153,17 @@ export function FlowWorkbench(options = {}) {
 
 export function renderFlowWorkbenchToHTML(state, options = {}) {
   const labels = createLabels(options.labels);
+  const showHeaderText = options.showHeaderText !== false;
   return [
     `<section class="flow-workbench${state.resultOpen ? ' is-result-open' : ''}">`,
     renderCanvas(state, options),
-    '<header class="flow-workbench__topbar">',
-    '<div class="flow-workbench__title">',
+    `<header class="flow-workbench__topbar${showHeaderText ? '' : ' flow-workbench__topbar--actions-only'}">`,
+    showHeaderText ? [
+      '<div class="flow-workbench__title">',
     `<h2>${escapeHTML(options.title || state.flow.name || labels.title)}</h2>`,
     `<p>${escapeHTML(options.description || state.flow.description || '')}</p>`,
-    '</div>',
+      '</div>'
+    ].join('') : '',
     '<div class="flow-workbench__actions">',
     renderToolbarButton('toggle-palette', labels.components, 'secondary'),
     renderToolbarButton('reset', labels.reset, 'secondary'),

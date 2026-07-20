@@ -1577,6 +1577,7 @@ export interface FlowWorkbenchOptions {
   flow: FlowDefinition;
   title?: string;
   description?: string;
+  showHeaderText?: boolean;
   prompt?: string;
   quickPrompts?: Array<string | { label: string; value: string }>;
   nodeTypes?: Array<FlowWorkbenchNodeType | [string, string, string?]>;

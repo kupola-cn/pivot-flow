@@ -3345,6 +3345,16 @@
   top: var(--spacer-12);
 }
 
+.flow-workbench__topbar--actions-only {
+  left: auto;
+  padding: var(--spacer-6);
+  width: auto;
+}
+
+.flow-workbench__topbar--actions-only .flow-workbench__actions {
+  justify-content: flex-end;
+}
+
 .flow-workbench__title h2,
 .flow-workbench__title p {
   overflow: hidden;
@@ -3367,7 +3377,6 @@
   box-shadow: var(--shadow-sm);
   left: var(--spacer-12);
   min-height: var(--flow-workbench-toolbar-height);
-  top: 78px;
 }
 
 .flow-workbench__palette {

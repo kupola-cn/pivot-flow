@@ -1800,6 +1800,25 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
     pan: { x: 0, y: 0 },
     zoom: 1
   }), /data-node-template="data\.query"/);
+  const actionsOnlyHTML = renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'actions-only-workbench-flow',
+      name: 'Hidden header title',
+      description: 'Hidden header description',
+      nodes: []
+    }),
+    selectedNodeId: '',
+    prompt: '',
+    resultHTML: '',
+    logs: [],
+    paletteOpen: false,
+    resultOpen: false,
+    pan: { x: 0, y: 0 },
+    zoom: 1
+  }, { showHeaderText: false });
+  assert.match(actionsOnlyHTML, /flow-workbench__topbar--actions-only/);
+  assert.doesNotMatch(actionsOnlyHTML, /Hidden header title/);
+  assert.doesNotMatch(actionsOnlyHTML, /Hidden header description/);
 
   designer.destroy();
   workbench.destroy();
