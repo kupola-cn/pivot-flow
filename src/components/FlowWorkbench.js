@@ -52,8 +52,12 @@ export function FlowWorkbench(options = {}) {
     const action = actionEl.dataset.flowWorkbenchAction;
     if (action === 'select-node') {
       state.selectedNodeId = actionEl.dataset.nodeId || state.selectedNodeId;
+      state.paletteOpen = false;
     } else if (action === 'toggle-palette') {
       state.paletteOpen = !state.paletteOpen;
+      if (state.paletteOpen) {
+        state.selectedNodeId = '';
+      }
     } else if (action === 'toggle-result') {
       state.resultOpen = !state.resultOpen;
     } else if (action === 'close-inspector') {
@@ -67,6 +71,7 @@ export function FlowWorkbench(options = {}) {
       state.zoom = 1;
     } else if (action === 'add-node') {
       addNode(state, options, actionEl.dataset.nodeTemplate || actionEl.dataset.nodeType);
+      state.paletteOpen = false;
     } else if (action === 'remove-node') {
       removeSelectedNode(state, api);
     } else if (action === 'reset') {
@@ -172,7 +177,7 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
     '</div>',
     '</header>',
     renderCanvasToolbar(state, options, labels),
-    state.paletteOpen ? [
+    state.paletteOpen && !state.selectedNodeId ? [
       '<aside class="flow-workbench__palette">',
     `<div class="flow-workbench__panel-title">${escapeHTML(labels.palette)}</div>`,
     '<div class="flow-workbench__node-list">',
@@ -559,6 +564,7 @@ function startNodeDrag(event, target, state, render, nodeEl) {
   const position = node.ui?.position || { x: 80, y: 80 };
   state.draggingNodeId = nodeId;
   state.selectedNodeId = nodeId;
+  state.paletteOpen = false;
   state.dragOffset = {
     x: point.x - position.x,
     y: point.y - position.y

@@ -1819,6 +1819,25 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   assert.match(actionsOnlyHTML, /flow-workbench__topbar--actions-only/);
   assert.doesNotMatch(actionsOnlyHTML, /Hidden header title/);
   assert.doesNotMatch(actionsOnlyHTML, /Hidden header description/);
+  const exclusivePanelHTML = renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'exclusive-workbench-flow',
+      name: 'Exclusive workbench flow',
+      nodes: [
+        { id: 'message', type: 'message.show', label: 'Message', ui: { position: { x: 80, y: 80 } } }
+      ]
+    }),
+    selectedNodeId: 'message',
+    prompt: '',
+    resultHTML: '',
+    logs: [],
+    paletteOpen: true,
+    resultOpen: false,
+    pan: { x: 0, y: 0 },
+    zoom: 1
+  });
+  assert.match(exclusivePanelHTML, /flow-workbench__inspector/);
+  assert.doesNotMatch(exclusivePanelHTML, /flow-workbench__palette/);
 
   designer.destroy();
   workbench.destroy();

@@ -218,6 +218,7 @@
   position: absolute;
   user-select: none;
   width: 238px;
+  padding: var(--spacer-10);
 }
 
 .flow-workbench__node.is-selected {
@@ -3383,12 +3384,12 @@
   background: var(--bg-base-default);
   border: 1px solid var(--border-neutral-l1);
   border-radius: var(--radius-4);
+  bottom: 88px;
   box-shadow: var(--shadow-md);
   grid-template-rows: var(--flow-workbench-toolbar-height) minmax(0, 1fr);
-  left: var(--spacer-12);
-  max-height: min(560px, calc(100% - 152px));
-  top: 136px;
-  width: 280px;
+  right: var(--spacer-12);
+  top: 78px;
+  width: 340px;
 }
 
 .flow-workbench__inspector {
