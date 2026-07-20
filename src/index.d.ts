@@ -805,6 +805,28 @@ export const BUILT_IN_FLOW_TEMPLATES: readonly FlowTemplate[];
 export function listFlowTemplates(query?: { group?: string; keyword?: string }): FlowTemplate[];
 export function getFlowTemplate(id: string): FlowTemplate | null;
 export function createFlowFromTemplate(templateOrId: string | FlowTemplate, overrides?: Partial<FlowDefinition>): FlowDefinition;
+export interface FlowOutput {
+  kind: 'message' | 'result' | 'table' | 'detail' | 'options';
+  title?: string;
+  message?: string;
+  type?: string;
+  data?: unknown;
+  columns?: unknown[];
+  fields?: unknown[];
+  options?: unknown[];
+  labelField?: string;
+  valueField?: string;
+}
+export function executeFlowGraph(flow: FlowDefinition, options?: {
+  runtime?: PivotRuntime;
+  input?: Record<string, unknown>;
+  context?: Record<string, unknown>;
+  executeOptions?: Record<string, unknown>;
+  validation?: Record<string, unknown>;
+}): Promise<PivotResult>;
+export function executeFlowNode(node: FlowNode, state?: Record<string, unknown>): Promise<PivotResult>;
+export function createFlowOutput(node?: Partial<FlowNode>, params?: Record<string, unknown>, state?: Record<string, unknown>): FlowOutput;
+export function resolveFlowExecutionValue(value: unknown, state?: Record<string, unknown>): unknown;
 export function createFlowRunner(options: {
   runtime: PivotRuntime;
   flowStore?: FlowStore;
@@ -812,6 +834,7 @@ export function createFlowRunner(options: {
   intentMapper?: IntentMapper;
   contextProvider?: () => Record<string, unknown> | Promise<Record<string, unknown>>;
   context?: Record<string, unknown>;
+  graphExecution?: boolean;
   runRecord?: {
     includeRawResult?: boolean;
     maxNodes?: number;

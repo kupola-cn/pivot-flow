@@ -22,6 +22,7 @@ import {
   createFlowRunner,
   createFlowRunHistorySummary,
   createFlowRunRecord,
+  executeFlowGraph,
   createFlowAccessReport,
   createFlowApiContract,
   createFlowApprovalRequest,
@@ -3409,6 +3410,89 @@ test('runs a flow with FlowRunner', async () => {
   assert.equal(runs[0].result.data.nodeCount, 1);
   assert.equal(runs[0].result.data.nodes[0].result.data.name, 'C');
   assert.equal(runs[0].rawResult, undefined);
+});
+
+test('executes PLAN5 local data processing nodes and returns flow output', async () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'users.query',
+    resource: 'users',
+    action: ActionType.QUERY,
+    risk: RiskLevel.LOW,
+    paramsSchema: {},
+    allowUnknownParams: true,
+    permissions: [],
+    execute: () => ({
+      records: [
+        { id: 'u-1', name: 'Zhang San', roleId: 'r-1', status: 'active' },
+        { id: 'u-2', name: 'Li Si', roleId: 'r-2', status: 'inactive' },
+        { id: 'u-1', name: 'Zhang San', roleId: 'r-1', status: 'active' }
+      ]
+    })
+  });
+  runtime.registerCapability({
+    name: 'roles.query',
+    resource: 'roles',
+    action: ActionType.QUERY,
+    risk: RiskLevel.LOW,
+    paramsSchema: {},
+    allowUnknownParams: true,
+    permissions: [],
+    execute: () => ({
+      records: [
+        { id: 'r-1', roleName: 'Doctor' },
+        { id: 'r-2', roleName: 'Nurse' }
+      ]
+    })
+  });
+
+  const flow = createFlow({
+    id: 'plan5-local-flow',
+    name: 'PLAN5 local flow',
+    status: 'published',
+    intent: { examples: ['查询用户'], keywords: ['查询用户', '用户'] },
+    nodes: [
+      { id: 'query-users', type: 'data.query', capability: 'users.query' },
+      { id: 'filter-active', type: 'data.filter', params: { source: '{{query-users.data.records}}', where: { field: 'status', operator: 'eq', value: 'active' } } },
+      { id: 'query-roles', type: 'data.query', capability: 'roles.query' },
+      { id: 'merge-role', type: 'data.merge', params: { left: '{{filter-active.data.records}}', right: '{{query-roles.data.records}}', leftKey: 'roleId', rightKey: 'id', rightAlias: 'role' } },
+      { id: 'map-user', type: 'data.map', params: { source: '{{merge-role.data.records}}', mappings: { id: '{{item.id}}', name: '{{item.name}}', roleName: '{{item.role.roleName}}' } } },
+      { id: 'dedupe-user', type: 'data.dedupe', params: { source: '{{map-user.data.records}}', keys: ['id'] } },
+      { id: 'sort-user', type: 'data.sort', params: { source: '{{dedupe-user.data.records}}', by: ['name'], direction: 'asc' } },
+      { id: 'pick-user', type: 'data.pick', params: { source: '{{sort-user.data.records}}', mode: 'first' } },
+      { id: 'return-user', type: 'output.detail', params: { data: '{{pick-user.data.value}}', fields: ['name', 'roleName'] } }
+    ],
+    edges: [
+      { from: 'query-users', to: 'filter-active' },
+      { from: 'filter-active', to: 'query-roles' },
+      { from: 'query-roles', to: 'merge-role' },
+      { from: 'merge-role', to: 'map-user' },
+      { from: 'map-user', to: 'dedupe-user' },
+      { from: 'dedupe-user', to: 'sort-user' },
+      { from: 'sort-user', to: 'pick-user' },
+      { from: 'pick-user', to: 'return-user' }
+    ]
+  });
+  const result = await executeFlowGraph(flow, {
+    runtime,
+    input: { prompt: '查询用户', slots: {} }
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.data.output.kind, 'detail');
+  assert.equal(result.data.output.data.name, 'Zhang San');
+  assert.equal(result.data.output.data.roleName, 'Doctor');
+  assert.equal(result.data.nodes.find((item) => item.node.id === 'dedupe-user').result.data.count, 1);
+
+  const runner = createFlowRunner({
+    runtime,
+    flowStore: createMemoryFlowStore([flow])
+  });
+  const execution = await runner.execute('查询用户');
+
+  assert.equal(execution.ok, true);
+  assert.equal(execution.result.data.output.kind, 'detail');
+  assert.equal(execution.result.data.output.data.roleName, 'Doctor');
 });
 
 test('FlowRunner blocks preview when required slots are missing', async () => {

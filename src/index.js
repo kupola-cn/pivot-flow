@@ -7,6 +7,7 @@ export * from './flow-store.js';
 export * from './flow-capabilities.js';
 export * from './flow-ai-builder.js';
 export * from './flow-runner.js';
+export * from './flow-local-execution.js';
 export * from './flow-templates.js';
 export * from './flow-control.js';
 export * from './flow-approval.js';
