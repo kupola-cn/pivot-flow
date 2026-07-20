@@ -72,6 +72,10 @@ export function validateFlow(flow, options = {}) {
       errors.push(`Condition node requires a condition object: ${node.id}`);
     }
 
+    if (node.type === FLOW_NODE_TYPES.SWITCH && !isPlainObject(node.condition)) {
+      errors.push(`Switch node requires a condition object: ${node.id}`);
+    }
+
     if (node.type === FLOW_NODE_TYPES.TRANSFORM && !isPlainObject(node.params)) {
       errors.push(`Transform node params must be an object: ${node.id}`);
     }
@@ -222,11 +226,48 @@ export function getFlowNodePorts(node = {}) {
 }
 
 const DEFAULT_FLOW_NODE_PORTS = Object.freeze({
+  [FLOW_NODE_TYPES.INTENT_INPUT]: freezePorts({
+    inputs: [],
+    outputs: [{ id: 'output.value', label: 'Value', kind: 'output', dataType: 'object' }]
+  }),
+  [FLOW_NODE_TYPES.PARAM_EXTRACT]: freezePorts({
+    inputs: [{ id: 'input.prompt', label: 'Prompt', kind: 'input', dataType: 'string' }],
+    outputs: [
+      { id: 'output.params', label: 'Params', kind: 'output', dataType: 'object' },
+      { id: 'output.missing', label: 'Missing', kind: 'output', dataType: 'array' }
+    ]
+  }),
+  [FLOW_NODE_TYPES.PARAM_VALIDATE]: freezePorts({
+    inputs: [{ id: 'input.params', label: 'Params', kind: 'input', dataType: 'object' }],
+    outputs: [
+      { id: 'output.valid', label: 'Valid', kind: 'output', dataType: 'object' },
+      { id: 'output.invalid', label: 'Invalid', kind: 'output', dataType: 'object' }
+    ]
+  }),
+  [FLOW_NODE_TYPES.PARAM_NORMALIZE]: freezePorts({
+    inputs: [{ id: 'input.params', label: 'Params', kind: 'input', dataType: 'object' }],
+    outputs: [{ id: 'output.params', label: 'Params', kind: 'output', dataType: 'object' }]
+  }),
   [FLOW_NODE_TYPES.DATA_QUERY]: freezePorts({
     inputs: [{ id: 'input.query', label: 'Query', kind: 'input', dataType: 'object' }],
     outputs: [
       { id: 'output.records', label: 'Records', kind: 'output', dataType: 'array' },
       { id: 'output.empty', label: 'Empty', kind: 'output', dataType: 'void' },
+      { id: 'output.error', label: 'Error', kind: 'output', dataType: 'object' }
+    ]
+  }),
+  [FLOW_NODE_TYPES.DATA_GET]: freezePorts({
+    inputs: [{ id: 'input.key', label: 'Key', kind: 'input', dataType: 'object' }],
+    outputs: [
+      { id: 'output.record', label: 'Record', kind: 'output', dataType: 'object' },
+      { id: 'output.notFound', label: 'Not found', kind: 'output', dataType: 'void' },
+      { id: 'output.error', label: 'Error', kind: 'output', dataType: 'object' }
+    ]
+  }),
+  [FLOW_NODE_TYPES.DATA_AGGREGATE]: freezePorts({
+    inputs: [{ id: 'input.records', label: 'Records', kind: 'input', dataType: 'array' }],
+    outputs: [
+      { id: 'output.result', label: 'Result', kind: 'output', dataType: 'object' },
       { id: 'output.error', label: 'Error', kind: 'output', dataType: 'object' }
     ]
   }),
@@ -251,7 +292,44 @@ const DEFAULT_FLOW_NODE_PORTS = Object.freeze({
       { id: 'output.error', label: 'Error', kind: 'output', dataType: 'object' }
     ]
   }),
+  [FLOW_NODE_TYPES.DATA_FILTER]: freezePorts({
+    inputs: [{ id: 'input.items', label: 'Items', kind: 'input', dataType: 'array' }],
+    outputs: [{ id: 'output.items', label: 'Items', kind: 'output', dataType: 'array' }]
+  }),
+  [FLOW_NODE_TYPES.DATA_SORT]: freezePorts({
+    inputs: [{ id: 'input.items', label: 'Items', kind: 'input', dataType: 'array' }],
+    outputs: [{ id: 'output.items', label: 'Items', kind: 'output', dataType: 'array' }]
+  }),
+  [FLOW_NODE_TYPES.DATA_MAP]: freezePorts({
+    inputs: [{ id: 'input.items', label: 'Items', kind: 'input', dataType: 'array' }],
+    outputs: [{ id: 'output.items', label: 'Items', kind: 'output', dataType: 'array' }]
+  }),
+  [FLOW_NODE_TYPES.DATA_MERGE]: freezePorts({
+    inputs: [
+      { id: 'input.left', label: 'Left', kind: 'input', dataType: 'array' },
+      { id: 'input.right', label: 'Right', kind: 'input', dataType: 'array' }
+    ],
+    outputs: [{ id: 'output.items', label: 'Items', kind: 'output', dataType: 'array' }]
+  }),
+  [FLOW_NODE_TYPES.DATA_PICK]: freezePorts({
+    inputs: [{ id: 'input.data', label: 'Data', kind: 'input', dataType: 'object' }],
+    outputs: [
+      { id: 'output.value', label: 'Value', kind: 'output', dataType: 'object' },
+      { id: 'output.empty', label: 'Empty', kind: 'output', dataType: 'void' }
+    ]
+  }),
+  [FLOW_NODE_TYPES.DATA_DEDUPE]: freezePorts({
+    inputs: [{ id: 'input.items', label: 'Items', kind: 'input', dataType: 'array' }],
+    outputs: [{ id: 'output.items', label: 'Items', kind: 'output', dataType: 'array' }]
+  }),
   [FLOW_NODE_TYPES.CAPABILITY_RUN]: freezePorts({
+    inputs: [{ id: 'input.params', label: 'Params', kind: 'input', dataType: 'object' }],
+    outputs: [
+      { id: 'output.result', label: 'Result', kind: 'output', dataType: 'object' },
+      { id: 'output.error', label: 'Error', kind: 'output', dataType: 'object' }
+    ]
+  }),
+  [FLOW_NODE_TYPES.CAPABILITY_CALL]: freezePorts({
     inputs: [{ id: 'input.params', label: 'Params', kind: 'input', dataType: 'object' }],
     outputs: [
       { id: 'output.result', label: 'Result', kind: 'output', dataType: 'object' },
@@ -265,11 +343,22 @@ const DEFAULT_FLOW_NODE_PORTS = Object.freeze({
       { id: 'output.false', label: 'False', kind: 'output', dataType: 'boolean' }
     ]
   }),
+  [FLOW_NODE_TYPES.SWITCH]: freezePorts({
+    inputs: [{ id: 'input.value', label: 'Value', kind: 'input', dataType: 'object' }],
+    outputs: [{ id: 'output.default', label: 'Default', kind: 'output', dataType: 'object' }]
+  }),
   [FLOW_NODE_TYPES.LOOP]: freezePorts({
     inputs: [{ id: 'input.items', label: 'Items', kind: 'input', dataType: 'array' }],
     outputs: [
       { id: 'output.item', label: 'Item', kind: 'output', dataType: 'object' },
       { id: 'output.done', label: 'Done', kind: 'output', dataType: 'array' }
+    ]
+  }),
+  [FLOW_NODE_TYPES.HUMAN_INPUT]: freezePorts({
+    inputs: [{ id: 'input.request', label: 'Request', kind: 'input', dataType: 'object' }],
+    outputs: [
+      { id: 'output.value', label: 'Value', kind: 'output', dataType: 'object' },
+      { id: 'output.cancelled', label: 'Cancelled', kind: 'output', dataType: 'void' }
     ]
   }),
   [FLOW_NODE_TYPES.HUMAN_SELECT]: freezePorts({
@@ -281,6 +370,26 @@ const DEFAULT_FLOW_NODE_PORTS = Object.freeze({
   }),
   [FLOW_NODE_TYPES.UI_DISPLAY]: freezePorts({
     inputs: [{ id: 'input.data', label: 'Data', kind: 'input', dataType: 'object' }],
+    outputs: [{ id: 'output.done', label: 'Done', kind: 'output', dataType: 'void' }]
+  }),
+  [FLOW_NODE_TYPES.OUTPUT_MESSAGE]: freezePorts({
+    inputs: [{ id: 'input.data', label: 'Data', kind: 'input', dataType: 'object' }],
+    outputs: [{ id: 'output.done', label: 'Done', kind: 'output', dataType: 'void' }]
+  }),
+  [FLOW_NODE_TYPES.OUTPUT_RESULT]: freezePorts({
+    inputs: [{ id: 'input.data', label: 'Data', kind: 'input', dataType: 'object' }],
+    outputs: [{ id: 'output.done', label: 'Done', kind: 'output', dataType: 'void' }]
+  }),
+  [FLOW_NODE_TYPES.OUTPUT_TABLE]: freezePorts({
+    inputs: [{ id: 'input.records', label: 'Records', kind: 'input', dataType: 'array' }],
+    outputs: [{ id: 'output.done', label: 'Done', kind: 'output', dataType: 'void' }]
+  }),
+  [FLOW_NODE_TYPES.OUTPUT_DETAIL]: freezePorts({
+    inputs: [{ id: 'input.record', label: 'Record', kind: 'input', dataType: 'object' }],
+    outputs: [{ id: 'output.done', label: 'Done', kind: 'output', dataType: 'void' }]
+  }),
+  [FLOW_NODE_TYPES.OUTPUT_OPTIONS]: freezePorts({
+    inputs: [{ id: 'input.options', label: 'Options', kind: 'input', dataType: 'array' }],
     outputs: [{ id: 'output.done', label: 'Done', kind: 'output', dataType: 'void' }]
   }),
   [FLOW_NODE_TYPES.CONFIRM]: freezePorts({

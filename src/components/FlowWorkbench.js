@@ -8,7 +8,7 @@ const DEFAULT_NODE_WIDTH = 238;
 const DEFAULT_NODE_HEIGHT = 132;
 const DEFAULT_BOARD_WIDTH = 2200;
 const DEFAULT_BOARD_HEIGHT = 1400;
-const PALETTE_GROUP_ORDER = ['extension', 'workflow', 'business', 'input-output', 'database', 'custom'];
+const PALETTE_GROUP_ORDER = ['extension', 'workflow', 'business', 'input-output', 'database', 'output', 'custom'];
 const PALETTE_GROUP_KEY_MAP = Object.freeze({
   capability: 'extension',
   custom: 'extension',
@@ -17,6 +17,7 @@ const PALETTE_GROUP_KEY_MAP = Object.freeze({
   human: 'business',
   input: 'input-output',
   feedback: 'input-output',
+  output: 'output',
   data: 'database'
 });
 const PALETTE_GROUP_LABELS_EN = Object.freeze({
@@ -25,6 +26,7 @@ const PALETTE_GROUP_LABELS_EN = Object.freeze({
   business: 'Business logic',
   'input-output': 'Input & output',
   database: 'Database',
+  output: 'Output',
   custom: 'Custom'
 });
 const PALETTE_GROUP_LABELS_ZH = Object.freeze({
@@ -33,22 +35,42 @@ const PALETTE_GROUP_LABELS_ZH = Object.freeze({
   business: '业务逻辑',
   'input-output': '输入&输出',
   database: '数据库',
+  output: '输出',
   custom: '自定义'
 });
 const NODE_ICON_CLASS_MAP = Object.freeze({
   'intent.input': 'parameter',
+  'param.extract': 'parameter',
+  'param.validate': 'confirm',
+  'param.normalize': 'transform',
   'api.call': 'capability',
   'capability.run': 'capability',
+  'capability.call': 'capability',
   'data.query': 'query',
+  'data.get': 'query',
+  'data.aggregate': 'transform',
   'data.create': 'create',
   'data.update': 'update',
   'data.delete': 'delete',
+  'data.filter': 'condition',
+  'data.sort': 'transform',
+  'data.map': 'transform',
+  'data.merge': 'subflow',
+  'data.pick': 'select',
+  'data.dedupe': 'transform',
   condition: 'condition',
+  switch: 'condition',
   confirm: 'confirm',
   transform: 'transform',
   loop: 'loop',
+  'human.input': 'form',
   'human.select': 'select',
   'ui.display': 'display',
+  'output.message': 'message',
+  'output.result': 'output',
+  'output.table': 'display',
+  'output.detail': 'display',
+  'output.options': 'select',
   'output.return': 'output',
   'subflow.run': 'subflow',
   'message.show': 'message',

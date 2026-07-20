@@ -818,6 +818,45 @@ test('validates and stores canvas edge ports', () => {
   })).valid, false);
 });
 
+test('defines PLAN5 business flow node ports', () => {
+  const getPorts = getFlowNodePorts({ type: 'data.get' });
+  const aggregatePorts = getFlowNodePorts({ type: 'data.aggregate' });
+  const mergePorts = getFlowNodePorts({ type: 'data.merge' });
+  const switchPorts = getFlowNodePorts({ type: 'switch' });
+  const humanInputPorts = getFlowNodePorts({ type: 'human.input' });
+  const tableOutputPorts = getFlowNodePorts({ type: 'output.table' });
+
+  assert.equal(getPorts.outputs.some((port) => port.id === 'output.notFound'), true);
+  assert.equal(aggregatePorts.outputs.some((port) => port.id === 'output.result'), true);
+  assert.equal(mergePorts.inputs.some((port) => port.id === 'input.left'), true);
+  assert.equal(mergePorts.inputs.some((port) => port.id === 'input.right'), true);
+  assert.equal(switchPorts.outputs.some((port) => port.id === 'output.default'), true);
+  assert.equal(humanInputPorts.outputs.some((port) => port.id === 'output.value'), true);
+  assert.equal(tableOutputPorts.inputs.some((port) => port.id === 'input.records'), true);
+
+  const valid = validateFlow(createFlow({
+    id: 'switch-flow',
+    name: 'Switch flow',
+    nodes: [
+      { id: 'query', type: 'data.query', capability: 'records.query' },
+      { id: 'branch', type: 'switch', condition: { path: 'data.status', cases: [{ equals: 'ok' }] } },
+      { id: 'table', type: 'output.table' }
+    ],
+    edges: [
+      { from: 'query', to: 'branch', sourcePort: 'output.records', targetPort: 'input.value' },
+      { from: 'branch', to: 'table', sourcePort: 'output.default', targetPort: 'input.records' }
+    ]
+  }));
+  const invalid = validateFlow(createFlow({
+    id: 'bad-switch-flow',
+    name: 'Bad switch flow',
+    nodes: [{ id: 'branch', type: 'switch' }]
+  }));
+
+  assert.equal(valid.valid, true);
+  assert.match(invalid.errors.join('\n'), /Switch node requires a condition object/);
+});
+
 test('HTTP store maps REST endpoints and normalizes flow responses', async () => {
   const calls = [];
   const store = createHttpFlowStore({
@@ -1998,6 +2037,12 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
 test('provides generic workbench nodes for common flow patterns', () => {
   const zhNodes = createDefaultFlowWorkbenchNodeTypes({ locale: 'zh-CN' });
   const updateNode = zhNodes.find((node) => node.id === 'data.update');
+  const getNode = zhNodes.find((node) => node.id === 'data.get');
+  const aggregateNode = zhNodes.find((node) => node.id === 'data.aggregate');
+  const humanInputNode = zhNodes.find((node) => node.id === 'human.input');
+  const outputTableNode = zhNodes.find((node) => node.id === 'output.table');
+  const outputDetailNode = zhNodes.find((node) => node.id === 'output.detail');
+  const capabilityCallNode = zhNodes.find((node) => node.id === 'capability.call');
   const loopNode = zhNodes.find((node) => node.id === 'loop');
   const plan = flowToPlan(createFlow({
     id: 'generic-update-flow',
@@ -2016,10 +2061,76 @@ test('provides generic workbench nodes for common flow patterns', () => {
   });
 
   assert.equal(updateNode?.label, '修改');
+  assert.equal(getNode?.label, '获取');
+  assert.equal(aggregateNode?.label, '聚合');
+  assert.equal(humanInputNode?.label, '补充输入');
+  assert.equal(outputTableNode?.label, '表格输出');
+  assert.equal(outputDetailNode?.label, '详情输出');
+  assert.equal(capabilityCallNode?.label, '能力调用');
   assert.equal(loopNode?.type, 'loop');
   assert.equal(plan.nodes[0].capability, 'record.update');
   assert.equal(plan.nodes[0].params.action, 'update');
   assert.equal(plan.nodes[0].params.where.id, 'r-1');
+});
+
+test('maps PLAN5 capability backed nodes to plan semantics', () => {
+  const flow = createFlow({
+    id: 'plan5-capability-backed-flow',
+    name: 'PLAN5 capability backed flow',
+    nodes: [
+      {
+        id: 'get-user',
+        type: 'data.get',
+        resource: 'users',
+        capability: 'users.get',
+        params: { key: { field: 'id', value: '{{intent.userId}}' } }
+      },
+      {
+        id: 'aggregate-orders',
+        type: 'data.aggregate',
+        resource: 'orders',
+        capability: 'orders.aggregate',
+        params: { operation: 'count', filters: [{ field: 'userId', value: '{{intent.userId}}' }] }
+      },
+      {
+        id: 'ask-keyword',
+        type: 'human.input',
+        params: { name: 'keyword', prompt: 'Enter keyword' }
+      },
+      {
+        id: 'call-business',
+        type: 'capability.call',
+        capability: 'business.enrich',
+        params: { userId: '{{intent.userId}}', keyword: '{{ask-keyword.data.value}}' }
+      },
+      {
+        id: 'table-output',
+        type: 'output.table',
+        params: { data: '{{aggregate-orders.data.records}}' }
+      }
+    ],
+    edges: [
+      { from: 'get-user', to: 'aggregate-orders' },
+      { from: 'aggregate-orders', to: 'ask-keyword' },
+      { from: 'ask-keyword', to: 'call-business' },
+      { from: 'call-business', to: 'table-output' }
+    ]
+  });
+  const plan = flowToPlan(flow, { slots: { userId: 'u-1' } });
+  const getPlanNode = plan.nodes.find((node) => node.id === 'get-user');
+  const aggregatePlanNode = plan.nodes.find((node) => node.id === 'aggregate-orders');
+  const humanInputPlanNode = plan.nodes.find((node) => node.id === 'ask-keyword');
+  const callPlanNode = plan.nodes.find((node) => node.id === 'call-business');
+
+  assert.equal(getPlanNode.capability, 'users.get');
+  assert.equal(getPlanNode.params.action, 'get');
+  assert.equal(getPlanNode.params.key.value, 'u-1');
+  assert.equal(aggregatePlanNode.params.action, 'aggregate');
+  assert.equal(humanInputPlanNode.capability, 'human.input');
+  assert.equal(callPlanNode.capability, 'business.enrich');
+  assert.equal(callPlanNode.params.keyword.$from, 'ask-keyword');
+  assert.equal(plan.nodes.some((node) => node.id === 'table-output'), false);
+  assert.equal(plan.edges.some((edge) => edge.to === 'table-output'), false);
 });
 
 test('workbench node title actions copy, remove, and open help', () => {

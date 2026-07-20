@@ -93,7 +93,7 @@ export function flowNodeToPlanNode(node, flow, input = {}, context = {}) {
     });
   }
 
-  if ([FLOW_NODE_TYPES.DATA_QUERY, FLOW_NODE_TYPES.DATA_CREATE, FLOW_NODE_TYPES.DATA_UPDATE, FLOW_NODE_TYPES.DATA_DELETE].includes(node.type)) {
+  if ([FLOW_NODE_TYPES.DATA_QUERY, FLOW_NODE_TYPES.DATA_GET, FLOW_NODE_TYPES.DATA_AGGREGATE, FLOW_NODE_TYPES.DATA_CREATE, FLOW_NODE_TYPES.DATA_UPDATE, FLOW_NODE_TYPES.DATA_DELETE].includes(node.type)) {
     return createCapabilityPlanNode(node, flow, input, context, {
       resource: node.resource,
       action: node.action || getDefaultDataAction(node.type),
@@ -101,7 +101,7 @@ export function flowNodeToPlanNode(node, flow, input = {}, context = {}) {
     });
   }
 
-  if (node.type === FLOW_NODE_TYPES.HUMAN_SELECT || node.type === FLOW_NODE_TYPES.UI_DISPLAY) {
+  if ([FLOW_NODE_TYPES.HUMAN_INPUT, FLOW_NODE_TYPES.HUMAN_SELECT, FLOW_NODE_TYPES.UI_DISPLAY].includes(node.type)) {
     return createCapabilityPlanNode(node, flow, input, context, node.params ?? {});
   }
 
@@ -111,6 +111,8 @@ export function flowNodeToPlanNode(node, flow, input = {}, context = {}) {
 function getDefaultDataAction(type) {
   return {
     [FLOW_NODE_TYPES.DATA_QUERY]: 'query',
+    [FLOW_NODE_TYPES.DATA_GET]: 'get',
+    [FLOW_NODE_TYPES.DATA_AGGREGATE]: 'aggregate',
     [FLOW_NODE_TYPES.DATA_CREATE]: 'create',
     [FLOW_NODE_TYPES.DATA_UPDATE]: 'update',
     [FLOW_NODE_TYPES.DATA_DELETE]: 'delete'
