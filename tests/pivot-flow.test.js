@@ -2408,6 +2408,35 @@ test('renders schema-driven node inspector fields from capability and resource s
   assert.match(html, /matched records/);
 });
 
+test('renders PLAN5 built-in node schemas in the editable inspector', () => {
+  const humanHtml = renderEditableNodeInspectorToHTML({
+    id: 'ask-name',
+    type: 'human.input',
+    params: { name: 'name', prompt: '请输入姓名', required: true }
+  });
+  const loopHtml = renderEditableNodeInspectorToHTML({
+    id: 'loop-patients',
+    type: 'loop',
+    control: {
+      mode: 'forEach',
+      source: '{{intent.patients}}',
+      itemName: 'patient',
+      maxItems: 10
+    }
+  });
+  const loopDefinition = getFlowNodeTypeDefinition('loop');
+
+  assert.equal(getNodeCapabilitySchema({ type: 'human.input' }).prompt.required, true);
+  assert.equal(loopDefinition.controlSchema.maxItems.type, 'number');
+  assert.match(humanHtml, /data-flow-node-schema="params"/);
+  assert.match(humanHtml, /data-flow-node-param-field="prompt"/);
+  assert.match(humanHtml, /data-flow-node-param-field="inputType"/);
+  assert.match(loopHtml, /data-flow-node-schema="control"/);
+  assert.match(loopHtml, /data-flow-node-control-field="source"/);
+  assert.match(loopHtml, /data-flow-node-control-field="maxItems" data-flow-node-control-type="number"/);
+  assert.doesNotMatch(loopHtml, /data-flow-node-param-field="maxItems"/);
+});
+
 test('renders an editable query filter row when a resource has no filters yet', () => {
   const html = renderEditableNodeInspectorToHTML({
     id: 'query-users',

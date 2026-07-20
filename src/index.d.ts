@@ -248,6 +248,7 @@ export interface FlowNodeTypeDefinition {
   description?: string;
   capability?: string;
   paramsSchema?: Record<string, unknown>;
+  controlSchema?: Record<string, unknown>;
   inputSchema?: Record<string, unknown>;
   outputSchema?: Record<string, unknown>;
   defaultParams?: Record<string, unknown>;

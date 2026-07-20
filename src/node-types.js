@@ -71,6 +71,110 @@ export const DEFAULT_NODE_CAPABILITY_MAP = Object.freeze({
   [FLOW_NODE_TYPES.AUDIT_MARK]: 'audit.mark'
 });
 
+const DEFAULT_NODE_PARAMS_SCHEMAS = Object.freeze({
+  [FLOW_NODE_TYPES.PARAM_EXTRACT]: {
+    source: { type: 'string', label: 'Source', default: '{{input.prompt}}' },
+    slots: { type: 'array', label: 'Slots' }
+  },
+  [FLOW_NODE_TYPES.PARAM_VALIDATE]: {
+    source: { type: 'object', label: 'Source' },
+    rules: { type: 'array', label: 'Rules' }
+  },
+  [FLOW_NODE_TYPES.PARAM_NORMALIZE]: {
+    source: { type: 'object', label: 'Source' },
+    rules: { type: 'array', label: 'Rules' }
+  },
+  [FLOW_NODE_TYPES.HUMAN_INPUT]: {
+    name: { type: 'string', label: 'Name', required: true },
+    prompt: { type: 'string', label: 'Prompt', required: true },
+    inputType: { type: 'string', label: 'Input type', options: ['text', 'number', 'date', 'password', 'textarea'], default: 'text' },
+    required: { type: 'boolean', label: 'Required', default: true },
+    defaultValue: { type: 'string', label: 'Default value' }
+  },
+  [FLOW_NODE_TYPES.DATA_QUERY]: {
+    resource: { type: 'string', label: 'Resource' },
+    filters: { type: 'array', label: 'Filters' },
+    limit: { type: 'number', label: 'Limit', default: 20 }
+  },
+  [FLOW_NODE_TYPES.DATA_GET]: {
+    resource: { type: 'string', label: 'Resource' },
+    key: { type: 'object', label: 'Key' }
+  },
+  [FLOW_NODE_TYPES.DATA_AGGREGATE]: {
+    resource: { type: 'string', label: 'Resource' },
+    operation: { type: 'string', label: 'Operation', options: ['count', 'sum', 'avg', 'min', 'max', 'groupBy'], default: 'count' },
+    groupBy: { type: 'array', label: 'Group by' }
+  },
+  [FLOW_NODE_TYPES.DATA_FILTER]: {
+    source: { type: 'string', label: 'Source', default: '{{previous.data.records}}' },
+    where: { type: 'object', label: 'Where' }
+  },
+  [FLOW_NODE_TYPES.DATA_SORT]: {
+    source: { type: 'string', label: 'Source', default: '{{previous.data.records}}' },
+    by: { type: 'array', label: 'Sort fields' },
+    direction: { type: 'string', label: 'Direction', options: ['asc', 'desc'], default: 'asc' }
+  },
+  [FLOW_NODE_TYPES.DATA_MAP]: {
+    source: { type: 'string', label: 'Source', default: '{{previous.data.records}}' },
+    mappings: { type: 'object', label: 'Mappings' }
+  },
+  [FLOW_NODE_TYPES.DATA_MERGE]: {
+    left: { type: 'string', label: 'Left source', default: '{{previous.data.records}}' },
+    right: { type: 'array', label: 'Right source' },
+    leftKey: { type: 'string', label: 'Left key', default: 'id' },
+    rightKey: { type: 'string', label: 'Right key', default: 'id' },
+    rightAlias: { type: 'string', label: 'Right alias' },
+    mode: { type: 'string', label: 'Mode', options: ['left', 'inner'], default: 'left' }
+  },
+  [FLOW_NODE_TYPES.DATA_PICK]: {
+    source: { type: 'string', label: 'Source', default: '{{previous.data.records}}' },
+    mode: { type: 'string', label: 'Mode', options: ['first', 'last', 'index'], default: 'first' },
+    path: { type: 'string', label: 'Path' },
+    index: { type: 'number', label: 'Index', default: 0 }
+  },
+  [FLOW_NODE_TYPES.DATA_DEDUPE]: {
+    source: { type: 'string', label: 'Source', default: '{{previous.data.records}}' },
+    keys: { type: 'array', label: 'Keys', default: ['id'] }
+  },
+  [FLOW_NODE_TYPES.OUTPUT_MESSAGE]: {
+    message: { type: 'string', label: 'Message', required: true },
+    type: { type: 'string', label: 'Type', options: ['info', 'success', 'warning', 'error'], default: 'info' },
+    data: { type: 'object', label: 'Data' }
+  },
+  [FLOW_NODE_TYPES.OUTPUT_RESULT]: {
+    data: { type: 'object', label: 'Data' },
+    title: { type: 'string', label: 'Title' }
+  },
+  [FLOW_NODE_TYPES.OUTPUT_TABLE]: {
+    data: { type: 'array', label: 'Data' },
+    columns: { type: 'array', label: 'Columns' },
+    title: { type: 'string', label: 'Title' }
+  },
+  [FLOW_NODE_TYPES.OUTPUT_DETAIL]: {
+    data: { type: 'object', label: 'Data' },
+    fields: { type: 'array', label: 'Fields' },
+    title: { type: 'string', label: 'Title' }
+  },
+  [FLOW_NODE_TYPES.OUTPUT_OPTIONS]: {
+    options: { type: 'array', label: 'Options' },
+    labelField: { type: 'string', label: 'Label field', default: 'label' },
+    valueField: { type: 'string', label: 'Value field', default: 'value' }
+  },
+  [FLOW_NODE_TYPES.CAPABILITY_CALL]: {
+    params: { type: 'object', label: 'Params' }
+  }
+});
+
+const DEFAULT_NODE_CONTROL_SCHEMAS = Object.freeze({
+  [FLOW_NODE_TYPES.LOOP]: {
+    mode: { type: 'string', label: 'Mode', options: ['forEach'], default: 'forEach' },
+    source: { type: 'string', label: 'Source', default: '{{previous.data.records}}' },
+    itemName: { type: 'string', label: 'Item name', default: 'item' },
+    maxItems: { type: 'number', label: 'Max items', default: 100 },
+    collect: { type: 'object', label: 'Collect mapping' }
+  }
+});
+
 export const BUILT_IN_NODE_DEFINITIONS = Object.freeze([
   {
     type: FLOW_NODE_TYPES.CAPABILITY_RUN,
@@ -398,15 +502,19 @@ export function getFlowNodeTypeDefinition(type) {
     return null;
   }
 
-  return customNodeDefinitions.get(normalizedType)
-    ?? BUILT_IN_NODE_DEFINITIONS.find((definition) => definition.type === normalizedType)
-    ?? null;
+  const customDefinition = customNodeDefinitions.get(normalizedType);
+  if (customDefinition) {
+    return customDefinition;
+  }
+
+  const builtInDefinition = BUILT_IN_NODE_DEFINITIONS.find((definition) => definition.type === normalizedType);
+  return builtInDefinition ? normalizeFlowNodeTypeDefinition(builtInDefinition) : null;
 }
 
 export function listFlowNodeTypeDefinitions(options = {}) {
   const includeCustom = options.includeCustom !== false;
   return [
-    ...BUILT_IN_NODE_DEFINITIONS,
+    ...BUILT_IN_NODE_DEFINITIONS.map(normalizeFlowNodeTypeDefinition),
     ...(includeCustom ? Array.from(customNodeDefinitions.values()) : [])
   ];
 }
@@ -781,7 +889,8 @@ function normalizeFlowNodeTypeDefinition(definition = {}) {
     label: String(definition.label || type),
     group: String(definition.group || 'custom'),
     description: String(definition.description || ''),
-    paramsSchema: isPlainObject(definition.paramsSchema) ? definition.paramsSchema : {},
+    paramsSchema: isPlainObject(definition.paramsSchema) ? definition.paramsSchema : DEFAULT_NODE_PARAMS_SCHEMAS[type] ?? {},
+    controlSchema: isPlainObject(definition.controlSchema) ? definition.controlSchema : DEFAULT_NODE_CONTROL_SCHEMAS[type] ?? {},
     inputSchema: isPlainObject(definition.inputSchema) ? definition.inputSchema : {},
     outputSchema: isPlainObject(definition.outputSchema) ? definition.outputSchema : {},
     defaultParams: isPlainObject(definition.defaultParams) ? definition.defaultParams : {},

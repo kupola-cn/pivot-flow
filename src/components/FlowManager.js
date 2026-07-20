@@ -1062,6 +1062,22 @@ export function FlowManager(options = {}) {
     state.error = '';
   };
 
+  const updateSelectedNodeControlField = (field, value, inputType, paramType) => {
+    const flow = getSelectedFlow(state);
+    const node = flow?.nodes?.find((item) => item.id === state.selectedNodeId);
+    if (!node || !field) {
+      return;
+    }
+
+    node.control = {
+      ...(isPlainObject(node.control) ? node.control : {}),
+      [field]: normalizeParamFieldValue(value, inputType, paramType)
+    };
+    state.preview = null;
+    state.result = null;
+    state.error = '';
+  };
+
   const updateSelectedNodeFilterField = (index, field, value) => {
     const flow = getSelectedFlow(state);
     const node = flow?.nodes?.find((item) => item.id === state.selectedNodeId);
@@ -1305,6 +1321,18 @@ export function FlowManager(options = {}) {
         e.target.type === 'checkbox' ? e.target.checked : e.target.value,
         e.target.type,
         el.dataset.flowNodeParamType
+      );
+      render();
+    }),
+    on(target, 'input', '[data-flow-node-control-field]', (e, el) => {
+      updateSelectedNodeControlField(el.dataset.flowNodeControlField, e.target.value, e.target.type, el.dataset.flowNodeControlType);
+    }),
+    on(target, 'change', '[data-flow-node-control-field]', (e, el) => {
+      updateSelectedNodeControlField(
+        el.dataset.flowNodeControlField,
+        e.target.type === 'checkbox' ? e.target.checked : e.target.value,
+        e.target.type,
+        el.dataset.flowNodeControlType
       );
       render();
     }),

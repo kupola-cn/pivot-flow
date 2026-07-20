@@ -67,6 +67,7 @@ function renderDefaultEditableNodeInspectorToHTML(node, options = {}) {
   const resourceSchema = options.resourceSchema ?? resolveNodeResourceSchema(node, options);
   const variableSources = normalizeVariableSources(options.variableSources);
   const paramsSchema = resolveNodeParamsSchema(capability, nodeDefinition);
+  const controlSchema = resolveNodeControlSchema(nodeDefinition);
   const inputSchema = node.inputSchema ?? nodeDefinition?.inputSchema ?? null;
   const outputSchema = node.outputSchema ?? capability?.outputSchema ?? nodeDefinition?.outputSchema ?? null;
 
@@ -90,6 +91,7 @@ function renderDefaultEditableNodeInspectorToHTML(node, options = {}) {
     `<textarea class="ds-textarea" rows="8" data-flow-node-field="params">${escapeHTML(formatJson(node.params ?? {}))}</textarea>`,
     '</label>',
     renderSchemaParamFields(node, paramsSchema, variableSources),
+    renderSchemaControlFields(node, controlSchema, variableSources),
     node.type === FLOW_NODE_TYPES.DATA_QUERY ? renderResourceQueryEditor(node, resourceSchema, variableSources) : '',
     node.type === FLOW_NODE_TYPES.CONDITION ? renderJsonTextarea('Condition JSON', 'condition', node.condition ?? {}) : '',
     node.type === FLOW_NODE_TYPES.TRANSFORM ? renderJsonTextarea('Input schema JSON', 'inputSchema', node.inputSchema ?? {}) : '',
@@ -187,27 +189,50 @@ function resolveNodeResourceSchema(node, options = {}) {
 }
 
 function renderSchemaParamFields(node, paramsSchema, variableSources) {
-  if (!isPlainObject(paramsSchema) || Object.keys(paramsSchema).length === 0) {
+  return renderSchemaFields({
+    title: 'Params form',
+    schemaName: 'params',
+    fieldPrefix: 'param',
+    values: node.params ?? {},
+    schema: paramsSchema,
+    variableSources
+  });
+}
+
+function renderSchemaControlFields(node, controlSchema, variableSources) {
+  return renderSchemaFields({
+    title: 'Control form',
+    schemaName: 'control',
+    fieldPrefix: 'control',
+    values: node.control ?? {},
+    schema: controlSchema,
+    variableSources
+  });
+}
+
+function renderSchemaFields(input) {
+  if (!isPlainObject(input.schema) || Object.keys(input.schema).length === 0) {
     return '';
   }
 
   return [
-    '<section class="flow-inspector__schema" data-flow-node-schema="params">',
-    '<div class="flow-panel-title">Params form</div>',
-    ...Object.entries(paramsSchema).map(([field, rule]) => renderSchemaParamField(field, rule, node.params?.[field], variableSources)),
+    `<section class="flow-inspector__schema" data-flow-node-schema="${escapeAttr(input.schemaName)}">`,
+    `<div class="flow-panel-title">${escapeHTML(input.title)}</div>`,
+    ...Object.entries(input.schema).map(([field, rule]) => renderSchemaParamField(field, rule, input.values?.[field], input.variableSources, input.fieldPrefix)),
     '</section>'
   ].join('');
 }
 
-function renderSchemaParamField(field, rule, value, variableSources) {
+function renderSchemaParamField(field, rule, value, variableSources, fieldPrefix = 'param') {
   const schema = normalizeFieldSchema(rule);
   const label = schema.label || field;
   const effectiveValue = value === undefined ? schema.defaultValue : value;
   const valueText = effectiveValue === undefined || effectiveValue === null ? '' : String(effectiveValue);
+  const attrPrefix = `data-flow-node-${fieldPrefix}`;
   const commonAttrs = [
-    `data-flow-node-param-field="${escapeAttr(field)}"`,
-    `data-flow-node-param-type="${escapeAttr(schema.type)}"`,
-    schema.defaultValue !== undefined ? `data-flow-node-param-default="${escapeAttr(formatJson(schema.defaultValue))}"` : ''
+    `${attrPrefix}-field="${escapeAttr(field)}"`,
+    `${attrPrefix}-type="${escapeAttr(schema.type)}"`,
+    schema.defaultValue !== undefined ? `${attrPrefix}-default="${escapeAttr(formatJson(schema.defaultValue))}"` : ''
   ].filter(Boolean).join(' ');
   const listAttr = variableSources.length > 0 && ['string', 'text', 'number'].includes(schema.type)
     ? ' list="flow-node-variable-options"'
@@ -378,6 +403,10 @@ function resolveNodeParamsSchema(capability, nodeDefinition) {
   }
 
   return null;
+}
+
+function resolveNodeControlSchema(nodeDefinition) {
+  return isPlainObject(nodeDefinition?.controlSchema) ? nodeDefinition.controlSchema : null;
 }
 
 function getSchemaFields(schema) {
