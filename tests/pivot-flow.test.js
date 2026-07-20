@@ -2427,6 +2427,7 @@ test('renders PLAN5 built-in node schemas in the editable inspector', () => {
   const loopDefinition = getFlowNodeTypeDefinition('loop');
 
   assert.equal(getNodeCapabilitySchema({ type: 'human.input' }).prompt.required, true);
+  assert.equal(getNodeCapabilitySchema({ type: 'data.query' }).include.type, 'array');
   assert.equal(loopDefinition.controlSchema.maxItems.type, 'number');
   assert.match(humanHtml, /data-flow-node-schema="params"/);
   assert.match(humanHtml, /data-flow-node-param-field="prompt"/);
@@ -2773,6 +2774,70 @@ test('validates subflow input and output schemas when definitions are provided',
   assert.match(errors, /Subflow output field result expected object but node declares array: bad-subflow/);
   assert.match(errors, /Subflow output field is not declared by child flow: missing on bad-subflow/);
   assert.match(errors, /Subflow definition was not found: missing-flow/);
+});
+
+test('validates data query filters and includes against resource schemas', () => {
+  const validFlow = createFlow({
+    id: 'valid-resource-schema-flow',
+    name: 'Valid resource schema flow',
+    status: 'draft',
+    nodes: [
+      {
+        id: 'query-users',
+        type: 'data.query',
+        resource: 'users',
+        capability: 'users.query',
+        params: {
+          filters: [{ field: 'name', operator: 'contains', value: '{{intent.name}}' }],
+          include: ['role']
+        }
+      }
+    ]
+  });
+  const invalidFlow = createFlow({
+    id: 'invalid-resource-schema-flow',
+    name: 'Invalid resource schema flow',
+    status: 'draft',
+    nodes: [
+      {
+        id: 'query-users',
+        type: 'data.query',
+        resource: 'users',
+        capability: 'users.query',
+        params: {
+          filters: [{ field: 'unknownField', operator: 'eq', value: 'x' }],
+          include: ['orders']
+        }
+      },
+      {
+        id: 'query-missing-resource',
+        type: 'data.query',
+        resource: 'missing',
+        capability: 'missing.query',
+        params: { include: [] }
+      }
+    ]
+  });
+  const resourceSchemas = {
+    users: {
+      fields: {
+        id: { type: 'string' },
+        name: { type: 'string' }
+      },
+      relations: {
+        role: { resource: 'roles' }
+      }
+    }
+  };
+  const valid = validateFlow(validFlow, { resourceSchemas });
+  const invalid = validateFlow(invalidFlow, { resourceSchemas });
+  const errors = invalid.errors.join('\n');
+
+  assert.equal(valid.valid, true);
+  assert.equal(invalid.valid, false);
+  assert.match(errors, /Query filter field is not declared by resource users: unknownField on query-users/);
+  assert.match(errors, /Query include relation is not declared by resource users: orders on query-users/);
+  assert.match(errors, /Resource schema was not found: missing on query-missing-resource/);
 });
 
 test('registers custom flow node types for validation, palette, and plan mapping', () => {

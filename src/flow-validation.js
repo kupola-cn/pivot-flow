@@ -5,6 +5,7 @@ export function validateFlow(flow, options = {}) {
   const warnings = [];
   const knownCapabilities = normalizeCapabilitySet(options.capabilities);
   const knownSubflows = normalizeSubflowMap(options.subflows);
+  const resourceSchemas = normalizeResourceSchemas(options.resourceSchemas ?? options.resources);
 
   if (!isPlainObject(flow)) {
     return createFlowValidationResult(['Flow must be a plain object.'], warnings);
@@ -79,6 +80,10 @@ export function validateFlow(flow, options = {}) {
 
     if (node.type === FLOW_NODE_TYPES.TRANSFORM && !isPlainObject(node.params)) {
       errors.push(`Transform node params must be an object: ${node.id}`);
+    }
+
+    if (node.type === FLOW_NODE_TYPES.DATA_QUERY && resourceSchemas) {
+      validateDataQueryResourceSchema(node, resourceSchemas, errors);
     }
 
     if (node.type === FLOW_NODE_TYPES.SUBFLOW_RUN) {
@@ -577,8 +582,94 @@ function normalizeSubflowMap(subflows) {
   return null;
 }
 
+function normalizeResourceSchemas(resources) {
+  if (!resources) {
+    return null;
+  }
+
+  if (resources instanceof Map) {
+    return resources;
+  }
+
+  if (Array.isArray(resources)) {
+    return new Map(resources.map((resource) => [resource?.name ?? resource?.id, resource]).filter(([name]) => name));
+  }
+
+  if (typeof resources.list === 'function') {
+    return normalizeResourceSchemas(resources.list());
+  }
+
+  if (isPlainObject(resources)) {
+    return new Map(Object.entries(resources));
+  }
+
+  return null;
+}
+
 function getSubflowId(node) {
   return String(node?.params?.flowId ?? node?.flowId ?? '').trim();
+}
+
+function validateDataQueryResourceSchema(node, resourceSchemas, errors) {
+  const resourceName = String(node.resource || node.params?.resource || '').trim();
+  if (!resourceName) {
+    return;
+  }
+
+  const resourceSchema = resourceSchemas.get(resourceName);
+  if (!resourceSchema) {
+    errors.push(`Resource schema was not found: ${resourceName} on ${node.id}`);
+    return;
+  }
+
+  const fields = getResourceFieldNames(resourceSchema);
+  const filters = Array.isArray(node.params?.filters) ? node.params.filters : [];
+  for (const filter of filters) {
+    const field = String(filter?.field || '').trim();
+    if (field && fields.size > 0 && !fields.has(field)) {
+      errors.push(`Query filter field is not declared by resource ${resourceName}: ${field} on ${node.id}`);
+    }
+  }
+
+  if (node.params?.include === undefined) {
+    return;
+  }
+
+  if (!Array.isArray(node.params.include)) {
+    errors.push(`Query include must be an array: ${node.id}`);
+    return;
+  }
+
+  const relations = getResourceRelationNames(resourceSchema);
+  for (const include of node.params.include) {
+    const relation = typeof include === 'string' ? include : include?.relation ?? include?.name;
+    const relationName = String(relation || '').trim();
+    if (relationName && relations.size > 0 && !relations.has(relationName)) {
+      errors.push(`Query include relation is not declared by resource ${resourceName}: ${relationName} on ${node.id}`);
+    }
+  }
+}
+
+function getResourceFieldNames(resourceSchema) {
+  const fields = resourceSchema?.fields;
+  if (isPlainObject(fields)) {
+    return new Set(Object.keys(fields));
+  }
+  if (Array.isArray(fields)) {
+    return new Set(fields.map((field) => typeof field === 'string' ? field : field?.name).filter(Boolean));
+  }
+  return new Set();
+}
+
+function getResourceRelationNames(resourceSchema) {
+  const relations = resourceSchema?.relations ?? resourceSchema?.includes;
+  if (isPlainObject(relations)) {
+    return new Set(Object.keys(relations));
+  }
+  if (Array.isArray(relations)) {
+    return new Set(relations.map((relation) => typeof relation === 'string' ? relation : relation?.name).filter(Boolean));
+  }
+  return new Set();
 }
 
 function validateSubflowContract(node, subflow, subflowId, errors, warnings) {

@@ -94,6 +94,7 @@ const DEFAULT_NODE_PARAMS_SCHEMAS = Object.freeze({
   [FLOW_NODE_TYPES.DATA_QUERY]: {
     resource: { type: 'string', label: 'Resource' },
     filters: { type: 'array', label: 'Filters' },
+    include: { type: 'array', label: 'Include relations' },
     limit: { type: 'number', label: 'Limit', default: 20 }
   },
   [FLOW_NODE_TYPES.DATA_GET]: {
