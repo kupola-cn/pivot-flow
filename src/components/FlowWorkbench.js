@@ -41,6 +41,7 @@ export function FlowWorkbench(options = {}) {
 
   const render = () => {
     setHTML(target, renderFlowWorkbenchToHTML(state, options));
+    refreshCanvasEdges(target, state);
   };
 
   const refresh = (nextFlow) => {
@@ -131,7 +132,11 @@ export function FlowWorkbench(options = {}) {
     if (input.dataset.flowWorkbenchPromptInput !== undefined) {
       state.prompt = input.value;
     } else if (input.dataset.flowWorkbenchField) {
-      updateSelectedNode(state, input.dataset.flowWorkbenchField, input.value);
+      const node = updateSelectedNode(state, input.dataset.flowWorkbenchField, input.value);
+      if (node) {
+        refreshNodePreview(target, state, options, node);
+        refreshCanvasEdges(target, state);
+      }
     }
   };
 
@@ -143,6 +148,12 @@ export function FlowWorkbench(options = {}) {
     } else if (input.dataset.flowWorkbenchZoom !== undefined) {
       updateZoom(state, input.value);
       render();
+    } else if (input.dataset.flowWorkbenchField) {
+      const node = updateSelectedNode(state, input.dataset.flowWorkbenchField, input.value);
+      if (node) {
+        refreshNodePreview(target, state, options, node);
+        refreshCanvasEdges(target, state);
+      }
     }
   };
 
@@ -323,7 +334,7 @@ function renderCanvasToolbar(state, options, labels) {
     '<div class="flow-workbench__zoom-toolbar">',
     '<div class="flow-workbench__zoom-controls">',
     renderToolbarButton('zoom-out', '-', 'secondary'),
-    '<select class="ds-select ds-select--sm flow-workbench__zoom-select" data-flow-workbench-zoom aria-label="Zoom">',
+    '<select class="flow-workbench__zoom-select" data-flow-workbench-zoom aria-label="Zoom">',
     renderZoomOptions(state.zoom),
     '</select>',
     renderToolbarButton('zoom-in', '+', 'secondary'),
@@ -362,7 +373,7 @@ function renderCanvas(state, options) {
   ].join('');
 }
 
-function renderEdge(state, edge) {
+function renderEdge(state, edge, nodeSizes = new Map()) {
   const from = getNode(state, edge.from);
   const to = getNode(state, edge.to);
   if (!from || !to) {
@@ -370,12 +381,12 @@ function renderEdge(state, edge) {
   }
   const a = from.ui?.position || { x: 0, y: 0 };
   const b = to.ui?.position || { x: 0, y: 0 };
-  const fromPoint = getOutputPortPoint(a);
-  const toPoint = getInputPortPoint(b);
+  const fromPoint = getOutputPortPoint(a, nodeSizes.get(from.id));
+  const toPoint = getInputPortPoint(b, nodeSizes.get(to.id));
   return `<path class="flow-workbench__edge" d="${escapeAttr(createEdgePath(fromPoint.x, fromPoint.y, toPoint.x, toPoint.y))}"></path>`;
 }
 
-function renderDraftEdge(state) {
+function renderDraftEdge(state, nodeSizes = new Map()) {
   if (!state.connectionDraft) {
     return '';
   }
@@ -385,16 +396,24 @@ function renderDraftEdge(state) {
   }
   const position = from.ui?.position || { x: 0, y: 0 };
   const point = state.connectionDraft.point || position;
-  const fromPoint = getOutputPortPoint(position);
+  const fromPoint = getOutputPortPoint(position, nodeSizes.get(from.id));
   return `<path class="flow-workbench__edge flow-workbench__edge--draft" d="${escapeAttr(createEdgePath(fromPoint.x, fromPoint.y, point.x, point.y))}"></path>`;
 }
 
-function getInputPortPoint(position) {
-  return { x: position.x, y: position.y + DEFAULT_NODE_HEIGHT / 2 };
+function getInputPortPoint(position, size = {}) {
+  return { x: position.x, y: position.y + getNodeRenderHeight(size) / 2 };
 }
 
-function getOutputPortPoint(position) {
-  return { x: position.x + DEFAULT_NODE_WIDTH, y: position.y + DEFAULT_NODE_HEIGHT / 2 };
+function getOutputPortPoint(position, size = {}) {
+  return { x: position.x + getNodeRenderWidth(size), y: position.y + getNodeRenderHeight(size) / 2 };
+}
+
+function getNodeRenderWidth(size = {}) {
+  return Number.isFinite(size.width) && size.width > 0 ? size.width : DEFAULT_NODE_WIDTH;
+}
+
+function getNodeRenderHeight(size = {}) {
+  return Number.isFinite(size.height) && size.height > 0 ? size.height : DEFAULT_NODE_HEIGHT;
 }
 
 function createEdgePath(x1, y1, x2, y2) {
@@ -410,12 +429,7 @@ function renderNode(state, options, node) {
   const inputPort = ports.inputs[0] || { id: 'input', label: 'Input' };
   const outputPort = ports.outputs[0] || { id: 'output', label: 'Output' };
   const iconClass = getNodeIconClass(node.type);
-  const rows = getNodeContentRows(options, node).map(([label, value]) => [
-    '<div class="flow-workbench__node-row">',
-    `<span>${escapeHTML(label)}:</span>`,
-    `<strong title="${escapeAttr(value)}">${escapeHTML(value)}</strong>`,
-    '</div>'
-  ].join('')).join('');
+  const rows = renderNodeContentRows(options, node);
 
   return [
     `<article class="flow-workbench__node${selected}${dragging}" style="left:${position.x}px;top:${position.y}px" data-flow-workbench-action="select-node" data-node-id="${escapeAttr(node.id)}">`,
@@ -447,6 +461,15 @@ function renderNodeActionButton(action, nodeId, icon, label) {
 
 function getNodeIconClass(type) {
   return NODE_ICON_CLASS_MAP[type] || 'capability';
+}
+
+function renderNodeContentRows(options, node) {
+  return getNodeContentRows(options, node).map(([label, value]) => [
+    '<div class="flow-workbench__node-row">',
+    `<span>${escapeHTML(label)}:</span>`,
+    `<strong title="${escapeAttr(value)}">${escapeHTML(value)}</strong>`,
+    '</div>'
+  ].join('')).join('');
 }
 
 function renderNodeHelpModal(state, options, labels) {
@@ -639,17 +662,18 @@ function createCopiedNodeId(state, sourceId) {
 function updateSelectedNode(state, field, value) {
   const node = getNode(state, state.selectedNodeId);
   if (!node) {
-    return;
+    return null;
   }
   if (field === 'params') {
     try {
       node.params = JSON.parse(value || '{}');
     } catch {
-      return;
+      return null;
     }
   } else {
     node[field] = value;
   }
+  return node;
 }
 
 async function runFlow(state, options, api, { execute }) {
@@ -790,7 +814,7 @@ function startPortConnection(event, target, state, api, render, portEl) {
   const up = (upEvent) => {
     const element = document.elementFromPoint(upEvent.clientX, upEvent.clientY);
     const targetPort = element?.closest?.('.flow-workbench__port[data-port-kind="input"]');
-    const toNode = targetPort?.dataset.nodeId || findInputNodeAtPoint(state, getCanvasPoint(target, upEvent, state), nodeId)?.id;
+    const toNode = targetPort?.dataset.nodeId || findInputNodeAtPoint(state, getCanvasPoint(target, upEvent, state), nodeId, getRenderedNodeSizes(target))?.id;
     const connection = toNode
       ? connectNodes(state, api, nodeId, toNode, {
         sourcePort: state.connectionDraft.sourcePort,
@@ -816,7 +840,57 @@ function refreshCanvasEdges(target, state) {
   if (!edges) {
     return;
   }
-  edges.innerHTML = state.flow.edges.map((edge) => renderEdge(state, edge)).join('') + renderDraftEdge(state);
+  const nodeSizes = getRenderedNodeSizes(target);
+  edges.innerHTML = state.flow.edges.map((edge) => renderEdge(state, edge, nodeSizes)).join('') + renderDraftEdge(state, nodeSizes);
+}
+
+function refreshNodePreview(target, state, options, node) {
+  const nodeEl = findRenderedNodeElement(target, node.id);
+  if (!nodeEl) {
+    return;
+  }
+
+  const titleEl = nodeEl.querySelector?.('.flow-workbench__node-title-main strong');
+  if (titleEl) {
+    titleEl.textContent = node.label || node.id;
+  }
+
+  const contentEl = nodeEl.querySelector?.('.flow-workbench__node-content');
+  if (contentEl) {
+    contentEl.innerHTML = renderNodeContentRows(options, node);
+  }
+
+  const ports = getFlowNodePorts(node);
+  const inputPort = ports.inputs[0] || { id: 'input', label: 'Input' };
+  const outputPort = ports.outputs[0] || { id: 'output', label: 'Output' };
+  const inputEl = nodeEl.querySelector?.('.flow-workbench__port--in');
+  const outputEl = nodeEl.querySelector?.('.flow-workbench__port--out');
+  inputEl?.setAttribute?.('aria-label', `${node.label || node.id} ${inputPort.label || inputPort.id}`);
+  outputEl?.setAttribute?.('aria-label', `${node.label || node.id} ${outputPort.label || outputPort.id}`);
+}
+
+function findRenderedNodeElement(target, nodeId) {
+  const nodes = target.querySelectorAll?.('.flow-workbench__node') || [];
+  return Array.from(nodes).find((nodeEl) => nodeEl.dataset?.nodeId === nodeId) || null;
+}
+
+function getRenderedNodeSizes(target) {
+  const sizes = new Map();
+  const nodes = target.querySelectorAll?.('.flow-workbench__node') || [];
+  Array.from(nodes).forEach((nodeEl) => {
+    const nodeId = nodeEl.dataset?.nodeId;
+    if (!nodeId) {
+      return;
+    }
+    const rect = typeof nodeEl.getBoundingClientRect === 'function' ? nodeEl.getBoundingClientRect() : {};
+    const width = Number(nodeEl.offsetWidth || rect.width || DEFAULT_NODE_WIDTH);
+    const height = Number(nodeEl.offsetHeight || rect.height || DEFAULT_NODE_HEIGHT);
+    sizes.set(nodeId, {
+      width: Number.isFinite(width) && width > 0 ? width : DEFAULT_NODE_WIDTH,
+      height: Number.isFinite(height) && height > 0 ? height : DEFAULT_NODE_HEIGHT
+    });
+  });
+  return sizes;
 }
 
 function connectNodes(state, api, from, to, options = {}) {

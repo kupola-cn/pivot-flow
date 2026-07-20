@@ -3628,7 +3628,33 @@
 }
 
 .flow-workbench__zoom-select {
-  width: 92px;
+  appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, currentColor 50%) right 13px center / 6px 6px no-repeat,
+    linear-gradient(135deg, currentColor 50%, transparent 50%) right 9px center / 6px 6px no-repeat,
+    var(--bg-base-default);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  color: var(--text-default);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--body-xs-font-size);
+  font-weight: 700;
+  height: 32px;
+  line-height: 30px;
+  min-width: 78px;
+  padding: 0 28px 0 var(--spacer-10);
+}
+
+.flow-workbench__zoom-select:hover {
+  background-color: var(--bg-overlay-l1);
+  border-color: var(--border-neutral-l2);
+}
+
+.flow-workbench__zoom-select:focus {
+  border-color: var(--border-brand);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--border-brand) 18%, transparent);
+  outline: 0;
 }
 
 @media (max-width: 920px) {

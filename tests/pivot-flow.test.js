@@ -1803,6 +1803,7 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   assert.match(defaultWorkbenchHTML, /data-node-template="data\.query"/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__canvas-toolbar/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__zoom-toolbar/);
+  assert.match(defaultWorkbenchHTML, /class="flow-workbench__zoom-select"/);
   assert.equal(defaultWorkbenchHTML.indexOf('flow-workbench__canvas-toolbar') < defaultWorkbenchHTML.indexOf('flow-workbench__zoom-toolbar'), true);
   const actionsOnlyHTML = renderFlowWorkbenchToHTML({
     flow: createFlow({
@@ -2010,6 +2011,110 @@ test('workbench node title actions copy, remove, and open help', () => {
   const flow = workbench.getFlow();
   assert.equal(flow.nodes.some((node) => node.id === 'query-users'), false);
   assert.equal(flow.edges.some((edge) => edge.from === 'query-users' || edge.to === 'query-users'), false);
+  workbench.destroy();
+});
+
+test('workbench syncs inspector edits to node preview and measured edge ports', () => {
+  let inputHandler = null;
+  const edgesEl = { innerHTML: '' };
+  const titleEl = { textContent: '' };
+  const contentEl = { innerHTML: '' };
+  const inputPortEl = { setAttribute() {} };
+  const outputPortEl = { setAttribute() {} };
+  const sourceNodeEl = {
+    dataset: { nodeId: 'query-users' },
+    offsetWidth: 238,
+    offsetHeight: 160,
+    querySelector(selector) {
+      if (selector === '.flow-workbench__node-title-main strong') {
+        return titleEl;
+      }
+      if (selector === '.flow-workbench__node-content') {
+        return contentEl;
+      }
+      if (selector === '.flow-workbench__port--in') {
+        return inputPortEl;
+      }
+      if (selector === '.flow-workbench__port--out') {
+        return outputPortEl;
+      }
+      return null;
+    }
+  };
+  const targetNodeEl = {
+    dataset: { nodeId: 'show-users' },
+    offsetWidth: 238,
+    offsetHeight: 180,
+    querySelector() {
+      return null;
+    }
+  };
+  const target = {
+    innerHTML: '',
+    addEventListener(type, handler) {
+      if (type === 'input') {
+        inputHandler = handler;
+      }
+    },
+    removeEventListener() {},
+    contains() {
+      return true;
+    },
+    querySelector(selector) {
+      return selector === '.flow-workbench__edges' ? edgesEl : null;
+    },
+    querySelectorAll(selector) {
+      return selector === '.flow-workbench__node' ? [sourceNodeEl, targetNodeEl] : [];
+    }
+  };
+  const workbench = FlowWorkbench({
+    target,
+    selectedNodeId: 'query-users',
+    flow: createFlow({
+      id: 'node-sync-flow',
+      name: 'Node sync flow',
+      nodes: [
+        {
+          id: 'query-users',
+          type: 'data.query',
+          label: 'Query users',
+          capability: 'users.query',
+          params: { limit: 20 },
+          ui: { position: { x: 80, y: 80 } }
+        },
+        {
+          id: 'show-users',
+          type: 'ui.display',
+          label: 'Show users',
+          capability: 'ui.display',
+          ui: { position: { x: 360, y: 120 } }
+        }
+      ],
+      edges: [
+        { id: 'edge:query-users:show-users', from: 'query-users', to: 'show-users' }
+      ]
+    }),
+    runtimeFactory: () => createPivotRuntime()
+  });
+
+  assert.match(edgesEl.innerHTML, /M 318 160 C/);
+  assert.match(edgesEl.innerHTML, /360 210"/);
+
+  inputHandler({
+    target: {
+      dataset: { flowWorkbenchField: 'params' },
+      value: '{"limit":5}'
+    }
+  });
+  assert.match(contentEl.innerHTML, /limit=5/);
+
+  inputHandler({
+    target: {
+      dataset: { flowWorkbenchField: 'label' },
+      value: 'Find users'
+    }
+  });
+  assert.equal(titleEl.textContent, 'Find users');
   workbench.destroy();
 });
 
