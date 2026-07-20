@@ -212,13 +212,15 @@
   background: var(--bg-base-default);
   border: 1px solid var(--border-neutral-l2);
   border-radius: var(--radius-4);
+  box-sizing: border-box;
   box-shadow: var(--shadow-sm);
   display: grid;
+  gap: var(--spacer-8);
   min-height: 132px;
+  padding: var(--spacer-8);
   position: absolute;
   user-select: none;
   width: 238px;
-  padding: var(--spacer-10);
 }
 
 .flow-workbench__node.is-selected {
@@ -240,7 +242,7 @@
   gap: var(--spacer-8);
   justify-content: space-between;
   min-height: 42px;
-  padding: var(--spacer-10) var(--spacer-12);
+  padding: 0 0 var(--spacer-8);
 }
 
 .flow-workbench__node-title strong {
@@ -258,7 +260,7 @@
 .flow-workbench__node-content {
   display: grid;
   gap: var(--spacer-6);
-  padding: var(--spacer-10) var(--spacer-12) var(--spacer-12);
+  padding: 0;
 }
 
 .flow-workbench__node-row {
@@ -3375,9 +3377,11 @@
   background: var(--bg-base-default);
   border: 1px solid var(--border-neutral-l1);
   border-radius: var(--radius-4);
+  box-sizing: border-box;
   box-shadow: var(--shadow-sm);
   left: var(--spacer-12);
   min-height: var(--flow-workbench-toolbar-height);
+  padding: 0 var(--spacer-12);
 }
 
 .flow-workbench__palette {
