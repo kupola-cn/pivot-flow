@@ -3627,7 +3627,7 @@
   max-width: calc(100% - var(--spacer-24));
   right: var(--spacer-12);
   top: 60px;
-  width: 300px;
+  width: 310px;
 }
 
 .flow-workbench__palette-search {
@@ -3770,7 +3770,7 @@
   grid-template-rows: var(--flow-workbench-toolbar-height) minmax(0, 1fr);
   right: var(--spacer-12);
   top: 60px;
-  width: 340px;
+  width: 310px;
   padding: var(--spacer-12);
 }
 
