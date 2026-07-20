@@ -2700,6 +2700,81 @@ test('validates subflow nodes and structured edge conditions', () => {
   assert.match(validation.errors.join('\n'), /Unknown flow edge condition/);
 });
 
+test('validates subflow input and output schemas when definitions are provided', () => {
+  const childFlow = {
+    id: 'user-detail-flow',
+    name: 'User detail flow',
+    inputSchema: {
+      userId: { type: 'string', required: true },
+      includeOrders: { type: 'boolean' }
+    },
+    outputSchema: {
+      result: { type: 'object' }
+    }
+  };
+  const validFlow = createFlow({
+    id: 'valid-subflow-contract',
+    name: 'Valid subflow contract',
+    status: 'draft',
+    nodes: [
+      {
+        id: 'run-subflow',
+        type: 'subflow.run',
+        params: {
+          flowId: 'user-detail-flow',
+          input: {
+            userId: '{{intent.userId}}',
+            includeOrders: true
+          }
+        },
+        outputSchema: {
+          result: { type: 'object' }
+        }
+      }
+    ]
+  });
+  const invalidFlow = createFlow({
+    id: 'invalid-subflow-contract',
+    name: 'Invalid subflow contract',
+    status: 'draft',
+    nodes: [
+      {
+        id: 'bad-subflow',
+        type: 'subflow.run',
+        params: {
+          flowId: 'user-detail-flow',
+          input: {
+            includeOrders: 'yes'
+          }
+        },
+        outputSchema: {
+          result: { type: 'array' },
+          missing: { type: 'string' }
+        }
+      },
+      {
+        id: 'missing-subflow',
+        type: 'subflow.run',
+        params: {
+          flowId: 'missing-flow',
+          input: { userId: 'u-1' }
+        }
+      }
+    ]
+  });
+  const valid = validateFlow(validFlow, { subflows: [childFlow] });
+  const invalid = validateFlow(invalidFlow, { subflows: [childFlow] });
+  const errors = invalid.errors.join('\n');
+
+  assert.equal(valid.valid, true);
+  assert.equal(invalid.valid, false);
+  assert.match(errors, /Subflow input missing required field userId: bad-subflow/);
+  assert.match(errors, /Subflow input field includeOrders expected boolean: bad-subflow/);
+  assert.match(errors, /Subflow output field result expected object but node declares array: bad-subflow/);
+  assert.match(errors, /Subflow output field is not declared by child flow: missing on bad-subflow/);
+  assert.match(errors, /Subflow definition was not found: missing-flow/);
+});
+
 test('registers custom flow node types for validation, palette, and plan mapping', () => {
   clearCustomFlowNodeTypes();
 

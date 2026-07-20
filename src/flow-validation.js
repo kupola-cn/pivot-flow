@@ -4,6 +4,7 @@ export function validateFlow(flow, options = {}) {
   const errors = [];
   const warnings = [];
   const knownCapabilities = normalizeCapabilitySet(options.capabilities);
+  const knownSubflows = normalizeSubflowMap(options.subflows);
 
   if (!isPlainObject(flow)) {
     return createFlowValidationResult(['Flow must be a plain object.'], warnings);
@@ -80,8 +81,13 @@ export function validateFlow(flow, options = {}) {
       errors.push(`Transform node params must be an object: ${node.id}`);
     }
 
-    if (node.type === FLOW_NODE_TYPES.SUBFLOW_RUN && !getSubflowId(node)) {
-      errors.push(`Subflow node requires params.flowId: ${node.id}`);
+    if (node.type === FLOW_NODE_TYPES.SUBFLOW_RUN) {
+      const subflowId = getSubflowId(node);
+      if (!subflowId) {
+        errors.push(`Subflow node requires params.flowId: ${node.id}`);
+      } else if (knownSubflows) {
+        validateSubflowContract(node, knownSubflows.get(subflowId), subflowId, errors, warnings);
+      }
     }
 
     const nodeTypeDefinition = getFlowNodeTypeDefinition(node.type);
@@ -547,8 +553,185 @@ function normalizeCapabilitySet(capabilities) {
   return null;
 }
 
+function normalizeSubflowMap(subflows) {
+  if (!subflows) {
+    return null;
+  }
+
+  if (subflows instanceof Map) {
+    return subflows;
+  }
+
+  if (Array.isArray(subflows)) {
+    return new Map(subflows.map((flow) => [flow?.id, flow]).filter(([id]) => id));
+  }
+
+  if (typeof subflows.list === 'function') {
+    return normalizeSubflowMap(subflows.list());
+  }
+
+  if (isPlainObject(subflows)) {
+    return new Map(Object.entries(subflows));
+  }
+
+  return null;
+}
+
 function getSubflowId(node) {
   return String(node?.params?.flowId ?? node?.flowId ?? '').trim();
+}
+
+function validateSubflowContract(node, subflow, subflowId, errors, warnings) {
+  if (!subflow) {
+    errors.push(`Subflow definition was not found: ${subflowId}`);
+    return;
+  }
+
+  const inputSchema = getSubflowInputSchema(subflow);
+  const outputSchema = getSubflowOutputSchema(subflow);
+  const input = node.params?.input ?? node.input ?? {};
+
+  validateSchemaValue(input, inputSchema, `Subflow input`, node.id, errors);
+  validateOutputSchemaCompatibility(node.outputSchema, outputSchema, node.id, errors, warnings);
+}
+
+function getSubflowInputSchema(subflow) {
+  if (isPlainObject(subflow?.inputSchema)) {
+    return subflow.inputSchema;
+  }
+
+  if (isPlainObject(subflow?.metadata?.inputSchema)) {
+    return subflow.metadata.inputSchema;
+  }
+
+  const slots = Array.isArray(subflow?.intent?.slots) ? subflow.intent.slots : [];
+  return Object.fromEntries(slots.map((slot) => [
+    slot.name,
+    {
+      type: slot.type || 'string',
+      required: Boolean(slot.required)
+    }
+  ]).filter(([name]) => name));
+}
+
+function getSubflowOutputSchema(subflow) {
+  if (isPlainObject(subflow?.outputSchema)) {
+    return subflow.outputSchema;
+  }
+
+  if (isPlainObject(subflow?.metadata?.outputSchema)) {
+    return subflow.metadata.outputSchema;
+  }
+
+  return {};
+}
+
+function validateSchemaValue(value, schema, label, nodeId, errors) {
+  if (!isPlainObject(schema) || Object.keys(schema).length === 0) {
+    return;
+  }
+
+  if (!isPlainObject(value)) {
+    errors.push(`${label} must be an object: ${nodeId}`);
+    return;
+  }
+
+  for (const [field, rule] of Object.entries(schema)) {
+    const normalizedRule = normalizeSchemaRule(rule);
+    const fieldValue = value[field];
+    if (normalizedRule.required && isMissingValue(fieldValue)) {
+      errors.push(`${label} missing required field ${field}: ${nodeId}`);
+      continue;
+    }
+    if (isMissingValue(fieldValue) || isDynamicReference(fieldValue)) {
+      continue;
+    }
+    if (!matchesSchemaType(fieldValue, normalizedRule.type)) {
+      errors.push(`${label} field ${field} expected ${normalizedRule.type}: ${nodeId}`);
+    }
+  }
+}
+
+function validateOutputSchemaCompatibility(nodeOutputSchema, subflowOutputSchema, nodeId, errors, warnings) {
+  if (!isPlainObject(subflowOutputSchema) || Object.keys(subflowOutputSchema).length === 0) {
+    return;
+  }
+
+  if (!isPlainObject(nodeOutputSchema) || Object.keys(nodeOutputSchema).length === 0) {
+    warnings.push(`Subflow node outputSchema is not declared: ${nodeId}`);
+    return;
+  }
+
+  for (const [field, rule] of Object.entries(nodeOutputSchema)) {
+    const expected = normalizeSchemaRule(subflowOutputSchema[field]);
+    const actual = normalizeSchemaRule(rule);
+    if (!subflowOutputSchema[field]) {
+      errors.push(`Subflow output field is not declared by child flow: ${field} on ${nodeId}`);
+      continue;
+    }
+    if (expected.type && actual.type && expected.type !== actual.type) {
+      errors.push(`Subflow output field ${field} expected ${expected.type} but node declares ${actual.type}: ${nodeId}`);
+    }
+  }
+}
+
+function normalizeSchemaRule(rule) {
+  if (typeof rule === 'string') {
+    return { type: rule, required: false };
+  }
+
+  const safeRule = isPlainObject(rule) ? rule : {};
+  return {
+    type: safeRule.type || inferSchemaType(safeRule.default ?? safeRule.defaultValue),
+    required: Boolean(safeRule.required)
+  };
+}
+
+function matchesSchemaType(value, type) {
+  if (!type || type === 'any') {
+    return true;
+  }
+  if (type === 'array') {
+    return Array.isArray(value);
+  }
+  if (type === 'object') {
+    return isPlainObject(value);
+  }
+  if (type === 'number') {
+    return typeof value === 'number' && Number.isFinite(value);
+  }
+  if (type === 'boolean') {
+    return typeof value === 'boolean';
+  }
+  if (type === 'string' || type === 'text' || type === 'date') {
+    return typeof value === 'string';
+  }
+  return true;
+}
+
+function isDynamicReference(value) {
+  return typeof value === 'string' && /^\{\{\s*[^}]+?\s*\}\}$/.test(value)
+    || isPlainObject(value) && typeof value.$from === 'string';
+}
+
+function isMissingValue(value) {
+  return value === undefined || value === null || value === '';
+}
+
+function inferSchemaType(value) {
+  if (Array.isArray(value)) {
+    return 'array';
+  }
+  if (isPlainObject(value)) {
+    return 'object';
+  }
+  if (typeof value === 'boolean') {
+    return 'boolean';
+  }
+  if (typeof value === 'number') {
+    return 'number';
+  }
+  return 'string';
 }
 
 function collectCustomValidation(validation, errors, warnings) {
