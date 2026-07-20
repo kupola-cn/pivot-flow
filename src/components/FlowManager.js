@@ -132,7 +132,13 @@ export function FlowManager(options = {}) {
       renderFlowTemplateListToHTML(state.templates, { groupBy: 'group' }),
       '</aside>',
       '<main class="flow-manager__workspace">',
-      renderFlowDesignerToHTML(flow, state),
+      renderFlowDesignerToHTML(flow, {
+        ...state,
+        runtime: options.runtime,
+        capabilities: options.capabilities,
+        resourceSchemas: options.resourceSchemas,
+        resources: options.resources
+      }),
       '</main>',
       '</div>',
       '<section class="flow-manager__runtime">',
@@ -950,6 +956,44 @@ export function FlowManager(options = {}) {
     render();
   };
 
+  const updateSelectedNodeParamField = (field, value, inputType, paramType) => {
+    const flow = getSelectedFlow(state);
+    const node = flow?.nodes?.find((item) => item.id === state.selectedNodeId);
+    if (!node || !field) {
+      return;
+    }
+
+    node.params = {
+      ...(isPlainObject(node.params) ? node.params : {}),
+      [field]: normalizeParamFieldValue(value, inputType, paramType)
+    };
+    state.preview = null;
+    state.result = null;
+    state.error = '';
+  };
+
+  const updateSelectedNodeFilterField = (index, field, value) => {
+    const flow = getSelectedFlow(state);
+    const node = flow?.nodes?.find((item) => item.id === state.selectedNodeId);
+    if (!node || !field || !Number.isInteger(index) || index < 0) {
+      return;
+    }
+
+    const params = isPlainObject(node.params) ? node.params : {};
+    const filters = Array.isArray(params.filters) ? [...params.filters] : [];
+    filters[index] = {
+      ...(isPlainObject(filters[index]) ? filters[index] : {}),
+      [field]: value
+    };
+    node.params = {
+      ...params,
+      filters
+    };
+    state.preview = null;
+    state.result = null;
+    state.error = '';
+  };
+
   const cleanups = [
     on(target, 'click', '[data-flow-action="select"]', (e, el) => {
       state.selectedFlowId = el.dataset.flowId;
@@ -1136,6 +1180,25 @@ export function FlowManager(options = {}) {
       state.result = null;
       render();
     }),
+    on(target, 'input', '[data-flow-node-param-field]', (e, el) => {
+      updateSelectedNodeParamField(el.dataset.flowNodeParamField, e.target.value, e.target.type, el.dataset.flowNodeParamType);
+    }),
+    on(target, 'change', '[data-flow-node-param-field]', (e, el) => {
+      updateSelectedNodeParamField(
+        el.dataset.flowNodeParamField,
+        e.target.type === 'checkbox' ? e.target.checked : e.target.value,
+        e.target.type,
+        el.dataset.flowNodeParamType
+      );
+      render();
+    }),
+    on(target, 'input', '[data-flow-node-filter-field]', (e, el) => {
+      updateSelectedNodeFilterField(Number.parseInt(el.dataset.flowNodeFilterIndex, 10), el.dataset.flowNodeFilterField, e.target.value);
+    }),
+    on(target, 'change', '[data-flow-node-filter-field]', (e, el) => {
+      updateSelectedNodeFilterField(Number.parseInt(el.dataset.flowNodeFilterIndex, 10), el.dataset.flowNodeFilterField, e.target.value);
+      render();
+    }),
     on(target, 'change', '[data-flow-edge-field]', (e, el) => {
       updateSelectedEdgeField(el.dataset.flowEdgeField, e.target.value);
       render();
@@ -1264,6 +1327,33 @@ function parseListInput(value) {
     .split(/[\n,，]/)
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+function normalizeParamFieldValue(value, inputType, paramType) {
+  if (inputType === 'checkbox' || paramType === 'boolean') {
+    return Boolean(value);
+  }
+
+  if (paramType === 'number') {
+    if (value === '' || value === null || value === undefined) {
+      return '';
+    }
+    const number = Number(value);
+    return Number.isFinite(number) ? number : value;
+  }
+
+  if (paramType === 'object' || paramType === 'array') {
+    if (typeof value !== 'string' || value.trim() === '') {
+      return paramType === 'array' ? [] : {};
+    }
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+
+  return value;
 }
 
 function renderFlowListFilters(state, visibleCount) {

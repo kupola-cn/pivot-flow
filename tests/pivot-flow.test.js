@@ -57,6 +57,7 @@ import {
   getFlowNodeAdjacency,
   getFlowNodeNeighborhood,
   getFlowNodeMatches,
+  getNodeCapabilitySchema,
   getFlowRisk,
   getFlowRunSummary,
   getFlowNodeTypeDefinition,
@@ -1631,6 +1632,134 @@ test('renders editable node inspector controls', () => {
   assert.match(html, /data-flow-action="move-node-up"/);
   assert.match(html, /data-flow-action="remove-node"/);
   assert.match(html, /user\.create/);
+});
+
+test('renders schema-driven node inspector fields from capability and resource schemas', () => {
+  const runtime = createPivotRuntime();
+  runtime.registerCapability({
+    name: 'users.query',
+    resource: 'users',
+    action: ActionType.QUERY,
+    risk: RiskLevel.LOW,
+    paramsSchema: {
+      name: { type: 'string', label: 'Name', required: true, default: '{{intent.name}}' },
+      limit: { type: 'number', default: 20 },
+      mode: { type: 'string', options: ['exact', 'fuzzy'] },
+      includeDisabled: { type: 'boolean', default: false },
+      projection: { type: 'array' },
+      options: { type: 'object' }
+    },
+    outputSchema: {
+      records: { type: 'array', description: 'matched records' },
+      total: { type: 'number' }
+    },
+    execute: () => ({ records: [], total: 0 })
+  });
+
+  const html = renderEditableNodeInspectorToHTML({
+    id: 'query-users',
+    type: 'data.query',
+    label: 'Query users',
+    resource: 'users',
+    capability: 'users.query',
+    params: {
+      name: '{{intent.name}}',
+      limit: 10,
+      mode: 'fuzzy',
+      filters: [
+        { field: 'name', operator: 'contains', value: '{{intent.name}}' }
+      ]
+    }
+  }, {
+    runtime,
+    resourceSchemas: {
+      users: {
+        fields: {
+          id: { type: 'string', queryable: false },
+          name: { type: 'string', label: 'User name' },
+          age: { type: 'number', label: 'Age' }
+        }
+      }
+    },
+    variableSources: [
+      { label: 'Intent name', reference: 'intent.name' }
+    ]
+  });
+
+  assert.equal(getNodeCapabilitySchema({ type: 'data.query', capability: 'users.query' }, { runtime }).limit.type, 'number');
+  assert.match(html, /data-flow-node-schema="params"/);
+  assert.match(html, /data-flow-node-param-field="name"/);
+  assert.match(html, /data-flow-node-param-type="number"/);
+  assert.match(html, /type="checkbox" data-flow-node-param-field="includeDisabled"/);
+  assert.match(html, /<select class="ds-select" data-flow-node-param-field="mode"/);
+  assert.match(html, /<textarea class="ds-textarea" rows="4" data-flow-node-param-field="projection"/);
+  assert.match(html, /data-flow-node-schema="query"/);
+  assert.match(html, /data-flow-node-filter-field="field"/);
+  assert.match(html, /value="name" selected>User name/);
+  assert.match(html, /data-flow-node-filter-field="operator"/);
+  assert.match(html, /value="contains" selected/);
+  assert.match(html, /datalist id="flow-node-variable-options"/);
+  assert.match(html, /value="\{\{intent\.name\}\}"/);
+  assert.match(html, /Output schema/);
+  assert.match(html, /matched records/);
+});
+
+test('renders an editable query filter row when a resource has no filters yet', () => {
+  const html = renderEditableNodeInspectorToHTML({
+    id: 'query-users',
+    type: 'data.query',
+    resource: 'users',
+    capability: 'users.query',
+    params: {}
+  }, {
+    resourceSchemas: {
+      users: {
+        fields: {
+          name: { type: 'string', label: 'Name' }
+        }
+      }
+    }
+  });
+
+  assert.match(html, /data-flow-node-schema="query"/);
+  assert.match(html, /data-flow-node-filter-index="0"/);
+  assert.doesNotMatch(html, /No filters configured/);
+});
+
+test('lets custom nodes reuse and extend the default schema inspector', () => {
+  clearCustomFlowNodeTypes();
+
+  try {
+    registerFlowNodeType({
+      type: 'demo.schema-node',
+      label: 'Schema node',
+      paramsSchema: {
+        threshold: { type: 'number', default: 1 },
+        enabled: { type: 'boolean', default: true }
+      },
+      outputSchema: {
+        accepted: { type: 'boolean', required: true }
+      },
+      renderInspector({ defaultInspector }) {
+        return defaultInspector().replace('Node inspector', 'Custom inspector');
+      }
+    });
+
+    const html = renderEditableNodeInspectorToHTML({
+      id: 'schema-node',
+      type: 'demo.schema-node',
+      params: {}
+    });
+
+    assert.match(html, /Custom inspector/);
+    assert.match(html, /data-flow-node-param-field="threshold"/);
+    assert.match(html, /data-flow-node-param-default="1"/);
+    assert.match(html, /data-flow-node-param-field="enabled" data-flow-node-param-type="boolean"/);
+    assert.match(html, /Output schema/);
+    assert.match(html, /accepted/);
+  } finally {
+    clearCustomFlowNodeTypes();
+  }
 });
 
 test('creates variable mapper sources for selected node inputs', () => {

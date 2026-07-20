@@ -7,7 +7,7 @@ import { renderIntentPatternEditorToHTML } from './IntentPatternEditor.js';
 import { renderNodeInspectorToHTML } from './NodeInspector.js';
 import { renderNodePaletteToHTML } from './NodePalette.js';
 import { renderFlowTestPanelToHTML } from './FlowTestPanel.js';
-import { renderVariableMapperToHTML } from './VariableMapper.js';
+import { createFlowVariableSources, renderVariableMapperToHTML } from './VariableMapper.js';
 
 export function renderFlowDesignerToHTML(flow, state = {}) {
   if (!flow) {
@@ -17,6 +17,7 @@ export function renderFlowDesignerToHTML(flow, state = {}) {
   const selectedNode = getSelectedNode(flow, state.selectedNodeId);
   const validation = validateFlow(flow);
   const nodeMatches = getFlowNodeMatches(flow.nodes ?? [], state.nodeKeyword);
+  const variableSources = createFlowVariableSources(flow, state.selectedNodeId);
 
   return [
     '<section class="flow-designer">',
@@ -46,8 +47,15 @@ export function renderFlowDesignerToHTML(flow, state = {}) {
     renderFlowTestPanelToHTML(state),
     '</main>',
     '<aside class="flow-designer__inspector">',
-    renderNodeInspectorToHTML(selectedNode, { editable: true }),
-    renderVariableMapperToHTML({ flow, selectedNodeId: state.selectedNodeId }),
+    renderNodeInspectorToHTML(selectedNode, {
+      editable: true,
+      runtime: state.runtime,
+      capabilities: state.capabilities,
+      resourceSchemas: state.resourceSchemas,
+      resources: state.resources,
+      variableSources
+    }),
+    renderVariableMapperToHTML({ sources: variableSources }),
     renderIntentPatternEditorToHTML(flow),
     '</aside>',
     '</section>'
@@ -270,6 +278,10 @@ export function FlowDesigner(options = {}) {
   const target = resolveTarget(options.target);
   const state = {
     flow: options.flow ?? null,
+    runtime: options.runtime,
+    capabilities: options.capabilities,
+    resourceSchemas: options.resourceSchemas,
+    resources: options.resources,
     selectedNodeId: options.flow?.nodes?.[0]?.id ?? '',
     nodeKeyword: '',
     canvasGroupBy: '',

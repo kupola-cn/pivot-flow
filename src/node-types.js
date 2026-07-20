@@ -237,6 +237,7 @@ function normalizeFlowNodeTypeDefinition(definition = {}) {
     label: String(definition.label || type),
     group: String(definition.group || 'custom'),
     description: String(definition.description || ''),
+    paramsSchema: isPlainObject(definition.paramsSchema) ? definition.paramsSchema : {},
     inputSchema: isPlainObject(definition.inputSchema) ? definition.inputSchema : {},
     outputSchema: isPlainObject(definition.outputSchema) ? definition.outputSchema : {},
     defaultParams: isPlainObject(definition.defaultParams) ? definition.defaultParams : {},

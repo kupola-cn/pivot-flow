@@ -210,6 +210,7 @@ export interface FlowNodeTypeDefinition {
   icon?: string;
   description?: string;
   capability?: string;
+  paramsSchema?: Record<string, unknown>;
   inputSchema?: Record<string, unknown>;
   outputSchema?: Record<string, unknown>;
   defaultParams?: Record<string, unknown>;
@@ -1403,8 +1404,17 @@ export function getFlowCanvasDiagnostics(result?: PivotResult | null, nodes?: Fl
 };
 export function getFlowNodeMatches(nodes?: FlowNode[], keyword?: string): { active: boolean; matchedIds: Set<string>; count: number };
 export function getFlowNodeAdjacency(nodeId?: string, edges?: FlowEdge[]): { active: boolean; relatedEdgeIds: Set<string>; relatedNodeIds: Set<string> };
-export function renderNodeInspectorToHTML(node?: FlowNode | null, options?: { editable?: boolean }): string;
-export function renderEditableNodeInspectorToHTML(node: FlowNode): string;
+export interface FlowNodeInspectorOptions {
+  editable?: boolean;
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] };
+  resourceSchemas?: Record<string, Record<string, unknown>>;
+  resources?: Record<string, Record<string, unknown>>;
+  variableSources?: Array<string | Partial<FlowVariableSource>>;
+}
+export function renderNodeInspectorToHTML(node?: FlowNode | null, options?: FlowNodeInspectorOptions): string;
+export function renderEditableNodeInspectorToHTML(node: FlowNode, options?: FlowNodeInspectorOptions): string;
+export function getNodeCapabilitySchema(node?: Partial<FlowNode> | null, options?: FlowNodeInspectorOptions): Record<string, unknown> | null;
 export function renderNodePaletteToHTML(nodes?: unknown[]): string;
 export interface FlowVariableSource {
   group: string;
@@ -1462,6 +1472,9 @@ export function renderFlowAuditPanelToHTML(audits?: unknown[], options?: Record<
 export function FlowManager(options: {
   target: string | Element;
   runtime?: PivotRuntime;
+  capabilities?: PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] };
+  resourceSchemas?: Record<string, Record<string, unknown>>;
+  resources?: Record<string, Record<string, unknown>>;
   flowStore?: FlowStore;
   flows?: FlowDefinition[];
   templates?: FlowTemplate[];
@@ -1482,6 +1495,10 @@ export function FlowManager(options: {
 export function FlowDesigner(options: {
   target: string | Element;
   flow?: FlowDefinition;
+  runtime?: PivotRuntime;
+  capabilities?: PivotCapability[] | { list(filter?: Record<string, unknown>): PivotCapability[] };
+  resourceSchemas?: Record<string, Record<string, unknown>>;
+  resources?: Record<string, Record<string, unknown>>;
   input?: Record<string, unknown>;
   context?: Record<string, unknown>;
   onPreview?: (plan: PivotPlan) => void;
