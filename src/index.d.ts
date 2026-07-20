@@ -1008,6 +1008,9 @@ export function truncateFlowText(value?: unknown, maxLength?: number): string;
 
 export const FLOW_FRONTEND_CAPABILITIES: {
   MESSAGE_SHOW: 'message.show';
+  HUMAN_INPUT: 'human.input';
+  HUMAN_SELECT: 'human.select';
+  UI_DISPLAY: 'ui.display';
   ROUTE_NAVIGATE: 'route.navigate';
   TABLE_REFRESH: 'table.refresh';
   FORM_OPEN: 'form.open';
@@ -1022,6 +1025,7 @@ export function getFlowNodeCapability(node: Partial<FlowNode>): string;
 
 export interface FlowFrontendCapabilityAdapter {
   showMessage?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
+  requestInput?: (params: Record<string, unknown>, context?: Record<string, unknown>) => unknown | Promise<unknown>;
   selectRecord?: (params: Record<string, unknown>, context?: Record<string, unknown>) => unknown | Promise<unknown>;
   displayData?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
   navigate?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
@@ -1031,6 +1035,7 @@ export interface FlowFrontendCapabilityAdapter {
   openModal?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
   markAudit?: (params: Record<string, unknown>, context?: Record<string, unknown>) => void | Promise<void>;
   messagePermissions?: string[];
+  humanInputPermissions?: string[];
   humanSelectPermissions?: string[];
   displayPermissions?: string[];
   routePermissions?: string[];

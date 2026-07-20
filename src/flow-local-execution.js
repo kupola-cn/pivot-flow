@@ -110,6 +110,13 @@ export async function executeFlowNode(node, state = {}) {
       source: resolveFlowExecutionValue(rawParams.source ?? rawParams.items, state),
       mappings: rawParams.mappings ?? rawParams.projection
     }
+    : node.type === FLOW_NODE_TYPES.LOOP
+      ? {
+        ...(node.control ?? {}),
+        ...resolveFlowExecutionValue(rawParams, state),
+        source: resolveFlowExecutionValue(rawParams.source ?? node.control?.source, state),
+        collect: rawParams.collect ?? node.control?.collect
+      }
     : resolveFlowExecutionValue(rawParams, state);
 
   switch (node.type) {
@@ -137,6 +144,8 @@ export async function executeFlowNode(node, state = {}) {
       return executeConditionNode(node, state);
     case FLOW_NODE_TYPES.SWITCH:
       return executeSwitchNode(node, state);
+    case FLOW_NODE_TYPES.LOOP:
+      return executeLoopNode(params, state);
     case FLOW_NODE_TYPES.TRANSFORM:
       return createResult({ ok: true, message: 'Data transformed.', data: applyFlowTransform(node.params ?? {}, createExpressionInput(state), state.context ?? {}) });
     case FLOW_NODE_TYPES.OUTPUT_MESSAGE:
@@ -411,6 +420,56 @@ function executeSwitchNode(node, state) {
   });
 }
 
+function executeLoopNode(params, state) {
+  const mode = params.mode ?? 'forEach';
+  if (mode !== 'forEach') {
+    return createResult({
+      ok: false,
+      message: `Unsupported loop mode: ${mode}.`,
+      explain: { mode, supportedModes: ['forEach'] }
+    });
+  }
+
+  const source = asArray(params.source ?? getPreviousData(state));
+  const maxItems = normalizePositiveInteger(params.maxItems, 100);
+  const itemName = String(params.itemName || 'item');
+  const limited = source.slice(0, maxItems);
+  const collect = params.collect;
+  const items = limited.map((item, index) => {
+    const localState = {
+      ...state,
+      item,
+      index,
+      locals: {
+        ...(state.locals ?? {}),
+        [itemName]: item,
+        item,
+        data: item,
+        record: item,
+        index
+      }
+    };
+    return collect === undefined
+      ? item
+      : resolveFlowExecutionValue(collect, localState);
+  });
+
+  return createResult({
+    ok: true,
+    message: 'Loop executed.',
+    data: {
+      mode,
+      itemName,
+      items,
+      records: items,
+      count: items.length,
+      total: source.length,
+      maxItems,
+      truncated: source.length > maxItems
+    }
+  });
+}
+
 function executeOutputNode(node, params, state) {
   const output = createFlowOutput(node, params, state);
   return createResult({
@@ -614,6 +673,9 @@ function resolveExecutionReference(reference, state) {
   }
 
   const [nodeId, ...rest] = path.split('.');
+  if (state.locals && Object.hasOwn(state.locals, nodeId)) {
+    return readPath(state.locals[nodeId], rest.join('.'));
+  }
   return readPath(state.resultsByNodeId?.[nodeId], rest.join('.') || 'data');
 }
 
@@ -735,6 +797,11 @@ function compareSortValues(left, right) {
   }
 
   return 0;
+}
+
+function normalizePositiveInteger(value, fallback) {
+  const number = Number(value);
+  return Number.isInteger(number) && number > 0 ? number : fallback;
 }
 
 function asArray(value) {

@@ -2,6 +2,7 @@ import { ActionType, RiskLevel } from '@kupola/pivot';
 
 export const FLOW_FRONTEND_CAPABILITIES = Object.freeze({
   MESSAGE_SHOW: 'message.show',
+  HUMAN_INPUT: 'human.input',
   HUMAN_SELECT: 'human.select',
   UI_DISPLAY: 'ui.display',
   ROUTE_NAVIGATE: 'route.navigate',
@@ -42,6 +43,35 @@ export function createFlowFrontendCapabilities(adapter = {}) {
           shown: true,
           message: params.message,
           type: params.type ?? 'info'
+        };
+      }
+    },
+    {
+      name: FLOW_FRONTEND_CAPABILITIES.HUMAN_INPUT,
+      resource: 'frontend-human',
+      action: ActionType.EXECUTE,
+      risk: RiskLevel.LOW,
+      description: 'Ask a user to provide a missing or corrected value.',
+      allowUnknownParams: true,
+      paramsSchema: {
+        name: { type: 'string', required: true },
+        prompt: { type: 'string', required: true },
+        inputType: { type: 'string' },
+        required: { type: 'boolean' },
+        defaultValue: { type: 'any' }
+      },
+      permissions: adapter.humanInputPermissions ?? [],
+      execute: async ({ params, context }) => {
+        const value = typeof adapter.requestInput === 'function'
+          ? await adapter.requestInput(params, context)
+          : params.defaultValue;
+        const provided = value !== undefined && value !== null && value !== '';
+        return {
+          provided,
+          cancelled: Boolean(params.required) && !provided,
+          name: params.name,
+          value: provided ? value : null,
+          inputType: params.inputType ?? 'text'
         };
       }
     },

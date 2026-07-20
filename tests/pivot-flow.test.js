@@ -3495,6 +3495,75 @@ test('executes PLAN5 local data processing nodes and returns flow output', async
   assert.equal(execution.result.data.output.data.roleName, 'Doctor');
 });
 
+test('executes human input capability and controlled loop nodes', async () => {
+  const runtime = createPivotRuntime();
+  const prompts = [];
+  registerFlowFrontendCapabilities(runtime, {
+    requestInput: (params) => {
+      prompts.push(params.prompt);
+      return 'Zhang San';
+    }
+  });
+  const humanFlow = createFlow({
+    id: 'human-input-flow',
+    name: 'Human input flow',
+    status: 'published',
+    nodes: [
+      { id: 'ask-name', type: 'human.input', params: { name: 'name', prompt: '请输入姓名', inputType: 'text', required: true } },
+      { id: 'return-name', type: 'output.result', params: { data: { name: '{{ask-name.data.value}}' } } }
+    ],
+    edges: [
+      { from: 'ask-name', to: 'return-name' }
+    ]
+  });
+  const loopFlow = createFlow({
+    id: 'loop-flow',
+    name: 'Loop flow',
+    status: 'published',
+    nodes: [
+      {
+        id: 'loop-patients',
+        type: 'loop',
+        control: {
+          mode: 'forEach',
+          source: '{{intent.patients}}',
+          itemName: 'patient',
+          maxItems: 2,
+          collect: { id: '{{patient.id}}', label: '{{patient.name}}' }
+        }
+      },
+      { id: 'return-patients', type: 'output.table', params: { data: '{{loop-patients.data.records}}' } }
+    ],
+    edges: [
+      { from: 'loop-patients', to: 'return-patients' }
+    ]
+  });
+
+  const humanResult = await executeFlowGraph(humanFlow, { runtime });
+  const loopResult = await executeFlowGraph(loopFlow, {
+    input: {
+      slots: {
+        patients: [
+          { id: 'p-1', name: 'A' },
+          { id: 'p-2', name: 'B' },
+          { id: 'p-3', name: 'C' }
+        ]
+      }
+    }
+  });
+
+  assert.deepEqual(prompts, ['请输入姓名']);
+  assert.equal(humanResult.ok, true);
+  assert.equal(humanResult.data.output.data.name, 'Zhang San');
+  assert.equal(loopResult.ok, true);
+  assert.equal(loopResult.data.output.kind, 'table');
+  assert.deepEqual(loopResult.data.output.data, [
+    { id: 'p-1', label: 'A' },
+    { id: 'p-2', label: 'B' }
+  ]);
+  assert.equal(loopResult.data.nodes[0].result.data.truncated, true);
+});
+
 test('FlowRunner blocks preview when required slots are missing', async () => {
   const runtime = createPivotRuntime();
   const flow = createFlow({
