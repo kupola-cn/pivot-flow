@@ -52,6 +52,13 @@ export function createFlowFrontendCapabilities(adapter = {}) {
       risk: RiskLevel.LOW,
       description: 'Ask a user to select a record from frontend candidates.',
       allowUnknownParams: true,
+      paramsSchema: {
+        source: { type: 'array', required: true },
+        title: { type: 'string' },
+        valueField: { type: 'string', default: 'id' },
+        labelField: { type: 'string', default: 'name' },
+        renderer: { type: 'string', options: ['table', 'list', 'detail'] }
+      },
       permissions: adapter.humanSelectPermissions ?? [],
       execute: async ({ params, context }) => {
         const source = Array.isArray(params.source) ? params.source : [];
@@ -75,6 +82,12 @@ export function createFlowFrontendCapabilities(adapter = {}) {
       risk: RiskLevel.LOW,
       description: 'Display flow data in a frontend renderer.',
       allowUnknownParams: true,
+      paramsSchema: {
+        data: { type: 'object', required: true },
+        renderer: { type: 'string', options: ['table', 'detail', 'form', 'message', 'drawer', 'modal', 'none'] },
+        title: { type: 'string' },
+        emptyText: { type: 'string' }
+      },
       permissions: adapter.displayPermissions ?? [],
       execute: async ({ params, context }) => {
         if (typeof adapter.displayData === 'function') {

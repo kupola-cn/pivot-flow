@@ -51,6 +51,118 @@ export const BUILT_IN_FLOW_TEMPLATES = Object.freeze([
     }
   },
   {
+    id: 'user.query-by-name',
+    name: 'Query user by name',
+    group: 'user',
+    description: 'Query a user by name, handle empty, single, and duplicate-name results.',
+    flow: {
+      name: 'Query user by name',
+      description: '查询张三的信息：0 条显示未找到，1 条展示详情，多条进入人工选择后展示。',
+      risk: 'low',
+      status: 'draft',
+      intent: {
+        examples: ['查询张三的信息', '查一下李四', '查询王五的用户信息'],
+        keywords: ['查询', '查一下', '用户', '信息'],
+        slots: [
+          { name: 'name', label: 'Name', type: 'string', required: true, pattern: '(?:查询|查一下)(?<name>\\S+?)(?:的)?(?:用户)?信息' }
+        ]
+      },
+      nodes: [
+        {
+          id: 'query-users',
+          type: 'data.query',
+          label: 'Query users',
+          resource: 'users',
+          capability: 'user.query',
+          action: 'query',
+          params: {
+            filters: [
+              { field: 'name', operator: 'eq', value: '{{intent.name}}' }
+            ],
+            limit: 20
+          },
+          outputSchema: {
+            records: { type: 'array' },
+            total: { type: 'number' }
+          },
+          ui: {
+            renderer: 'table',
+            columns: ['id', 'name', 'departmentName', 'phone']
+          }
+        },
+        {
+          id: 'show-empty',
+          type: 'message.show',
+          label: 'Show empty result',
+          params: {
+            message: 'No matching user was found.',
+            type: 'warning'
+          }
+        },
+        {
+          id: 'show-one',
+          type: 'ui.display',
+          label: 'Display single user',
+          params: {
+            data: '{{query-users.data.records.0}}',
+            renderer: 'detail',
+            title: 'User detail'
+          },
+          ui: {
+            renderer: 'detail',
+            title: 'User detail'
+          }
+        },
+        {
+          id: 'select-user',
+          type: 'human.select',
+          label: 'Select duplicate user',
+          params: {
+            source: '{{query-users.data.records}}',
+            title: 'Select user',
+            valueField: 'id',
+            labelField: 'name',
+            renderer: 'table'
+          },
+          ui: {
+            renderer: 'table',
+            columns: ['id', 'name', 'departmentName', 'phone']
+          }
+        },
+        {
+          id: 'show-selected',
+          type: 'ui.display',
+          label: 'Display selected user',
+          params: {
+            data: '{{select-user.data.record}}',
+            renderer: 'detail',
+            title: 'Selected user'
+          },
+          ui: {
+            renderer: 'detail',
+            title: 'Selected user'
+          }
+        },
+        {
+          id: 'return-result',
+          type: 'output.return',
+          label: 'Return result',
+          params: {
+            result: '{{show-selected.data}}'
+          }
+        }
+      ],
+      edges: [
+        { from: 'query-users', to: 'show-empty', condition: { path: 'data.total', equals: 0 } },
+        { from: 'query-users', to: 'show-one', condition: { path: 'data.total', equals: 1 } },
+        { from: 'query-users', to: 'select-user', condition: { path: 'data.total', gt: 1 } },
+        { from: 'select-user', to: 'show-selected', condition: 'success' },
+        { from: 'show-one', to: 'return-result', condition: 'success' },
+        { from: 'show-selected', to: 'return-result', condition: 'success' }
+      ]
+    }
+  },
+  {
     id: 'user.create-basic',
     name: 'Create user',
     group: 'user',

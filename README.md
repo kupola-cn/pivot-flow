@@ -385,6 +385,18 @@ await flowStore.create(draftFlow);
 
 `FlowManager` renders built-in templates by default. Pass `templates` to replace them with project-specific templates.
 
+The `user.query-by-name` template is the official "查询张三的信息" example. It uses generic nodes instead of a dedicated user-query node:
+
+```text
+data.query
+  -> message.show when total == 0
+  -> ui.display when total == 1
+  -> human.select when total > 1
+  -> ui.display selected record
+```
+
+Register a project-specific `user.query` capability and wire `human.select` / `ui.display` through `registerFlowFrontendCapabilities()`. The default UI renderer hints are `table` and `detail`, and projects can replace them through the frontend adapter.
+
 ## Conditions And Transforms
 
 `evaluateFlowCondition()` and `applyFlowTransform()` provide a small controlled DSL for custom runners, tests, and preview tooling. They do not evaluate arbitrary JavaScript.

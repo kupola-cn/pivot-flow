@@ -857,6 +857,31 @@ test('creates draft flows from built-in templates', () => {
   assert.equal(match.best.slots.organizationName, 'C');
 });
 
+test('provides an official query-user-by-name template for empty single and duplicate results', () => {
+  const templates = listFlowTemplates({ group: 'user' });
+  const flow = createFlowFromTemplate('user.query-by-name');
+  const plan = flowToPlan(flow, {
+    prompt: '查询张三的信息',
+    slots: { name: '张三' }
+  });
+
+  assert.equal(templates.some((template) => template.id === 'user.query-by-name'), true);
+  assert.equal(flow.metadata.templateId, 'user.query-by-name');
+  assert.equal(flow.intent.examples.includes('查询张三的信息'), true);
+  assert.equal(flow.nodes.find((node) => node.id === 'query-users').type, 'data.query');
+  assert.equal(flow.nodes.find((node) => node.id === 'select-user').type, 'human.select');
+  assert.equal(flow.nodes.find((node) => node.id === 'show-one').ui.renderer, 'detail');
+  assert.equal(flow.nodes.find((node) => node.id === 'select-user').ui.renderer, 'table');
+  assert.equal(flow.edges.some((edge) => edge.to === 'show-empty' && edge.condition.equals === 0), true);
+  assert.equal(flow.edges.some((edge) => edge.to === 'show-one' && edge.condition.equals === 1), true);
+  assert.equal(flow.edges.some((edge) => edge.to === 'select-user' && edge.condition.gt === 1), true);
+  assert.equal(plan.nodes.find((node) => node.id === 'query-users').capability, 'user.query');
+  assert.equal(plan.nodes.find((node) => node.id === 'select-user').capability, 'human.select');
+  assert.equal(plan.nodes.find((node) => node.id === 'show-selected').capability, 'ui.display');
+  assert.equal(plan.nodes.some((node) => node.id === 'return-result'), false);
+  assert.equal(plan.nodes.find((node) => node.id === 'query-users').params.filters[0].value, '张三');
+});
+
 test('renders flow template list actions', () => {
   const templates = listFlowTemplates();
   const groups = groupFlowTemplates(templates);
@@ -2217,6 +2242,8 @@ test('registers built-in frontend capabilities', async () => {
     showMessage: (params) => calls.push(['message', params.message]),
     refreshTable: (params) => calls.push(['table', params.target])
   });
+  const selectCapability = runtime.getCapability('human.select');
+  const displayCapability = runtime.getCapability('ui.display');
 
   const flow = createFlow({
     id: 'frontend-flow',
@@ -2244,6 +2271,9 @@ test('registers built-in frontend capabilities', async () => {
   const plan = flowToPlan(flow);
   assert.equal(plan.nodes[0].capability, 'table.refresh');
   assert.equal(plan.nodes[1].capability, 'message.show');
+  assert.deepEqual(selectCapability.paramsSchema.renderer.options, ['table', 'list', 'detail']);
+  assert.equal(displayCapability.paramsSchema.data.required, true);
+  assert.equal(displayCapability.paramsSchema.renderer.options.includes('detail'), true);
 
   const preview = await runtime.previewPlan(plan);
   assert.equal(preview.ok, true);
