@@ -5,6 +5,7 @@ import {
   createFlow,
   clearCustomFlowNodeTypes,
   createAIFlowBuilderContext,
+  createDefaultFlowWorkbenchNodeTypes,
   createAIFlowProvider,
   createAIFlowProviderMessages,
   createAIFlowProviderRequest,
@@ -1784,11 +1785,53 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   assert.equal(ui.renderFlowWorkbenchToHTML, renderFlowWorkbenchToHTML);
   assert.match(target.innerHTML, /flow-designer/);
   assert.match(workbenchTarget.innerHTML, /flow-workbench/);
+  assert.match(renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'default-workbench-flow',
+      name: 'Default workbench flow',
+      nodes: []
+    }),
+    selectedNodeId: '',
+    prompt: '',
+    resultHTML: '',
+    logs: [],
+    paletteOpen: true,
+    resultOpen: false,
+    pan: { x: 0, y: 0 },
+    zoom: 1
+  }), /data-node-template="data\.query"/);
 
   designer.destroy();
   workbench.destroy();
   assert.equal(target.innerHTML, '');
   assert.equal(workbenchTarget.innerHTML, '');
+});
+
+test('provides generic workbench nodes for common flow patterns', () => {
+  const zhNodes = createDefaultFlowWorkbenchNodeTypes({ locale: 'zh-CN' });
+  const updateNode = zhNodes.find((node) => node.id === 'data.update');
+  const loopNode = zhNodes.find((node) => node.id === 'loop');
+  const plan = flowToPlan(createFlow({
+    id: 'generic-update-flow',
+    name: 'Generic update flow',
+    nodes: [
+      {
+        id: 'update-record',
+        type: 'data.update',
+        label: 'Update record',
+        capability: 'record.update',
+        params: { resource: 'records', where: { id: '{{intent.id}}' }, data: { name: '{{intent.name}}' } }
+      }
+    ]
+  }), {
+    slots: { id: 'r-1', name: 'Updated' }
+  });
+
+  assert.equal(updateNode?.label, '修改');
+  assert.equal(loopNode?.type, 'loop');
+  assert.equal(plan.nodes[0].capability, 'record.update');
+  assert.equal(plan.nodes[0].params.action, 'update');
+  assert.equal(plan.nodes[0].params.where.id, 'r-1');
 });
 
 test('renders editable node inspector controls', () => {

@@ -39,7 +39,7 @@
 .flow-workbench__canvas-shell,
 .flow-workbench__inspector,
 .flow-workbench__result {
-  background: var(--bg-overlay-l1);
+  background: var(--bg-base-default);
   border: 1px solid var(--border-neutral-l1);
   border-radius: var(--radius-4);
   min-width: 0;
@@ -209,7 +209,7 @@
 }
 
 .flow-workbench__node {
-  background: var(--bg-overlay-l1);
+  background: var(--bg-base-default);
   border: 1px solid var(--border-neutral-l2);
   border-radius: var(--radius-4);
   box-shadow: var(--shadow-sm);
@@ -3273,19 +3273,6 @@
     grid-template-columns: 1fr;
   }
 
-  .flow-workbench {
-    grid-template-columns: 220px minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr) 300px;
-  }
-
-  .flow-workbench__inspector {
-    grid-column: 1 / -1;
-  }
-
-  .flow-workbench__result {
-    grid-template-columns: 1fr;
-  }
-
   .flow-field--wide {
     grid-column: auto;
   }
@@ -3300,5 +3287,187 @@
   .flow-assistant__actions {
     align-items: stretch;
     flex-direction: column;
+  }
+}
+
+.flow-workbench {
+  background: var(--bg-base-default);
+  display: block;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.flow-workbench__canvas {
+  inset: 0;
+  cursor: grab;
+  overflow: hidden;
+  overflow: clip;
+  position: absolute;
+  touch-action: none;
+}
+
+.flow-workbench__canvas.is-panning {
+  cursor: grabbing;
+}
+
+.flow-workbench__board {
+  left: 0;
+  min-height: 0;
+  min-width: 0;
+  position: absolute;
+  top: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.flow-workbench__topbar,
+.flow-workbench__canvas-toolbar,
+.flow-workbench__palette,
+.flow-workbench__inspector,
+.flow-workbench__result,
+.flow-workbench__result-toggle {
+  position: absolute;
+  z-index: 20;
+}
+
+.flow-workbench__topbar {
+  align-items: center;
+  background: var(--bg-base-default);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  box-shadow: var(--shadow-sm);
+  left: var(--spacer-12);
+  min-height: var(--flow-workbench-toolbar-height);
+  padding: 0 var(--spacer-16);
+  right: var(--spacer-12);
+  top: var(--spacer-12);
+}
+
+.flow-workbench__title h2,
+.flow-workbench__title p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.flow-workbench__title h2 {
+  font-size: var(--heading-sm-font-size);
+}
+
+.flow-workbench__title p {
+  white-space: nowrap;
+}
+
+.flow-workbench__canvas-toolbar {
+  align-items: center;
+  background: var(--bg-base-default);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  box-shadow: var(--shadow-sm);
+  left: var(--spacer-12);
+  min-height: var(--flow-workbench-toolbar-height);
+  top: 78px;
+}
+
+.flow-workbench__palette {
+  background: var(--bg-base-default);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  box-shadow: var(--shadow-md);
+  grid-template-rows: var(--flow-workbench-toolbar-height) minmax(0, 1fr);
+  left: var(--spacer-12);
+  max-height: min(560px, calc(100% - 152px));
+  top: 136px;
+  width: 280px;
+}
+
+.flow-workbench__inspector {
+  background: var(--bg-base-default);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  bottom: 88px;
+  box-shadow: var(--shadow-md);
+  grid-template-rows: var(--flow-workbench-toolbar-height) minmax(0, 1fr);
+  right: var(--spacer-12);
+  top: 78px;
+  width: 340px;
+}
+
+.flow-workbench__panel-close {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 20px;
+  height: 28px;
+  justify-content: center;
+  padding: 0;
+  position: absolute;
+  right: var(--spacer-12);
+  top: 24px;
+  width: 28px;
+}
+
+.flow-workbench__result-toggle {
+  bottom: var(--spacer-12);
+  left: var(--spacer-12);
+}
+
+.flow-workbench__result {
+  background: var(--bg-base-default);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  bottom: var(--spacer-12);
+  box-shadow: var(--shadow-md);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  height: 240px;
+  left: var(--spacer-12);
+  right: var(--spacer-12);
+}
+
+.flow-workbench.is-result-open .flow-workbench__result-toggle {
+  bottom: 264px;
+}
+
+.flow-workbench__zoom-controls {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-6);
+  min-width: 0;
+}
+
+.flow-workbench__zoom-controls .ds-btn {
+  min-width: 34px;
+}
+
+.flow-workbench__zoom-select {
+  width: 92px;
+}
+
+@media (max-width: 920px) {
+  .flow-workbench__topbar,
+  .flow-workbench__title,
+  .flow-workbench__canvas-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .flow-workbench__canvas-toolbar {
+    right: var(--spacer-12);
+  }
+
+  .flow-workbench__inspector {
+    bottom: 88px;
+    left: var(--spacer-12);
+    width: auto;
+  }
+
+  .flow-workbench__result {
+    grid-template-columns: 1fr;
+    height: 300px;
   }
 }

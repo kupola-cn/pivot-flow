@@ -93,10 +93,10 @@ export function flowNodeToPlanNode(node, flow, input = {}, context = {}) {
     });
   }
 
-  if (node.type === FLOW_NODE_TYPES.DATA_QUERY) {
+  if ([FLOW_NODE_TYPES.DATA_QUERY, FLOW_NODE_TYPES.DATA_CREATE, FLOW_NODE_TYPES.DATA_UPDATE, FLOW_NODE_TYPES.DATA_DELETE].includes(node.type)) {
     return createCapabilityPlanNode(node, flow, input, context, {
       resource: node.resource,
-      action: node.action ?? 'query',
+      action: node.action || getDefaultDataAction(node.type),
       ...(node.params ?? {})
     });
   }
@@ -106,6 +106,15 @@ export function flowNodeToPlanNode(node, flow, input = {}, context = {}) {
   }
 
   return createCapabilityPlanNode(node, flow, input, context, node.params ?? {});
+}
+
+function getDefaultDataAction(type) {
+  return {
+    [FLOW_NODE_TYPES.DATA_QUERY]: 'query',
+    [FLOW_NODE_TYPES.DATA_CREATE]: 'create',
+    [FLOW_NODE_TYPES.DATA_UPDATE]: 'update',
+    [FLOW_NODE_TYPES.DATA_DELETE]: 'delete'
+  }[type] || '';
 }
 
 function createCapabilityPlanNode(node, flow, input, context, params) {

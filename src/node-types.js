@@ -10,9 +10,13 @@ export const FLOW_NODE_TYPES = Object.freeze({
   API_CALL: 'api.call',
   CAPABILITY_RUN: 'capability.run',
   DATA_QUERY: 'data.query',
+  DATA_CREATE: 'data.create',
+  DATA_UPDATE: 'data.update',
+  DATA_DELETE: 'data.delete',
   CONDITION: 'condition',
   CONFIRM: 'confirm',
   TRANSFORM: 'transform',
+  LOOP: 'loop',
   HUMAN_SELECT: 'human.select',
   UI_DISPLAY: 'ui.display',
   OUTPUT_RETURN: 'output.return',
@@ -60,6 +64,24 @@ export const BUILT_IN_NODE_DEFINITIONS = Object.freeze([
     description: 'Query a resource through a registered capability.'
   },
   {
+    type: FLOW_NODE_TYPES.DATA_CREATE,
+    label: 'Create',
+    group: 'data',
+    description: 'Create a resource through a registered capability.'
+  },
+  {
+    type: FLOW_NODE_TYPES.DATA_UPDATE,
+    label: 'Update',
+    group: 'data',
+    description: 'Update a resource through a registered capability.'
+  },
+  {
+    type: FLOW_NODE_TYPES.DATA_DELETE,
+    label: 'Delete',
+    group: 'data',
+    description: 'Delete a resource through a registered capability.'
+  },
+  {
     type: FLOW_NODE_TYPES.CONDITION,
     label: 'Condition',
     group: 'control',
@@ -76,6 +98,12 @@ export const BUILT_IN_NODE_DEFINITIONS = Object.freeze([
     label: 'Transform',
     group: 'control',
     description: 'Map or reshape data for later nodes.'
+  },
+  {
+    type: FLOW_NODE_TYPES.LOOP,
+    label: 'Loop',
+    group: 'control',
+    description: 'Repeat downstream steps for each item in a collection.'
   },
   {
     type: FLOW_NODE_TYPES.HUMAN_SELECT,
@@ -151,7 +179,10 @@ export function isCapabilityBackedNode(node) {
   return Boolean(getFlowNodeCapability(node)) || [
     FLOW_NODE_TYPES.CAPABILITY_RUN,
     FLOW_NODE_TYPES.API_CALL,
-    FLOW_NODE_TYPES.DATA_QUERY
+    FLOW_NODE_TYPES.DATA_QUERY,
+    FLOW_NODE_TYPES.DATA_CREATE,
+    FLOW_NODE_TYPES.DATA_UPDATE,
+    FLOW_NODE_TYPES.DATA_DELETE
   ].includes(node?.type);
 }
 
@@ -164,7 +195,7 @@ export function isPlanVisibleNode(node) {
     return false;
   }
 
-  if (node.type === FLOW_NODE_TYPES.CONDITION || node.type === FLOW_NODE_TYPES.TRANSFORM || node.type === FLOW_NODE_TYPES.OUTPUT_RETURN) {
+  if (node.type === FLOW_NODE_TYPES.CONDITION || node.type === FLOW_NODE_TYPES.TRANSFORM || node.type === FLOW_NODE_TYPES.LOOP || node.type === FLOW_NODE_TYPES.OUTPUT_RETURN) {
     return false;
   }
 
@@ -220,6 +251,167 @@ export function listFlowNodeTypeDefinitions(options = {}) {
     ...(includeCustom ? Array.from(customNodeDefinitions.values()) : [])
   ];
 }
+
+export function createDefaultFlowWorkbenchNodeTypes(options = {}) {
+  const zh = String(options.locale || '').toLowerCase().startsWith('zh');
+  const text = zh ? FLOW_WORKBENCH_NODE_TEXT_ZH : FLOW_WORKBENCH_NODE_TEXT_EN;
+  return DEFAULT_FLOW_WORKBENCH_NODE_TYPES.map((definition) => ({
+    ...definition,
+    label: text[definition.id]?.label || definition.label,
+    description: text[definition.id]?.description || definition.description,
+    nodeLabel: text[definition.id]?.nodeLabel || definition.nodeLabel
+  }));
+}
+
+export const DEFAULT_FLOW_WORKBENCH_NODE_TYPES = Object.freeze([
+  {
+    id: 'param.input',
+    type: FLOW_NODE_TYPES.INTENT_INPUT,
+    label: 'Parameter',
+    nodeLabel: 'Input parameter',
+    group: 'input',
+    description: 'Declare a value provided by user intent or context.',
+    params: { name: 'keyword', source: 'intent', required: true }
+  },
+  {
+    id: 'data.query',
+    type: FLOW_NODE_TYPES.DATA_QUERY,
+    label: 'Query',
+    nodeLabel: 'Query data',
+    group: 'data',
+    description: 'Query records from a business resource.',
+    action: 'query',
+    params: { resource: '', filters: [], limit: 20 }
+  },
+  {
+    id: 'data.create',
+    type: FLOW_NODE_TYPES.DATA_CREATE,
+    label: 'Create',
+    nodeLabel: 'Create data',
+    group: 'data',
+    description: 'Create a business resource record.',
+    action: 'create',
+    params: { resource: '', data: {} },
+    risk: 'medium'
+  },
+  {
+    id: 'data.update',
+    type: FLOW_NODE_TYPES.DATA_UPDATE,
+    label: 'Update',
+    nodeLabel: 'Update data',
+    group: 'data',
+    description: 'Update matching business resource records.',
+    action: 'update',
+    params: { resource: '', where: {}, data: {} },
+    risk: 'medium'
+  },
+  {
+    id: 'data.delete',
+    type: FLOW_NODE_TYPES.DATA_DELETE,
+    label: 'Delete',
+    nodeLabel: 'Delete data',
+    group: 'data',
+    description: 'Delete matching business resource records.',
+    action: 'delete',
+    params: { resource: '', where: {} },
+    risk: 'high',
+    requiresConfirmation: true
+  },
+  {
+    id: 'condition',
+    type: FLOW_NODE_TYPES.CONDITION,
+    label: 'Condition',
+    nodeLabel: 'Condition',
+    group: 'control',
+    description: 'Branch the flow by a structured condition.',
+    condition: { path: 'data.ok', equals: true }
+  },
+  {
+    id: 'loop',
+    type: FLOW_NODE_TYPES.LOOP,
+    label: 'Loop',
+    nodeLabel: 'Loop items',
+    group: 'control',
+    description: 'Repeat downstream steps for each item in a collection.',
+    control: { mode: 'forEach', source: '{{previous.data.records}}', itemName: 'item' }
+  },
+  {
+    id: 'transform',
+    type: FLOW_NODE_TYPES.TRANSFORM,
+    label: 'Transform',
+    nodeLabel: 'Transform data',
+    group: 'control',
+    description: 'Map or reshape values for later steps.',
+    params: { mappings: {} }
+  },
+  {
+    id: 'human.select',
+    type: FLOW_NODE_TYPES.HUMAN_SELECT,
+    label: 'Human select',
+    nodeLabel: 'Select record',
+    group: 'human',
+    description: 'Ask the user to choose one record.',
+    capability: 'human.select',
+    params: { source: '{{previous.data.records}}', title: 'Select record' }
+  },
+  {
+    id: 'subflow.run',
+    type: FLOW_NODE_TYPES.SUBFLOW_RUN,
+    label: 'Subflow',
+    nodeLabel: 'Run subflow',
+    group: 'flow',
+    description: 'Run a published flow as a reusable step.',
+    capability: 'flow.subflow.run',
+    params: { flowId: '', input: {} }
+  },
+  {
+    id: 'ui.display',
+    type: FLOW_NODE_TYPES.UI_DISPLAY,
+    label: 'Display',
+    nodeLabel: 'Display result',
+    group: 'feedback',
+    description: 'Display data in the frontend.',
+    capability: 'ui.display',
+    params: { data: '{{previous.data}}', renderer: 'detail' }
+  },
+  {
+    id: 'message.show',
+    type: FLOW_NODE_TYPES.MESSAGE_SHOW,
+    label: 'Message',
+    nodeLabel: 'Show message',
+    group: 'feedback',
+    description: 'Show a user-facing message.',
+    capability: 'message.show',
+    params: { message: 'Flow message', type: 'info' }
+  },
+  {
+    id: 'capability.run',
+    type: FLOW_NODE_TYPES.CAPABILITY_RUN,
+    label: 'Custom capability',
+    nodeLabel: 'Run capability',
+    group: 'capability',
+    description: 'Call any registered business capability.',
+    params: {}
+  }
+]);
+
+const FLOW_WORKBENCH_NODE_TEXT_ZH = Object.freeze({
+  'param.input': { label: '参数', nodeLabel: '输入参数', description: '声明来自意图或上下文的参数。' },
+  'data.query': { label: '查询', nodeLabel: '查询数据', description: '从业务资源查询记录。' },
+  'data.create': { label: '新增', nodeLabel: '新增数据', description: '新增业务资源记录。' },
+  'data.update': { label: '修改', nodeLabel: '修改数据', description: '修改匹配的业务资源记录。' },
+  'data.delete': { label: '删除', nodeLabel: '删除数据', description: '删除匹配的业务资源记录。' },
+  condition: { label: '条件', nodeLabel: '条件判断', description: '根据结构化条件进行分支。' },
+  loop: { label: '循环', nodeLabel: '循环处理', description: '按集合逐项重复后续步骤。' },
+  transform: { label: '转换', nodeLabel: '转换数据', description: '映射或整理后续步骤需要的数据。' },
+  'human.select': { label: '人工选择', nodeLabel: '选择记录', description: '让使用者从候选记录中选择一条。' },
+  'subflow.run': { label: '子流程', nodeLabel: '运行子流程', description: '复用另一个已发布流程。' },
+  'ui.display': { label: '展示', nodeLabel: '展示结果', description: '在前端展示数据。' },
+  'message.show': { label: '消息', nodeLabel: '显示消息', description: '显示用户可见的提示消息。' },
+  'capability.run': { label: '自定义能力', nodeLabel: '调用能力', description: '调用已注册的业务能力。' }
+});
+
+const FLOW_WORKBENCH_NODE_TEXT_EN = Object.freeze({});
 
 function normalizeFlowNodeTypeDefinition(definition = {}) {
   if (!definition || typeof definition !== 'object') {

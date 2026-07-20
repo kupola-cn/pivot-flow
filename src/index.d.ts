@@ -7,9 +7,13 @@ export type FlowNodeType =
   | 'api.call'
   | 'capability.run'
   | 'data.query'
+  | 'data.create'
+  | 'data.update'
+  | 'data.delete'
   | 'condition'
   | 'confirm'
   | 'transform'
+  | 'loop'
   | 'human.select'
   | 'ui.display'
   | 'output.return'
@@ -246,11 +250,13 @@ export interface FlowNodeTypeDefinition {
 }
 export const FLOW_NODE_TYPES: Record<string, FlowNodeType | string>;
 export const BUILT_IN_NODE_DEFINITIONS: FlowNodeTypeDefinition[];
+export const DEFAULT_FLOW_WORKBENCH_NODE_TYPES: FlowWorkbenchNodeType[];
 export function registerFlowNodeType(definition: Partial<FlowNodeTypeDefinition> & { type: string }): FlowNodeTypeDefinition;
 export function unregisterFlowNodeType(type: string): boolean;
 export function clearCustomFlowNodeTypes(): void;
 export function getFlowNodeTypeDefinition(type: string): FlowNodeTypeDefinition | null;
 export function listFlowNodeTypeDefinitions(options?: { includeCustom?: boolean }): FlowNodeTypeDefinition[];
+export function createDefaultFlowWorkbenchNodeTypes(options?: { locale?: string }): FlowWorkbenchNodeType[];
 export function getDefaultCapabilityForNodeType(type: string): string;
 export function getFlowNodeCapability(node?: Partial<FlowNode> | null): string;
 export const FLOW_EXPORT_SCHEMA: 'kupola.pivot-flow.export.v1';
@@ -1521,18 +1527,31 @@ export interface FlowDesignerOptions {
 }
 
 export interface FlowWorkbenchNodeType {
+  id?: string;
   type: string;
   label?: string;
   description?: string;
+  group?: string;
   capability?: string;
+  resource?: string;
+  action?: string;
   risk?: FlowRisk | string;
   params?: Record<string, unknown>;
+  defaultParams?: Record<string, unknown>;
   nodeLabel?: string;
+  requiresConfirmation?: boolean;
+  condition?: unknown;
+  control?: Record<string, unknown>;
+  inputSchema?: Record<string, unknown>;
+  outputSchema?: Record<string, unknown>;
+  ports?: Record<string, unknown>;
 }
 
 export interface FlowWorkbenchLabels {
   title?: string;
+  components?: string;
   reset?: string;
+  fit?: string;
   preview?: string;
   execute?: string;
   palette?: string;
@@ -1548,6 +1567,7 @@ export interface FlowWorkbenchLabels {
   connectTo?: string;
   selectTarget?: string;
   deleteNode?: string;
+  result?: string;
   type?: string;
   summary?: (nodes: number, edges: number) => string;
 }
@@ -1563,6 +1583,10 @@ export interface FlowWorkbenchOptions {
   nodeTypeLabels?: Record<string, string>;
   labels?: FlowWorkbenchLabels;
   selectedNodeId?: string;
+  paletteOpen?: boolean;
+  resultOpen?: boolean;
+  pan?: { x: number; y: number };
+  zoom?: number;
   emptyResultHTML?: string;
   readyMessage?: string;
   resetMessage?: string;

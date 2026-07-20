@@ -230,6 +230,27 @@ const DEFAULT_FLOW_NODE_PORTS = Object.freeze({
       { id: 'output.error', label: 'Error', kind: 'output', dataType: 'object' }
     ]
   }),
+  [FLOW_NODE_TYPES.DATA_CREATE]: freezePorts({
+    inputs: [{ id: 'input.data', label: 'Data', kind: 'input', dataType: 'object' }],
+    outputs: [
+      { id: 'output.record', label: 'Record', kind: 'output', dataType: 'object' },
+      { id: 'output.error', label: 'Error', kind: 'output', dataType: 'object' }
+    ]
+  }),
+  [FLOW_NODE_TYPES.DATA_UPDATE]: freezePorts({
+    inputs: [{ id: 'input.data', label: 'Data', kind: 'input', dataType: 'object' }],
+    outputs: [
+      { id: 'output.records', label: 'Records', kind: 'output', dataType: 'array' },
+      { id: 'output.error', label: 'Error', kind: 'output', dataType: 'object' }
+    ]
+  }),
+  [FLOW_NODE_TYPES.DATA_DELETE]: freezePorts({
+    inputs: [{ id: 'input.query', label: 'Query', kind: 'input', dataType: 'object' }],
+    outputs: [
+      { id: 'output.deleted', label: 'Deleted', kind: 'output', dataType: 'number' },
+      { id: 'output.error', label: 'Error', kind: 'output', dataType: 'object' }
+    ]
+  }),
   [FLOW_NODE_TYPES.CAPABILITY_RUN]: freezePorts({
     inputs: [{ id: 'input.params', label: 'Params', kind: 'input', dataType: 'object' }],
     outputs: [
@@ -242,6 +263,13 @@ const DEFAULT_FLOW_NODE_PORTS = Object.freeze({
     outputs: [
       { id: 'output.true', label: 'True', kind: 'output', dataType: 'boolean' },
       { id: 'output.false', label: 'False', kind: 'output', dataType: 'boolean' }
+    ]
+  }),
+  [FLOW_NODE_TYPES.LOOP]: freezePorts({
+    inputs: [{ id: 'input.items', label: 'Items', kind: 'input', dataType: 'array' }],
+    outputs: [
+      { id: 'output.item', label: 'Item', kind: 'output', dataType: 'object' },
+      { id: 'output.done', label: 'Done', kind: 'output', dataType: 'array' }
     ]
   }),
   [FLOW_NODE_TYPES.HUMAN_SELECT]: freezePorts({

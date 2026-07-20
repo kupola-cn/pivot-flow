@@ -1,6 +1,6 @@
 import { cloneFlow, createFlowNode } from '../flow-schema.js';
 import { flowToPlan } from '../flow-to-plan.js';
-import { getDefaultCapabilityForNodeType } from '../node-types.js';
+import { createDefaultFlowWorkbenchNodeTypes, getDefaultCapabilityForNodeType } from '../node-types.js';
 import { escapeAttr, escapeHTML, resolveTarget, setHTML } from './dom.js';
 
 const DEFAULT_NODE_WIDTH = 238;
@@ -21,7 +21,7 @@ export function FlowWorkbench(options = {}) {
   const refresh = (nextFlow) => {
     if (nextFlow) {
       state.flow = cloneFlow(nextFlow);
-      state.selectedNodeId = state.flow.nodes?.[0]?.id || '';
+      state.selectedNodeId = '';
       state.connectionDraft = null;
       state.draggingNodeId = '';
     }
@@ -52,15 +52,30 @@ export function FlowWorkbench(options = {}) {
     const action = actionEl.dataset.flowWorkbenchAction;
     if (action === 'select-node') {
       state.selectedNodeId = actionEl.dataset.nodeId || state.selectedNodeId;
+    } else if (action === 'toggle-palette') {
+      state.paletteOpen = !state.paletteOpen;
+    } else if (action === 'toggle-result') {
+      state.resultOpen = !state.resultOpen;
+    } else if (action === 'close-inspector') {
+      state.selectedNodeId = '';
+    } else if (action === 'zoom-in') {
+      updateZoom(state, state.zoom + 0.1);
+    } else if (action === 'zoom-out') {
+      updateZoom(state, state.zoom - 0.1);
+    } else if (action === 'reset-viewport') {
+      state.pan = { x: 0, y: 0 };
+      state.zoom = 1;
     } else if (action === 'add-node') {
-      addNode(state, options, actionEl.dataset.nodeType);
+      addNode(state, options, actionEl.dataset.nodeTemplate || actionEl.dataset.nodeType);
     } else if (action === 'remove-node') {
       removeSelectedNode(state, api);
     } else if (action === 'reset') {
       state.flow = cloneFlow(options.flow);
-      state.selectedNodeId = state.flow.nodes?.[0]?.id || '';
+      state.selectedNodeId = '';
       state.connectionDraft = null;
       state.draggingNodeId = '';
+      state.pan = createPoint(options.pan, { x: 0, y: 0 });
+      state.zoom = normalizeZoom(options.zoom);
       api.writeLog('ready', options.resetMessage || 'Flow was reset.');
     } else if (action === 'preview') {
       await runFlow(state, options, api, { execute: false });
@@ -85,6 +100,9 @@ export function FlowWorkbench(options = {}) {
     if (input.dataset.flowWorkbenchConnectTo) {
       connectNodes(state, api, state.selectedNodeId, input.value);
       render();
+    } else if (input.dataset.flowWorkbenchZoom !== undefined) {
+      updateZoom(state, input.value);
+      render();
     }
   };
 
@@ -98,6 +116,12 @@ export function FlowWorkbench(options = {}) {
     const nodeEl = event.target.closest('.flow-workbench__node');
     if (nodeEl) {
       startNodeDrag(event, target, state, render, nodeEl);
+      return;
+    }
+
+    const canvasEl = event.target.closest('.flow-workbench__canvas');
+    if (canvasEl) {
+      startCanvasPan(event, state, render, canvasEl);
     }
   };
 
@@ -130,38 +154,47 @@ export function FlowWorkbench(options = {}) {
 export function renderFlowWorkbenchToHTML(state, options = {}) {
   const labels = createLabels(options.labels);
   return [
-    '<section class="flow-workbench">',
+    `<section class="flow-workbench${state.resultOpen ? ' is-result-open' : ''}">`,
+    renderCanvas(state, options),
     '<header class="flow-workbench__topbar">',
     '<div class="flow-workbench__title">',
     `<h2>${escapeHTML(options.title || state.flow.name || labels.title)}</h2>`,
     `<p>${escapeHTML(options.description || state.flow.description || '')}</p>`,
     '</div>',
     '<div class="flow-workbench__actions">',
+    renderToolbarButton('toggle-palette', labels.components, 'secondary'),
     renderToolbarButton('reset', labels.reset, 'secondary'),
     renderToolbarButton('preview', labels.preview, 'secondary'),
     renderToolbarButton('execute', labels.execute, 'brand'),
     '</div>',
     '</header>',
-    '<aside class="flow-workbench__palette">',
+    renderCanvasToolbar(state, options, labels),
+    state.paletteOpen ? [
+      '<aside class="flow-workbench__palette">',
     `<div class="flow-workbench__panel-title">${escapeHTML(labels.palette)}</div>`,
     '<div class="flow-workbench__node-list">',
-    renderPalette(options.nodeTypes || []),
+    renderPalette(options),
     '</div>',
     '</aside>',
-    '<main class="flow-workbench__canvas-shell">',
-    renderCanvasToolbar(state, options, labels),
-    renderCanvas(state, options),
-    '</main>',
-    '<aside class="flow-workbench__inspector">',
+    ].join('') : '',
+    state.selectedNodeId ? [
+      '<aside class="flow-workbench__inspector">',
     `<div class="flow-workbench__panel-title">${escapeHTML(labels.inspector)}</div>`,
+    '<button type="button" class="flow-workbench__panel-close" data-flow-workbench-action="close-inspector" aria-label="Close inspector">×</button>',
     '<div class="flow-workbench__inspector-body">',
     renderInspector(state, labels),
     '</div>',
     '</aside>',
-    '<section class="flow-workbench__result">',
+    ].join('') : '',
+    '<button type="button" class="flow-workbench__result-toggle ds-btn ds-btn--secondary ds-btn--sm" data-flow-workbench-action="toggle-result">',
+    escapeHTML(labels.result),
+    '</button>',
+    state.resultOpen ? [
+      '<section class="flow-workbench__result">',
     `<div class="flow-workbench__result-body">${state.resultHTML}</div>`,
     `<div class="flow-workbench__log">${state.logs.map(renderLogEntry).join('')}</div>`,
     '</section>',
+    ].join('') : '',
     '</section>'
   ].join('');
 }
@@ -170,10 +203,14 @@ function createWorkbenchState(options) {
   const flow = cloneFlow(options.flow);
   return {
     flow,
-    selectedNodeId: options.selectedNodeId || flow.nodes?.[0]?.id || '',
+    selectedNodeId: options.selectedNodeId || '',
     prompt: options.prompt || flow.intent?.examples?.[0] || flow.name || '',
     resultHTML: options.emptyResultHTML || '<div class="flow-workbench__empty">Run the flow to show output.</div>',
     logs: [],
+    paletteOpen: Boolean(options.paletteOpen),
+    resultOpen: Boolean(options.resultOpen),
+    pan: createPoint(options.pan, { x: 0, y: 0 }),
+    zoom: normalizeZoom(options.zoom),
     connectionDraft: null,
     connectingFrom: '',
     draggingNodeId: '',
@@ -187,6 +224,7 @@ function createWorkbenchApi(state, options) {
     getFlow: () => state.flow,
     setResultHTML(html) {
       state.resultHTML = html || '';
+      state.resultOpen = true;
     },
     writeLog(type, message) {
       state.logs = [{
@@ -203,14 +241,16 @@ function renderToolbarButton(action, label, variant) {
   return `<button type="button" class="ds-btn ds-btn--${escapeAttr(variant)} ds-btn--sm" data-flow-workbench-action="${escapeAttr(action)}">${escapeHTML(label)}</button>`;
 }
 
-function renderPalette(nodeTypes) {
+function renderPalette(options) {
+  const nodeTypes = getWorkbenchNodeTypes(options);
   return nodeTypes.map((item) => {
+    const template = item.id || item.key || item.type || item[0];
     const type = item.type || item[0];
     const label = item.label || item[1] || type;
     const description = item.description || item[2] || '';
     return [
       '<button type="button" class="flow-workbench__palette-card" ',
-      `data-flow-workbench-action="add-node" data-node-type="${escapeAttr(type)}">`,
+      `data-flow-workbench-action="add-node" data-node-template="${escapeAttr(template)}" data-node-type="${escapeAttr(type)}">`,
       `<strong>${escapeHTML(label)}</strong>`,
       `<span>${escapeHTML(description)}</span>`,
       '</button>'
@@ -234,19 +274,37 @@ function renderCanvasToolbar(state, options, labels) {
     ].join('')).join(''),
     '</div>',
     `<span class="ds-badge ds-badge--success">${escapeHTML(state.connectionDraft ? labels.connecting : labels.ready)}</span>`,
+    '<div class="flow-workbench__zoom-controls">',
+    renderToolbarButton('zoom-out', '-', 'secondary'),
+    '<select class="ds-select ds-select--sm flow-workbench__zoom-select" data-flow-workbench-zoom aria-label="Zoom">',
+    renderZoomOptions(state.zoom),
+    '</select>',
+    renderToolbarButton('zoom-in', '+', 'secondary'),
+    renderToolbarButton('reset-viewport', labels.fit, 'secondary'),
+    '</div>',
     '</div>'
   ].join('');
 }
 
+function renderZoomOptions(currentZoom) {
+  const levels = [0.5, 0.75, 1, 1.1, 1.25, 1.5, 2];
+  if (!levels.some((zoom) => Math.abs(currentZoom - zoom) < 0.001)) {
+    levels.push(currentZoom);
+    levels.sort((a, b) => a - b);
+  }
+  return levels.map((zoom) => `<option value="${zoom}"${Math.abs(currentZoom - zoom) < 0.001 ? ' selected' : ''}>${Math.round(zoom * 100)}%</option>`).join('');
+}
+
 function renderCanvas(state, options) {
   const { width, height } = getBoardSize(state);
+  const transform = `translate(${state.pan.x}px, ${state.pan.y}px) scale(${state.zoom})`;
   const edges = state.flow.edges.map((edge) => renderEdge(state, edge)).join('');
   const draftEdge = renderDraftEdge(state);
   const nodes = state.flow.nodes.map((node) => renderNode(state, options, node)).join('');
 
   return [
     '<section class="flow-workbench__canvas" aria-label="Flow canvas">',
-    `<div class="flow-workbench__board" style="width:${width}px;height:${height}px">`,
+    `<div class="flow-workbench__board" style="width:${width}px;height:${height}px;transform:${escapeAttr(transform)}">`,
     `<svg class="flow-workbench__edges" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
     edges,
     draftEdge,
@@ -366,17 +424,41 @@ function addNode(state, options, type) {
   if (!type) {
     return;
   }
-  const definition = (options.nodeTypes || []).find((item) => (item.type || item[0]) === type) || {};
+  const definition = getWorkbenchNodeTypes(options)
+    .find((item) => (item.id || item.key || item.type || item[0]) === type || (item.type || item[0]) === type)
+    || {};
+  const nodeType = definition.type || definition[0] || type;
   const node = createFlowNode({
-    type,
-    label: definition.nodeLabel || definition.label || renderNodeType(options, type),
-    capability: definition.capability || defaultCapability(type),
+    type: nodeType,
+    label: definition.nodeLabel || definition.label || renderNodeType(options, nodeType),
+    capability: definition.capability || defaultCapability(nodeType),
+    resource: definition.resource || '',
+    action: definition.action || '',
     risk: definition.risk || 'low',
-    params: definition.params || defaultParams(type),
+    requiresConfirmation: Boolean(definition.requiresConfirmation),
+    condition: clonePlain(definition.condition ?? null),
+    control: clonePlain(definition.control || {}),
+    params: clonePlain(definition.params || definition.defaultParams || defaultParams(nodeType)),
+    inputSchema: clonePlain(definition.inputSchema || {}),
+    outputSchema: clonePlain(definition.outputSchema || {}),
+    ports: clonePlain(definition.ports || {}),
     ui: { position: nextNodePosition(state) }
   });
   state.flow.nodes = [...state.flow.nodes, node];
   state.selectedNodeId = node.id;
+}
+
+function getWorkbenchNodeTypes(options) {
+  return options.nodeTypes?.length
+    ? options.nodeTypes
+    : createDefaultFlowWorkbenchNodeTypes({ locale: options.locale });
+}
+
+function clonePlain(value) {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  return JSON.parse(JSON.stringify(value));
 }
 
 function removeSelectedNode(state, api) {
@@ -421,12 +503,43 @@ async function runFlow(state, options, api, { execute }) {
   const plan = flowToPlan(state.flow, { prompt: state.prompt, slots }, context);
 
   if (execute) {
+    state.resultOpen = true;
     const result = await runtime.executePlan(plan, context);
     api.writeLog(result.ok ? 'execute.ok' : 'execute.fail', result.message || 'Flow executed.');
   } else {
+    state.resultOpen = true;
     api.writeLog('preview.ok', 'Runtime plan generated.');
     api.setResultHTML(`<pre class="flow-workbench__json">${escapeHTML(JSON.stringify(plan, null, 2))}</pre>`);
   }
+}
+
+function startCanvasPan(event, state, render, canvasEl) {
+  if (state.connectionDraft || event.button !== 0) {
+    return;
+  }
+  event.preventDefault();
+  const startClient = { x: event.clientX, y: event.clientY };
+  const startPan = { ...state.pan };
+  canvasEl.classList.add('is-panning');
+
+  const move = (moveEvent) => {
+    moveEvent.preventDefault();
+    state.pan = {
+      x: startPan.x + moveEvent.clientX - startClient.x,
+      y: startPan.y + moveEvent.clientY - startClient.y
+    };
+    updateBoardTransform(canvasEl, state);
+  };
+
+  const up = () => {
+    canvasEl.classList.remove('is-panning');
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up);
+    render();
+  };
+
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up, { once: true });
 }
 
 function startNodeDrag(event, target, state, render, nodeEl) {
@@ -438,7 +551,8 @@ function startNodeDrag(event, target, state, render, nodeEl) {
   if (!node) {
     return;
   }
-  const point = getCanvasPoint(target, event);
+  event.preventDefault();
+  const point = getCanvasPoint(target, event, state);
   const position = node.ui?.position || { x: 80, y: 80 };
   state.draggingNodeId = nodeId;
   state.selectedNodeId = nodeId;
@@ -446,23 +560,28 @@ function startNodeDrag(event, target, state, render, nodeEl) {
     x: point.x - position.x,
     y: point.y - position.y
   };
+  nodeEl.classList.add('is-dragging', 'is-selected');
 
   const move = (moveEvent) => {
     if (state.draggingNodeId !== nodeId) {
       return;
     }
-    const nextPoint = getCanvasPoint(target, moveEvent);
+    moveEvent.preventDefault();
+    const nextPoint = getCanvasPoint(target, moveEvent, state);
     node.ui = node.ui || {};
     node.ui.position = clampNodePosition({
       x: nextPoint.x - state.dragOffset.x,
       y: nextPoint.y - state.dragOffset.y
     });
-    render();
+    nodeEl.style.left = `${node.ui.position.x}px`;
+    nodeEl.style.top = `${node.ui.position.y}px`;
+    refreshCanvasEdges(target, state);
   };
 
   const up = () => {
     state.draggingNodeId = '';
     state.dragOffset = null;
+    nodeEl.classList.remove('is-dragging');
     window.removeEventListener('pointermove', move);
     window.removeEventListener('pointerup', up);
     render();
@@ -470,6 +589,13 @@ function startNodeDrag(event, target, state, render, nodeEl) {
 
   window.addEventListener('pointermove', move);
   window.addEventListener('pointerup', up, { once: true });
+}
+
+function updateBoardTransform(scope, state) {
+  const board = scope.querySelector?.('.flow-workbench__board') || scope.closest?.('.flow-workbench')?.querySelector('.flow-workbench__board');
+  if (board) {
+    board.style.transform = `translate(${state.pan.x}px, ${state.pan.y}px) scale(${state.zoom})`;
+  }
 }
 
 function startPortConnection(event, target, state, api, render, portEl) {
@@ -482,7 +608,7 @@ function startPortConnection(event, target, state, api, render, portEl) {
   state.connectingFrom = nodeId;
   state.connectionDraft = {
     from: nodeId,
-    point: getCanvasPoint(target, event)
+    point: getCanvasPoint(target, event, state)
   };
   render();
 
@@ -490,14 +616,15 @@ function startPortConnection(event, target, state, api, render, portEl) {
     if (!state.connectionDraft) {
       return;
     }
-    state.connectionDraft.point = getCanvasPoint(target, moveEvent);
-    render();
+    moveEvent.preventDefault();
+    state.connectionDraft.point = getCanvasPoint(target, moveEvent, state);
+    refreshCanvasEdges(target, state);
   };
 
   const up = (upEvent) => {
     const element = document.elementFromPoint(upEvent.clientX, upEvent.clientY);
     const targetPort = element?.closest?.('.flow-workbench__port[data-port-kind="input"]');
-    const toNode = targetPort?.dataset.nodeId || findInputNodeAtPoint(state, getCanvasPoint(target, upEvent), nodeId)?.id;
+    const toNode = targetPort?.dataset.nodeId || findInputNodeAtPoint(state, getCanvasPoint(target, upEvent, state), nodeId)?.id;
     if (toNode) {
       connectNodes(state, api, nodeId, toNode);
       state.selectedNodeId = toNode;
@@ -513,6 +640,14 @@ function startPortConnection(event, target, state, api, render, portEl) {
   window.addEventListener('pointerup', up, { once: true });
 }
 
+function refreshCanvasEdges(target, state) {
+  const edges = target.querySelector('.flow-workbench__edges');
+  if (!edges) {
+    return;
+  }
+  edges.innerHTML = state.flow.edges.map((edge) => renderEdge(state, edge)).join('') + renderDraftEdge(state);
+}
+
 function connectNodes(state, api, from, to) {
   if (!from || !to || from === to) {
     return;
@@ -524,16 +659,36 @@ function connectNodes(state, api, from, to) {
   }
 }
 
-function getCanvasPoint(target, event) {
+function getCanvasPoint(target, event, state) {
   const board = target.querySelector('.flow-workbench__board');
   if (!board) {
     return { x: 0, y: 0 };
   }
   const rect = board.getBoundingClientRect();
+  const zoom = state?.zoom || 1;
   return {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top
+    x: (event.clientX - rect.left) / zoom,
+    y: (event.clientY - rect.top) / zoom
   };
+}
+
+function updateZoom(state, value) {
+  state.zoom = normalizeZoom(value);
+}
+
+function createPoint(value, fallback) {
+  return {
+    x: Number.isFinite(Number(value?.x)) ? Number(value.x) : fallback.x,
+    y: Number.isFinite(Number(value?.y)) ? Number(value.y) : fallback.y
+  };
+}
+
+function normalizeZoom(value) {
+  const zoom = Number(value || 1);
+  if (!Number.isFinite(zoom)) {
+    return 1;
+  }
+  return Math.min(2, Math.max(0.4, zoom));
 }
 
 function findInputNodeAtPoint(state, point, fromNodeId) {
@@ -628,7 +783,9 @@ function defaultParams(type) {
 function createLabels(labels = {}) {
   return {
     title: 'Flow workbench',
+    components: 'Components',
     reset: 'Reset',
+    fit: 'Fit',
     preview: 'Preview',
     execute: 'Run',
     palette: 'Node palette',
@@ -644,6 +801,7 @@ function createLabels(labels = {}) {
     connectTo: 'Connect to',
     selectTarget: 'Select target',
     deleteNode: 'Delete node',
+    result: 'Run result',
     summary: (nodes, edges) => `${nodes} nodes, ${edges} edges`,
     ...labels
   };
