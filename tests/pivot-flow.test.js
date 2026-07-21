@@ -2597,8 +2597,7 @@ test('workbench scopes capability controls by node type', () => {
 test('workbench starts a new unnamed draft flow', async () => {
   let clickHandler = null;
   let newFlow = null;
-  const originalConfirm = globalThis.confirm;
-  globalThis.confirm = () => true;
+  let confirmCalled = false;
   const target = {
     innerHTML: '',
     addEventListener(type, handler) {
@@ -2628,6 +2627,10 @@ test('workbench starts a new unnamed draft flow', async () => {
         nodes: [{ id: 'query-users', type: 'data.query', capability: 'users.query' }],
         edges: []
       }),
+      confirmNewFlow() {
+        confirmCalled = true;
+        return true;
+      },
       onNewFlow(flow) {
         newFlow = flow;
       }
@@ -2648,11 +2651,11 @@ test('workbench starts a new unnamed draft flow', async () => {
     assert.equal(workbench.getFlow().status, 'draft');
     assert.equal(workbench.getFlow().name, '');
     assert.equal(workbench.getFlow().nodes.length, 0);
+    assert.equal(confirmCalled, true);
     assert.equal(newFlow.status, 'draft');
     assert.match(target.innerHTML, /Draft（Untitled）/);
   } finally {
     workbench?.destroy();
-    globalThis.confirm = originalConfirm;
   }
 });
 

@@ -1,3 +1,4 @@
+import { Dialog } from '@kupola/kupola/components/dialog';
 import { Tooltip } from '@kupola/kupola/components/tooltip';
 import { cloneFlow, createFlow, createFlowNode } from '../flow-schema.js';
 import { flowToPlan } from '../flow-to-plan.js';
@@ -860,7 +861,7 @@ async function loadWorkbenchFlow(state, options, api, id) {
 }
 
 async function newWorkbenchFlow(state, options, api) {
-  if (!confirmNewWorkbenchFlow(state, options)) {
+  if (!await confirmNewWorkbenchFlow(state, options)) {
     return null;
   }
 
@@ -885,19 +886,23 @@ async function newWorkbenchFlow(state, options, api) {
   return state.flow;
 }
 
-function confirmNewWorkbenchFlow(state, options) {
+async function confirmNewWorkbenchFlow(state, options) {
   if (typeof options.confirmNewFlow === 'function') {
-    return options.confirmNewFlow(cloneFlow(state.flow)) !== false;
+    return await options.confirmNewFlow(cloneFlow(state.flow)) !== false;
   }
 
   const hasContent = (state.flow?.nodes?.length || 0) > 0 || (state.flow?.edges?.length || 0) > 0;
-  if (!hasContent || typeof globalThis.confirm !== 'function') {
+  if (!hasContent) {
     return true;
   }
-  const message = isChineseLocale(options.locale)
-    ? '当前画布内容将被清空，确认新建策略？'
-    : 'The current canvas will be cleared. Create a new flow?';
-  return globalThis.confirm(message);
+  const labels = createLabels(options.labels);
+  return Dialog.confirm({
+    title: labels.newFlowConfirmTitle,
+    content: labels.newFlowConfirmContent,
+    type: 'warning',
+    confirmText: labels.newFlowConfirmText,
+    cancelText: labels.newFlowCancelText
+  });
 }
 
 async function saveWorkbenchFlow(state, options, api, saveOptions = {}) {
@@ -2009,6 +2014,10 @@ function createLabels(labels = {}) {
   return {
     title: 'Flow workbench',
     newFlow: 'New',
+    newFlowConfirmTitle: 'Create new flow',
+    newFlowConfirmContent: 'The current canvas will be cleared. Create a new flow?',
+    newFlowConfirmText: 'Create',
+    newFlowCancelText: 'Cancel',
     components: 'Components',
     reset: 'Reset',
     fit: 'Fit',

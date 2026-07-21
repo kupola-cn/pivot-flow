@@ -1598,6 +1598,10 @@ export interface FlowWorkbenchNodeType {
 export interface FlowWorkbenchLabels {
   title?: string;
   newFlow?: string;
+  newFlowConfirmTitle?: string;
+  newFlowConfirmContent?: string;
+  newFlowConfirmText?: string;
+  newFlowCancelText?: string;
   components?: string;
   reset?: string;
   fit?: string;
@@ -1665,7 +1669,7 @@ export interface FlowWorkbenchOptions {
   resetMessage?: string;
   newFlowMessage?: string;
   newFlowMetadata?: Record<string, unknown>;
-  confirmNewFlow?: (flow: FlowDefinition) => boolean;
+  confirmNewFlow?: (flow: FlowDefinition) => boolean | Promise<boolean>;
   locale?: string;
   maxLogs?: number;
   flowStore?: FlowStore;
