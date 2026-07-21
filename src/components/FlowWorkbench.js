@@ -206,17 +206,6 @@ export function FlowWorkbench(options = {}) {
       state.helpNodeId = actionEl.dataset.nodeId || '';
     } else if (action === 'close-node-help') {
       state.helpNodeId = '';
-    } else if (action === 'reset') {
-      state.flow = cloneFlow(options.flow);
-      state.selectedNodeId = '';
-      state.connectionDraft = null;
-      state.draggingNodeId = '';
-      state.helpNodeId = '';
-      state.paletteQuery = '';
-      state.zoomMenuOpen = false;
-      state.pan = createPoint(options.pan, { x: 0, y: 0 });
-      state.zoom = normalizeZoom(options.zoom);
-      api.writeLog('ready', options.resetMessage || 'Flow was reset.');
     } else if (action === 'preview') {
       await runFlow(state, options, api, { execute: false });
     } else if (action === 'execute') {
@@ -371,7 +360,6 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
     ].join('') : '',
     '<div class="flow-workbench__actions">',
     renderToolbarButton('new-flow', labels.newFlow, 'secondary', { icon: 'new' }),
-    renderToolbarButton('reset', labels.reset, 'secondary', { icon: 'reset' }),
     options.flowStore ? renderToolbarButton('toggle-flow-list', labels.flows, 'secondary', { icon: 'flows' }) : '',
     options.flowStore ? renderToolbarButton('save-flow', labels.save, 'secondary', { icon: 'save' }) : '',
     options.flowStore ? renderToolbarButton('publish-flow', labels.publish, 'secondary', { icon: 'publish' }) : '',

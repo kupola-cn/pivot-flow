@@ -1864,7 +1864,8 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   assert.match(defaultWorkbenchHTML, /data-flow-workbench-action="new-flow"/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--new/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--components/);
-  assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--reset/);
+  assert.doesNotMatch(defaultWorkbenchHTML, /data-flow-workbench-action="reset"/);
+  assert.doesNotMatch(defaultWorkbenchHTML, /flow-workbench__button-icon--reset/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--preview/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--execute/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--result/);
