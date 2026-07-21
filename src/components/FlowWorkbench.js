@@ -1748,8 +1748,10 @@ function addNode(state, options, type) {
   if (!type) {
     return;
   }
-  const definition = getWorkbenchNodeTypes(options)
-    .find((item) => (item.id || item.key || item.type || item[0]) === type || (item.type || item[0]) === type)
+  const definitions = getWorkbenchNodeTypes(options);
+  const definition = definitions
+    .find((item) => (item.id || item.key || item.type || item[0]) === type)
+    || definitions.find((item) => (item.type || item[0]) === type)
     || {};
   const nodeType = definition.type || definition[0] || type;
   const templateId = definition.id || definition.key || definition.type || definition[0] || type;

@@ -2211,6 +2211,70 @@ test('keeps business templates separate from generic workbench nodes', () => {
   assert.doesNotMatch(inspectorHTML, /Query HIS users by configured filters\.<\/p>/);
 });
 
+test('workbench adds the exact generic template when business templates share its node type', async () => {
+  let clickHandler = null;
+  const target = {
+    innerHTML: '',
+    addEventListener(type, handler) {
+      if (type === 'click') {
+        clickHandler = handler;
+      }
+    },
+    removeEventListener() {},
+    contains() {
+      return true;
+    },
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    }
+  };
+  const workbench = FlowWorkbench({
+    target,
+    locale: 'zh-CN',
+    flow: createFlow({ id: 'add-generic-query-flow', name: 'Add generic query flow' }),
+    nodeTypes: [
+      {
+        id: 'his.user.query',
+        type: 'data.query',
+        group: 'template',
+        label: '查询用户',
+        nodeLabel: '查询用户表',
+        capability: 'user.query',
+        params: { filters: [{ field: 'name', value: '{{intent.name}}' }], limit: 20 }
+      },
+      ...createDefaultFlowWorkbenchNodeTypes({ locale: 'zh-CN' })
+    ]
+  });
+
+  await clickHandler({
+    preventDefault() {},
+    target: {
+      closest(selector) {
+        if (selector === 'button' || selector === '[data-flow-workbench-action]') {
+          return {
+            dataset: {
+              flowWorkbenchAction: 'add-node',
+              nodeTemplate: 'data.query',
+              nodeType: 'data.query'
+            }
+          };
+        }
+        return null;
+      }
+    }
+  });
+
+  const node = workbench.getFlow().nodes[0];
+  assert.equal(node.label, '查询');
+  assert.equal(node.capability, '');
+  assert.deepEqual(node.params, { resource: '', filters: [], limit: 20 });
+  assert.equal(node.metadata.templateId, 'data.query');
+  workbench.destroy();
+});
+
 test('maps PLAN5 capability backed nodes to plan semantics', () => {
   const flow = createFlow({
     id: 'plan5-capability-backed-flow',
