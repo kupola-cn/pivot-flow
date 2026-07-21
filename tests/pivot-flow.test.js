@@ -2659,6 +2659,78 @@ test('workbench starts a new unnamed draft flow', async () => {
   }
 });
 
+test('workbench renders new flow confirmation without icon markup', async () => {
+  let clickHandler = null;
+  let newFlow = null;
+  const target = {
+    innerHTML: '',
+    addEventListener(type, handler) {
+      if (type === 'click') {
+        clickHandler = handler;
+      }
+    },
+    removeEventListener() {},
+    contains() {
+      return true;
+    },
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    }
+  };
+  const eventForAction = (action) => ({
+    preventDefault() {},
+    target: {
+      closest(selector) {
+        if (selector === 'button' || selector === '[data-flow-workbench-action]') {
+          return { dataset: { flowWorkbenchAction: action } };
+        }
+        return null;
+      }
+    }
+  });
+  let workbench = null;
+  try {
+    workbench = FlowWorkbench({
+      target,
+      flow: createFlow({
+        id: 'existing-flow',
+        name: 'Existing flow',
+        status: 'published',
+        nodes: [{ id: 'query-users', type: 'data.query', capability: 'users.query' }],
+        edges: []
+      }),
+      labels: {
+        newFlowConfirmTitle: '新建策略',
+        newFlowConfirmContent: '当前画布内容将被清空，确认新建空白草稿策略？',
+        newFlowConfirmText: '新建',
+        newFlowCancelText: '取消'
+      },
+      onNewFlow(flow) {
+        newFlow = flow;
+      }
+    });
+
+    const pendingNewFlow = clickHandler(eventForAction('new-flow'));
+    await Promise.resolve();
+
+    assert.match(target.innerHTML, /flow-workbench__confirm-container/);
+    assert.match(target.innerHTML, /新建策略/);
+    assert.match(target.innerHTML, /当前画布内容将被清空/);
+    assert.doesNotMatch(target.innerHTML, /<svg width=/);
+
+    await clickHandler(eventForAction('confirm-new-flow'));
+    await pendingNewFlow;
+
+    assert.equal(newFlow.status, 'draft');
+    assert.equal(workbench.getFlow().nodes.length, 0);
+  } finally {
+    workbench?.destroy();
+  }
+});
+
 test('renders editable node inspector controls', () => {
   const html = renderEditableNodeInspectorToHTML({
     id: 'create-user',

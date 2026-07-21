@@ -1,4 +1,3 @@
-import { Dialog } from '@kupola/kupola/components/dialog';
 import { Tooltip } from '@kupola/kupola/components/tooltip';
 import { cloneFlow, createFlow, createFlowNode } from '../flow-schema.js';
 import { flowToPlan } from '../flow-to-plan.js';
@@ -170,7 +169,11 @@ export function FlowWorkbench(options = {}) {
     } else if (action === 'load-flow') {
       await loadWorkbenchFlow(state, options, api, actionEl.dataset.flowId);
     } else if (action === 'new-flow') {
-      await newWorkbenchFlow(state, options, api);
+      await newWorkbenchFlow(state, options, api, render);
+    } else if (action === 'confirm-new-flow') {
+      resolveNewFlowConfirm(state, true);
+    } else if (action === 'cancel-new-flow') {
+      resolveNewFlowConfirm(state, false);
     } else if (action === 'save-flow') {
       await saveWorkbenchFlow(state, options, api);
     } else if (action === 'publish-flow') {
@@ -344,6 +347,7 @@ export function FlowWorkbench(options = {}) {
     update: refresh,
     refresh,
     destroy() {
+      resolveNewFlowConfirm(state, false);
       cleanups.forEach((cleanup) => cleanup());
       hidePaletteTooltip(state);
       target.innerHTML = '';
@@ -402,6 +406,7 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
     '</section>',
     ].join('') : '',
     state.flowListOpen ? renderFlowListModal(state, options, labels) : '',
+    renderNewFlowConfirmModal(state, labels),
     renderNodeHelpModal(state, options, labels),
     '</section>'
   ].join('');
@@ -433,7 +438,8 @@ function createWorkbenchState(options) {
     flowListLoading: false,
     flowListError: '',
     flowListQuery: options.flowListQuery || '',
-    flowListStatus: options.flowListStatus || ''
+    flowListStatus: options.flowListStatus || '',
+    newFlowConfirm: null
   };
 }
 
@@ -746,6 +752,30 @@ function renderFlowListModal(state, options, labels) {
   ].join('');
 }
 
+function renderNewFlowConfirmModal(state, labels) {
+  const dialog = state.newFlowConfirm;
+  if (!dialog) {
+    return '';
+  }
+
+  return [
+    '<div class="ds-modal-container flow-workbench__confirm-container is-open" role="presentation">',
+    '<button type="button" class="ds-modal-mask is-visible" data-flow-workbench-action="cancel-new-flow" aria-label="Cancel new flow"></button>',
+    '<section class="ds-modal flow-workbench__confirm-modal" role="dialog" aria-modal="true" aria-labelledby="flowWorkbenchNewFlowConfirmTitle">',
+    '<header class="ds-modal__header">',
+    `<h3 id="flowWorkbenchNewFlowConfirmTitle" class="ds-modal__title">${escapeHTML(dialog.title || labels.newFlowConfirmTitle)}</h3>`,
+    '<button type="button" class="ds-modal__close" data-flow-workbench-action="cancel-new-flow" aria-label="Close">×</button>',
+    '</header>',
+    `<div class="ds-modal__body flow-workbench__confirm-body">${escapeHTML(dialog.content || labels.newFlowConfirmContent)}</div>`,
+    '<footer class="ds-modal__footer">',
+    `<button type="button" class="ds-btn ds-btn--ghost ds-btn--sm" data-flow-workbench-action="cancel-new-flow">${escapeHTML(dialog.cancelText || labels.newFlowCancelText)}</button>`,
+    `<button type="button" class="ds-btn ds-btn--primary ds-btn--sm" data-flow-workbench-action="confirm-new-flow">${escapeHTML(dialog.confirmText || labels.newFlowConfirmText)}</button>`,
+    '</footer>',
+    '</section>',
+    '</div>'
+  ].join('');
+}
+
 function renderFlowStatusOptions(currentStatus, labels) {
   return [
     ['', labels.allFlows],
@@ -860,8 +890,8 @@ async function loadWorkbenchFlow(state, options, api, id) {
   }
 }
 
-async function newWorkbenchFlow(state, options, api) {
-  if (!await confirmNewWorkbenchFlow(state, options)) {
+async function newWorkbenchFlow(state, options, api, render) {
+  if (!await confirmNewWorkbenchFlow(state, options, render)) {
     return null;
   }
 
@@ -886,7 +916,7 @@ async function newWorkbenchFlow(state, options, api) {
   return state.flow;
 }
 
-async function confirmNewWorkbenchFlow(state, options) {
+async function confirmNewWorkbenchFlow(state, options, render) {
   if (typeof options.confirmNewFlow === 'function') {
     return await options.confirmNewFlow(cloneFlow(state.flow)) !== false;
   }
@@ -896,13 +926,29 @@ async function confirmNewWorkbenchFlow(state, options) {
     return true;
   }
   const labels = createLabels(options.labels);
-  return Dialog.confirm({
+  return openNewFlowConfirm(state, {
     title: labels.newFlowConfirmTitle,
     content: labels.newFlowConfirmContent,
-    type: 'warning',
     confirmText: labels.newFlowConfirmText,
     cancelText: labels.newFlowCancelText
+  }, render);
+}
+
+function openNewFlowConfirm(state, dialog, render) {
+  resolveNewFlowConfirm(state, false);
+  return new Promise((resolve) => {
+    state.newFlowConfirm = { ...dialog, resolve };
+    render?.();
   });
+}
+
+function resolveNewFlowConfirm(state, confirmed) {
+  const dialog = state.newFlowConfirm;
+  if (!dialog) {
+    return;
+  }
+  state.newFlowConfirm = null;
+  dialog.resolve(Boolean(confirmed));
 }
 
 async function saveWorkbenchFlow(state, options, api, saveOptions = {}) {

@@ -555,6 +555,20 @@
   z-index: 60;
 }
 
+.flow-workbench__confirm-container {
+  z-index: 70;
+}
+
+.flow-workbench__confirm-modal {
+  max-width: min(420px, calc(100vw - 48px));
+}
+
+.flow-workbench__confirm-body {
+  color: var(--text-secondary);
+  font-size: var(--body-sm-font-size);
+  line-height: 1.6;
+}
+
 .flow-workbench__help-modal {
   max-width: min(560px, calc(100vw - 48px));
 }
