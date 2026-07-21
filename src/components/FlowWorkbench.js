@@ -785,6 +785,9 @@ function renderPreviewModal(state, labels) {
   const json = getPreviewJSON(dialog);
   const formatLabel = dialog.formatted ? labels.previewCompact : labels.previewFormatted;
   const copyLabel = dialog.copied ? labels.previewCopied : labels.previewCopy;
+  const previewContent = dialog.formatted
+    ? `<div class="flow-workbench__preview-tree" role="tree">${renderJSONTree(dialog.plan || {}, { root: true })}</div>`
+    : `<pre class="flow-workbench__preview-json">${escapeHTML(json)}</pre>`;
 
   return [
     '<div class="ds-modal-container flow-workbench__preview-container is-open" role="presentation">',
@@ -799,7 +802,7 @@ function renderPreviewModal(state, labels) {
     `<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-workbench-action="toggle-preview-format">${escapeHTML(formatLabel)}</button>`,
     `<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-workbench-action="copy-preview">${escapeHTML(copyLabel)}</button>`,
     '</div>',
-    `<pre class="flow-workbench__preview-json">${escapeHTML(json)}</pre>`,
+    previewContent,
     '</div>',
     '<footer class="ds-modal__footer">',
     `<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-workbench-action="close-preview">${escapeHTML(labels.close)}</button>`,
@@ -811,7 +814,91 @@ function renderPreviewModal(state, labels) {
 }
 
 function getPreviewJSON(dialog) {
-  return JSON.stringify(dialog.plan || {}, null, dialog.formatted ? 2 : 0);
+  return JSON.stringify(dialog.plan || {}, null, 2);
+}
+
+function renderJSONTree(value, options = {}) {
+  if (isJSONPrimitive(value)) {
+    return renderJSONTreePrimitive(options.key, value);
+  }
+
+  const entries = Array.isArray(value)
+    ? value.map((item, index) => [index, item])
+    : Object.entries(value || {});
+  const children = entries.length
+    ? entries.map(([key, childValue]) => renderJSONTree(childValue, { key })).join('')
+    : '';
+
+  if (options.root) {
+    return children || renderJSONTreePrimitive(null, value);
+  }
+
+  const summary = getJSONTreeSummary(value);
+  return [
+    '<details class="flow-workbench__json-node" open>',
+    '<summary class="flow-workbench__json-summary">',
+    `<span class="flow-workbench__json-key">${escapeHTML(String(options.key))}</span>`,
+    '<span class="flow-workbench__json-separator">:</span>',
+    `<span class="flow-workbench__json-summary-value">${escapeHTML(summary)}</span>`,
+    '</summary>',
+    `<div class="flow-workbench__json-children">${children}</div>`,
+    '</details>'
+  ].join('');
+}
+
+function renderJSONTreePrimitive(key, value) {
+  const keyHTML = key === null || key === undefined
+    ? ''
+    : `<span class="flow-workbench__json-key">${escapeHTML(String(key))}</span><span class="flow-workbench__json-separator">:</span>`;
+  return [
+    '<div class="flow-workbench__json-leaf" role="treeitem">',
+    keyHTML,
+    renderJSONPrimitive(value),
+    '</div>'
+  ].join('');
+}
+
+function renderJSONPrimitive(value) {
+  const type = value === null ? 'null' : typeof value;
+  return `<span class="flow-workbench__json-value flow-workbench__json-value--${escapeAttr(type)}">${escapeHTML(formatJSONPrimitive(value))}</span>`;
+}
+
+function formatJSONPrimitive(value) {
+  if (typeof value === 'string') {
+    return `"${value}"`;
+  }
+  if (value === undefined) {
+    return 'undefined';
+  }
+  return String(value);
+}
+
+function isJSONPrimitive(value) {
+  return value === null || typeof value !== 'object';
+}
+
+function getJSONTreeSummary(value) {
+  if (Array.isArray(value)) {
+    return value.length ? `Array(${value.length})` : '[]';
+  }
+  const entries = Object.entries(value || {});
+  if (!entries.length) {
+    return '{}';
+  }
+  const preview = entries.slice(0, 2)
+    .map(([key, childValue]) => `${key}: ${getJSONTreePreviewValue(childValue)}`)
+    .join(', ');
+  return `{${preview}${entries.length > 2 ? ', ...' : ''}}`;
+}
+
+function getJSONTreePreviewValue(value) {
+  if (Array.isArray(value)) {
+    return value.length ? `[...]` : '[]';
+  }
+  if (value && typeof value === 'object') {
+    return '{...}';
+  }
+  return formatJSONPrimitive(value);
 }
 
 function renderFlowStatusOptions(currentStatus, labels) {
@@ -2135,7 +2222,7 @@ function createLabels(labels = {}) {
     preview: 'Preview',
     previewTitle: 'Preview plan JSON',
     previewFormatted: 'Formatted',
-    previewCompact: 'Compact',
+    previewCompact: 'Raw JSON',
     previewCopy: 'Copy',
     previewCopied: 'Copied',
     execute: 'Run',

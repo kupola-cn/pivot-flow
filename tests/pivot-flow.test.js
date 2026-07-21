@@ -2411,17 +2411,21 @@ test('workbench preview opens formatted JSON modal without run result', async ()
 
     await clickHandler(eventForAction('preview'));
     assert.match(target.innerHTML, /flow-workbench__preview-container/);
-    assert.match(target.innerHTML, /flow-workbench__preview-json/);
-    assert.match(target.innerHTML, /&quot;id&quot;: &quot;query-users&quot;/);
+    assert.match(target.innerHTML, /flow-workbench__preview-tree/);
+    assert.match(target.innerHTML, /flow-workbench__json-node/);
+    assert.match(target.innerHTML, /<summary class="flow-workbench__json-summary">/);
+    assert.match(target.innerHTML, /<span class="flow-workbench__json-key">id<\/span>/);
+    assert.match(target.innerHTML, /&quot;query-users&quot;/);
     assert.doesNotMatch(target.innerHTML, /<section class="flow-workbench__result">/);
 
     await clickHandler(eventForAction('toggle-preview-format'));
-    assert.match(target.innerHTML, /{&quot;id&quot;:&quot;flow-plan:preview-flow:/);
-    assert.match(target.innerHTML, /&quot;flowId&quot;:&quot;preview-flow&quot;/);
+    assert.match(target.innerHTML, /flow-workbench__preview-json/);
+    assert.match(target.innerHTML, /{\n  &quot;id&quot;: &quot;flow-plan:preview-flow:/);
+    assert.match(target.innerHTML, /&quot;flowId&quot;: &quot;preview-flow&quot;/);
 
     await clickHandler(eventForAction('copy-preview'));
-    assert.match(copiedText, /"id":"flow-plan:preview-flow:/);
-    assert.match(copiedText, /"flowId":"preview-flow"/);
+    assert.match(copiedText, /{\n  "id": "flow-plan:preview-flow:/);
+    assert.match(copiedText, /"flowId": "preview-flow"/);
     assert.match(target.innerHTML, /Copied/);
   } finally {
     workbench?.destroy();
