@@ -1229,15 +1229,7 @@ function renderCapabilityOption(capability = {}, selectedValue = '') {
 function formatCapabilityOptionText(capability = {}) {
   const name = String(capability.name || '');
   const title = String(capability.title || capability.description || '').trim();
-  const meta = [
-    capability.resource ? `资源:${capability.resource}` : '',
-    capability.action ? `动作:${capability.action}` : '',
-    capability.risk ? `风险:${capability.risk}` : ''
-  ].filter(Boolean).join(' · ');
-  return [
-    title && title !== name ? `${name} - ${title}` : name,
-    meta ? `（${meta}）` : ''
-  ].join('');
+  return title && title !== name ? `${name} - ${title}` : name;
 }
 
 function getCapabilityNoneText(locale) {

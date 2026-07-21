@@ -2500,7 +2500,7 @@ test('workbench renders schema-driven params form from capabilities', () => {
   assert.match(html, /<select class="ds-select ds-select--sm" data-flow-workbench-field="capability">/);
   assert.match(html, /不绑定能力/);
   assert.match(html, /users\.query - 查询用户/);
-  assert.match(html, /资源:users · 动作:query · 风险:low/);
+  assert.doesNotMatch(html, /资源:users · 动作:query · 风险:low/);
   assert.match(html, /data-flow-workbench-param-field="keyword"/);
   assert.match(html, /data-flow-workbench-param-field="limit"/);
   assert.match(html, /data-flow-workbench-param-field="includeDisabled"/);
