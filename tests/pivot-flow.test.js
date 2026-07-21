@@ -2436,6 +2436,127 @@ test('workbench preview opens formatted JSON modal without run result', async ()
   }
 });
 
+test('workbench generic query nodes stay unbound and parameter nodes provide preview slots', async () => {
+  const zhNodes = createDefaultFlowWorkbenchNodeTypes({ locale: 'zh-CN' });
+  const queryDefinition = zhNodes.find((item) => item.id === 'data.query');
+  const paramDefinition = zhNodes.find((item) => item.id === 'param.input');
+  assert.equal(queryDefinition.nodeLabel, '查询');
+  assert.equal(queryDefinition.capability, undefined);
+  assert.equal(paramDefinition.paramsSchema.name.required, true);
+  const paramInspectorHTML = renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'param-inspector-flow',
+      name: 'Param inspector flow',
+      nodes: [{ id: 'input-name', type: 'intent.input', label: '参数', params: { name: 'name' } }],
+      edges: []
+    }),
+    selectedNodeId: 'input-name',
+    paletteOpen: false,
+    resultOpen: false,
+    pan: { x: 0, y: 0 },
+    zoom: 1,
+    logs: []
+  }, {
+    locale: 'zh-CN',
+    nodeTypes: zhNodes
+  });
+  assert.match(paramInspectorHTML, /data-flow-workbench-param-field="name"/);
+  assert.match(paramInspectorHTML, /data-flow-workbench-param-field="defaultValue"/);
+
+  let clickHandler = null;
+  const target = {
+    innerHTML: '',
+    addEventListener(type, handler) {
+      if (type === 'click') {
+        clickHandler = handler;
+      }
+    },
+    removeEventListener() {},
+    contains() {
+      return true;
+    },
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    }
+  };
+  const eventForAction = (action, dataset = {}) => ({
+    preventDefault() {},
+    target: {
+      closest(selector) {
+        if (selector === 'button' || selector === '[data-flow-workbench-action]') {
+          return { dataset: { flowWorkbenchAction: action, ...dataset } };
+        }
+        return null;
+      }
+    }
+  });
+  let workbench = null;
+  try {
+    workbench = FlowWorkbench({
+      target,
+      locale: 'zh-CN',
+      flow: createFlow({
+        id: 'unnamed-material-query',
+        name: '',
+        nodes: [
+          {
+            id: 'input-name',
+            type: 'intent.input',
+            label: '参数',
+            params: { name: 'name', label: '耗材名称', type: 'string', source: 'intent', required: true, defaultValue: '纱布' }
+          },
+          {
+            id: 'query-material',
+            type: 'data.query',
+            label: '查询',
+            capability: 'material.query',
+            params: { keyword: '{{intent.name}}', limit: 20 }
+          }
+        ],
+        edges: [{ id: 'edge:input-name:query-material', from: 'input-name', to: 'query-material' }]
+      })
+    });
+
+    await clickHandler(eventForAction('add-node', { nodeTemplate: 'data.query', nodeType: 'data.query' }));
+    const addedQuery = workbench.getFlow().nodes.at(-1);
+    assert.equal(addedQuery.label, '查询');
+    assert.equal(addedQuery.capability, '');
+
+    workbench.update(createFlow({
+      id: 'unnamed-material-query',
+      name: '',
+      nodes: [
+        {
+          id: 'input-name',
+          type: 'intent.input',
+          label: '参数',
+          params: { name: 'name', label: '耗材名称', type: 'string', source: 'intent', required: true, defaultValue: '纱布' }
+        },
+        {
+          id: 'query-material',
+          type: 'data.query',
+          label: '查询',
+          capability: 'material.query',
+          params: { keyword: '{{intent.name}}', limit: 20 }
+        }
+      ],
+      edges: [{ id: 'edge:input-name:query-material', from: 'input-name', to: 'query-material' }]
+    }));
+
+    await clickHandler(eventForAction('preview'));
+    assert.match(target.innerHTML, /flow-workbench__preview-container/);
+    assert.match(target.innerHTML, /&quot;query-material&quot;/);
+    assert.match(target.innerHTML, /keyword/);
+    assert.match(target.innerHTML, /&quot;纱布&quot;/);
+    assert.doesNotMatch(target.innerHTML, /Flow field is required: name/);
+  } finally {
+    workbench?.destroy();
+  }
+});
+
 test('workbench surfaces invalid draft actions instead of failing silently', async () => {
   let clickHandler = null;
   const target = {
@@ -2488,7 +2609,11 @@ test('workbench surfaces invalid draft actions instead of failing silently', asy
   assert.match(target.innerHTML, /flow-workbench/);
   assert.match(target.innerHTML, /Flow node capability is required: query-a/);
 
-  await clickHandler(eventForAction('save-flow'));
+  const pendingSave = clickHandler(eventForAction('save-flow'));
+  await Promise.resolve();
+  assert.match(target.innerHTML, /flow-workbench__save-container/);
+  await clickHandler(eventForAction('confirm-save-flow'));
+  await pendingSave;
   assert.match(target.innerHTML, /<section class="flow-workbench__result">/);
   assert.match(target.innerHTML, /flow-workbench__failure/);
   assert.match(target.innerHTML, /操作失败/);

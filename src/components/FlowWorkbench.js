@@ -2,7 +2,7 @@ import { Tooltip } from '@kupola/kupola/components/tooltip';
 import { cloneFlow, createFlow, createFlowNode } from '../flow-schema.js';
 import { flowToPlan } from '../flow-to-plan.js';
 import { canConnectFlowNodes, getFlowNodePorts, validateFlow } from '../flow-validation.js';
-import { createDefaultFlowWorkbenchNodeTypes, getDefaultCapabilityForNodeType } from '../node-types.js';
+import { FLOW_NODE_TYPES, createDefaultFlowWorkbenchNodeTypes, getDefaultCapabilityForNodeType } from '../node-types.js';
 import { escapeAttr, escapeHTML, resolveTarget, setHTML } from './dom.js';
 
 const DEFAULT_NODE_WIDTH = 238;
@@ -176,9 +176,13 @@ export function FlowWorkbench(options = {}) {
     } else if (action === 'cancel-new-flow') {
       resolveNewFlowConfirm(state, false);
     } else if (action === 'save-flow') {
-      await saveWorkbenchFlow(state, options, api);
+      await saveWorkbenchFlow(state, options, api, {}, render);
     } else if (action === 'publish-flow') {
-      await publishWorkbenchFlow(state, options, api);
+      await publishWorkbenchFlow(state, options, api, render);
+    } else if (action === 'confirm-save-flow') {
+      confirmSaveFlowMetadata(state, options);
+    } else if (action === 'cancel-save-flow') {
+      resolveSaveFlowMetadata(state, null);
     } else if (action === 'close-inspector') {
       state.selectedNodeId = '';
     } else if (action === 'zoom-in') {
@@ -236,6 +240,8 @@ export function FlowWorkbench(options = {}) {
       restoreFlowSearchFocus(target, state.flowListQuery);
     } else if (input.dataset.flowWorkbenchPromptInput !== undefined) {
       state.prompt = input.value;
+    } else if (input.dataset.flowWorkbenchSaveField) {
+      updateSaveFlowMetadata(state, input.dataset.flowWorkbenchSaveField, input.value);
     } else if (input.dataset.flowWorkbenchParamField) {
       const node = updateSelectedNodeParam(state, input.dataset.flowWorkbenchParamField, input.dataset.flowWorkbenchParamType, input);
       if (node) {
@@ -405,6 +411,7 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
     state.flowListOpen ? renderFlowListModal(state, options, labels) : '',
     renderPreviewModal(state, labels),
     renderNewFlowConfirmModal(state, labels),
+    renderSaveFlowMetadataModal(state, labels),
     renderNodeHelpModal(state, options, labels),
     '</section>'
   ].join('');
@@ -438,6 +445,7 @@ function createWorkbenchState(options) {
     flowListQuery: options.flowListQuery || '',
     flowListStatus: options.flowListStatus || '',
     newFlowConfirm: null,
+    saveFlowDialog: null,
     previewDialog: null
   };
 }
@@ -777,6 +785,43 @@ function renderNewFlowConfirmModal(state, labels) {
   ].join('');
 }
 
+function renderSaveFlowMetadataModal(state, labels) {
+  const dialog = state.saveFlowDialog;
+  if (!dialog) {
+    return '';
+  }
+  const title = dialog.mode === 'publish' ? labels.publishFlowTitle : labels.saveFlowTitle;
+  const confirmText = dialog.mode === 'publish' ? labels.publishFlowConfirmText : labels.saveFlowConfirmText;
+
+  return [
+    '<div class="ds-modal-container flow-workbench__save-container is-open" role="presentation">',
+    '<div class="ds-modal-mask flow-workbench__save-mask is-visible">',
+    '<section class="ds-modal flow-workbench__save-modal" role="dialog" aria-modal="true" aria-labelledby="flowWorkbenchSaveFlowTitle">',
+    '<header class="ds-modal__header">',
+    `<h3 id="flowWorkbenchSaveFlowTitle" class="ds-modal__title">${escapeHTML(title)}</h3>`,
+    '<button type="button" class="ds-modal__close" data-flow-workbench-action="cancel-save-flow" aria-label="Close">×</button>',
+    '</header>',
+    '<div class="ds-modal__body flow-workbench__save-body">',
+    dialog.error ? `<div class="flow-workbench__failure flow-workbench__failure--compact">${escapeHTML(dialog.error)}</div>` : '',
+    '<label class="flow-workbench__field">',
+    `<span>${escapeHTML(labels.flowName)}</span>`,
+    `<input class="ds-input" data-flow-workbench-save-field="name" value="${escapeAttr(dialog.name || '')}">`,
+    '</label>',
+    '<label class="flow-workbench__field">',
+    `<span>${escapeHTML(labels.flowDescription)}</span>`,
+    `<textarea class="ds-textarea" rows="4" data-flow-workbench-save-field="description">${escapeHTML(dialog.description || '')}</textarea>`,
+    '</label>',
+    '</div>',
+    '<footer class="ds-modal__footer">',
+    `<button type="button" class="ds-btn ds-btn--ghost ds-btn--sm" data-flow-workbench-action="cancel-save-flow">${escapeHTML(labels.cancel)}</button>`,
+    `<button type="button" class="ds-btn ds-btn--primary ds-btn--sm" data-flow-workbench-action="confirm-save-flow">${escapeHTML(confirmText)}</button>`,
+    '</footer>',
+    '</section>',
+    '</div>',
+    '</div>'
+  ].join('');
+}
+
 function renderPreviewModal(state, labels) {
   const dialog = state.previewDialog;
   if (!dialog) {
@@ -1078,7 +1123,7 @@ function resolveNewFlowConfirm(state, confirmed) {
   dialog.resolve(Boolean(confirmed));
 }
 
-async function saveWorkbenchFlow(state, options, api, saveOptions = {}) {
+async function saveWorkbenchFlow(state, options, api, saveOptions = {}, render) {
   const flowStore = getWorkbenchFlowStore(options);
   if (!flowStore) {
     showWorkbenchFailure(state, options, api, 'flow.save.fail', 'flowStore is required.');
@@ -1086,11 +1131,17 @@ async function saveWorkbenchFlow(state, options, api, saveOptions = {}) {
   }
 
   try {
-    const draft = {
-      ...cloneFlow(state.flow),
+    const metadata = saveOptions.skipMetadataDialog
+      ? saveOptions.metadata || null
+      : await requestSaveFlowMetadata(state, options, render, saveOptions.mode || 'save');
+    if (!saveOptions.skipMetadataDialog && !metadata) {
+      return null;
+    }
+    const draft = prepareWorkbenchFlow(state, options, {
+      ...(metadata || {}),
       status: saveOptions.status || 'draft',
       updatedAt: new Date().toISOString()
-    };
+    });
     assertWorkbenchFlowValid(draft, options);
 
     let saved;
@@ -1122,7 +1173,7 @@ async function saveWorkbenchFlow(state, options, api, saveOptions = {}) {
   }
 }
 
-async function publishWorkbenchFlow(state, options, api) {
+async function publishWorkbenchFlow(state, options, api, render) {
   const flowStore = getWorkbenchFlowStore(options);
   if (!flowStore || typeof flowStore.publish !== 'function') {
     showWorkbenchFailure(state, options, api, 'flow.publish.fail', 'flowStore.publish is required.');
@@ -1130,7 +1181,16 @@ async function publishWorkbenchFlow(state, options, api) {
   }
 
   try {
-    const saved = await saveWorkbenchFlow(state, options, api, { silent: true, status: 'draft' });
+    const metadata = await requestSaveFlowMetadata(state, options, render, 'publish');
+    if (!metadata) {
+      return null;
+    }
+    const saved = await saveWorkbenchFlow(state, options, api, {
+      silent: true,
+      status: 'draft',
+      metadata,
+      skipMetadataDialog: true
+    });
     if (!saved) {
       return null;
     }
@@ -1152,6 +1212,66 @@ async function publishWorkbenchFlow(state, options, api) {
     state.flowListError = message;
     return null;
   }
+}
+
+async function requestSaveFlowMetadata(state, options, render, mode = 'save') {
+  if (typeof options.requestFlowMetadata === 'function') {
+    const result = await options.requestFlowMetadata(cloneFlow(state.flow), { mode });
+    return result === false ? null : normalizeSaveFlowMetadata(result || state.flow);
+  }
+
+  return openSaveFlowMetadataDialog(state, mode, render);
+}
+
+function openSaveFlowMetadataDialog(state, mode, render) {
+  resolveSaveFlowMetadata(state, null);
+  return new Promise((resolve) => {
+    state.saveFlowDialog = {
+      mode,
+      name: state.flow?.name || '',
+      description: state.flow?.description || '',
+      error: '',
+      resolve
+    };
+    render?.();
+  });
+}
+
+function updateSaveFlowMetadata(state, field, value) {
+  if (!state.saveFlowDialog) {
+    return;
+  }
+  state.saveFlowDialog[field] = value;
+  state.saveFlowDialog.error = '';
+}
+
+function confirmSaveFlowMetadata(state, options = {}) {
+  const dialog = state.saveFlowDialog;
+  if (!dialog) {
+    return;
+  }
+  const metadata = normalizeSaveFlowMetadata(dialog);
+  if (!metadata.name) {
+    dialog.error = createLabels(options.labels).flowNameRequired;
+    return;
+  }
+  resolveSaveFlowMetadata(state, metadata);
+}
+
+function resolveSaveFlowMetadata(state, metadata) {
+  const dialog = state.saveFlowDialog;
+  if (!dialog) {
+    return;
+  }
+  state.saveFlowDialog = null;
+  dialog.resolve(metadata);
+}
+
+function normalizeSaveFlowMetadata(input = {}) {
+  return {
+    name: String(input.name || '').trim(),
+    description: String(input.description || '')
+  };
 }
 
 function getWorkbenchFlowStore(options) {
@@ -1786,13 +1906,16 @@ function syncParamsTextarea(target, node) {
 
 async function runFlow(state, options, api, { execute }) {
   try {
+    const flow = prepareWorkbenchFlow(state, options, {
+      name: state.flow.name || state.prompt || createLabels(options.labels).untitledFlow
+    });
     const context = typeof options.contextProvider === 'function'
       ? await options.contextProvider()
       : options.context || {};
     const slots = typeof options.extractSlots === 'function'
       ? options.extractSlots(state.prompt, state.flow)
       : {};
-    const plan = flowToPlan(state.flow, { prompt: state.prompt, slots }, context);
+    const plan = flowToPlan(flow, { prompt: state.prompt, slots: resolveWorkbenchSlots(flow, slots, context) }, context);
 
     if (execute) {
       if (typeof options.runtimeFactory !== 'function') {
@@ -1819,6 +1942,74 @@ async function runFlow(state, options, api, { execute }) {
       showPreviewFailure(state, api, message, error);
     }
   }
+}
+
+function prepareWorkbenchFlow(state, options = {}, overrides = {}) {
+  const flow = {
+    ...cloneFlow(state.flow),
+    ...overrides
+  };
+  flow.intent = mergeFlowIntentSlots(flow.intent, collectInputParameterSlots(flow));
+  return flow;
+}
+
+function collectInputParameterSlots(flow) {
+  return (Array.isArray(flow?.nodes) ? flow.nodes : [])
+    .filter((node) => node?.type === FLOW_NODE_TYPES.INTENT_INPUT)
+    .map((node) => normalizeInputParameterSlot(node))
+    .filter((slot) => slot.name);
+}
+
+function normalizeInputParameterSlot(node) {
+  const params = isPlainObject(node?.params) ? node.params : {};
+  const name = String(params.name || node?.name || node?.id || '').trim();
+  return {
+    name,
+    label: params.label || node?.label || name,
+    type: params.type || 'string',
+    required: Boolean(params.required),
+    source: params.source || 'intent',
+    pattern: params.pattern || '',
+    fallback: params.defaultValue ?? params.value ?? params.fallback ?? '',
+    inputType: params.inputType || ''
+  };
+}
+
+function mergeFlowIntentSlots(intent = {}, inputSlots = []) {
+  const existingSlots = Array.isArray(intent?.slots) ? intent.slots : [];
+  const slotByName = new Map();
+  [...existingSlots, ...inputSlots].forEach((slot) => {
+    const name = String(slot?.name || '').trim();
+    if (!name) {
+      return;
+    }
+    slotByName.set(name, {
+      ...(slotByName.get(name) || {}),
+      ...slot,
+      name
+    });
+  });
+  return {
+    ...(isPlainObject(intent) ? intent : {}),
+    slots: Array.from(slotByName.values())
+  };
+}
+
+function resolveWorkbenchSlots(flow, extractedSlots = {}, context = {}) {
+  const values = {};
+  for (const slot of Array.isArray(flow?.intent?.slots) ? flow.intent.slots : []) {
+    const fallback = slot?.fallback ?? slot?.defaultValue ?? slot?.value;
+    if (fallback !== undefined && fallback !== null && fallback !== '') {
+      values[slot.name] = fallback;
+    }
+  }
+  if (isPlainObject(context?.params)) {
+    Object.assign(values, context.params);
+  }
+  if (isPlainObject(extractedSlots)) {
+    Object.assign(values, extractedSlots);
+  }
+  return values;
 }
 
 async function copyPreviewJSON(state, api) {
@@ -2269,6 +2460,14 @@ function createLabels(labels = {}) {
     newFlowConfirmText: 'Create',
     newFlowCancelText: 'Cancel',
     close: 'Close',
+    cancel: 'Cancel',
+    saveFlowTitle: 'Save flow',
+    publishFlowTitle: 'Publish flow',
+    saveFlowConfirmText: 'Save',
+    publishFlowConfirmText: 'Publish',
+    flowName: 'Title',
+    flowDescription: 'Description',
+    flowNameRequired: 'Title is required.',
     components: 'Components',
     reset: 'Reset',
     fit: 'Fit',

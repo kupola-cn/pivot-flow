@@ -1603,6 +1603,14 @@ export interface FlowWorkbenchLabels {
   newFlowConfirmText?: string;
   newFlowCancelText?: string;
   close?: string;
+  cancel?: string;
+  saveFlowTitle?: string;
+  publishFlowTitle?: string;
+  saveFlowConfirmText?: string;
+  publishFlowConfirmText?: string;
+  flowName?: string;
+  flowDescription?: string;
+  flowNameRequired?: string;
   components?: string;
   reset?: string;
   fit?: string;
@@ -1677,6 +1685,10 @@ export interface FlowWorkbenchOptions {
   newFlowMessage?: string;
   newFlowMetadata?: Record<string, unknown>;
   confirmNewFlow?: (flow: FlowDefinition) => boolean | Promise<boolean>;
+  requestFlowMetadata?: (
+    flow: FlowDefinition,
+    context: { mode: 'save' | 'publish' | string }
+  ) => false | { name?: string; description?: string } | Promise<false | { name?: string; description?: string }>;
   locale?: string;
   maxLogs?: number;
   flowStore?: FlowStore;

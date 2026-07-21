@@ -76,6 +76,16 @@ export const DEFAULT_NODE_CAPABILITY_MAP = Object.freeze({
 });
 
 const DEFAULT_NODE_PARAMS_SCHEMAS = Object.freeze({
+  [FLOW_NODE_TYPES.INTENT_INPUT]: {
+    name: { type: 'string', label: 'Name', required: true, default: 'name' },
+    label: { type: 'string', label: 'Label' },
+    type: { type: 'string', label: 'Type', options: ['string', 'number', 'boolean', 'date', 'array', 'object'], default: 'string' },
+    source: { type: 'string', label: 'Source', options: ['intent', 'manual', 'context', 'preset'], default: 'intent' },
+    required: { type: 'boolean', label: 'Required', default: true },
+    defaultValue: { type: 'string', label: 'Preview default' },
+    pattern: { type: 'string', label: 'Extract pattern' },
+    description: { type: 'string', label: 'Description' }
+  },
   [FLOW_NODE_TYPES.PARAM_EXTRACT]: {
     source: { type: 'string', label: 'Source', default: '{{input.prompt}}' },
     slots: { type: 'array', label: 'Slots' }
@@ -564,10 +574,11 @@ export const DEFAULT_FLOW_WORKBENCH_NODE_TYPES = Object.freeze([
     id: 'param.input',
     type: FLOW_NODE_TYPES.INTENT_INPUT,
     label: 'Parameter',
-    nodeLabel: 'Input parameter',
+    nodeLabel: 'Parameter',
     group: 'input',
     description: 'Declare a value provided by user intent or context.',
-    params: { name: 'keyword', source: 'intent', required: true }
+    params: { name: 'name', label: 'Name', type: 'string', source: 'intent', required: true, defaultValue: '' },
+    paramsSchema: DEFAULT_NODE_PARAMS_SCHEMAS[FLOW_NODE_TYPES.INTENT_INPUT]
   },
   {
     id: 'param.extract',
@@ -866,12 +877,12 @@ export const DEFAULT_FLOW_WORKBENCH_NODE_TYPES = Object.freeze([
 ]);
 
 const FLOW_WORKBENCH_NODE_TEXT_ZH = Object.freeze({
-  'param.input': { label: '参数', nodeLabel: '输入参数', description: '声明来自意图或上下文的参数' },
+  'param.input': { label: '参数', nodeLabel: '参数', description: '声明来自意图、手动输入、预设标签或上下文的参数' },
   'param.extract': { label: '抽取', nodeLabel: '抽取参数', description: '从用户输入中抽取结构化参数' },
   'param.validate': { label: '校验', nodeLabel: '校验参数', description: '校验必填、类型、范围和枚举' },
   'param.normalize': { label: '标准化', nodeLabel: '标准化参数', description: '在后续步骤前标准化参数' },
   'human.input': { label: '补充输入', nodeLabel: '请求用户输入', description: '缺少参数或需要修正时让用户补充' },
-  'data.query': { label: '查询', nodeLabel: '查询数据', description: '从业务资源查询记录' },
+  'data.query': { label: '查询', nodeLabel: '查询', description: '从业务资源查询记录' },
   'data.get': { label: '获取', nodeLabel: '获取记录', description: '按 ID、编码或唯一键获取一条业务记录' },
   'data.aggregate': { label: '聚合', nodeLabel: '聚合数据', description: '对业务记录进行计数、求和、分组等统计' },
   'data.create': { label: '新增', nodeLabel: '新增数据', description: '新增业务资源记录' },
