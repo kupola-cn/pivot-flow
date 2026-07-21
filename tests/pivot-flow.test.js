@@ -2098,7 +2098,10 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
 
 test('provides generic workbench nodes for common flow patterns', () => {
   const zhNodes = createDefaultFlowWorkbenchNodeTypes({ locale: 'zh-CN' });
+  const queryNode = zhNodes.find((node) => node.id === 'data.query');
   const updateNode = zhNodes.find((node) => node.id === 'data.update');
+  const createNode = zhNodes.find((node) => node.id === 'data.create');
+  const deleteNode = zhNodes.find((node) => node.id === 'data.delete');
   const getNode = zhNodes.find((node) => node.id === 'data.get');
   const aggregateNode = zhNodes.find((node) => node.id === 'data.aggregate');
   const humanInputNode = zhNodes.find((node) => node.id === 'human.input');
@@ -2123,6 +2126,10 @@ test('provides generic workbench nodes for common flow patterns', () => {
   });
 
   assert.equal(updateNode?.label, '修改');
+  assert.equal(queryNode?.capability || '', '');
+  assert.equal(createNode?.capability || '', '');
+  assert.equal(updateNode?.capability || '', '');
+  assert.equal(deleteNode?.capability || '', '');
   assert.equal(getNode?.label, '获取');
   assert.equal(aggregateNode?.label, '聚合');
   assert.equal(humanInputNode?.label, '补充输入');
@@ -2133,6 +2140,70 @@ test('provides generic workbench nodes for common flow patterns', () => {
   assert.equal(plan.nodes[0].capability, 'record.update');
   assert.equal(plan.nodes[0].params.action, 'update');
   assert.equal(plan.nodes[0].params.where.id, 'r-1');
+});
+
+test('keeps business templates separate from generic workbench nodes', () => {
+  const nodeTypes = [
+    {
+      id: 'his.user.query',
+      type: 'data.query',
+      group: 'template',
+      label: '查询用户',
+      nodeLabel: '查询用户表',
+      description: 'Query HIS users by configured filters.',
+      capability: 'user.query',
+      params: { filters: [{ field: 'name', value: '{{intent.name}}' }], limit: 20 }
+    },
+    ...createDefaultFlowWorkbenchNodeTypes({ locale: 'zh-CN' })
+  ];
+
+  const genericQueryFlow = createFlow({
+    id: 'generic-query-flow',
+    name: 'Generic query flow',
+    nodes: [
+      {
+        id: 'query-data',
+        type: 'data.query',
+        label: '查询数据',
+        metadata: { templateId: 'data.query' },
+        params: { resource: '', filters: [], limit: 20 }
+      }
+    ]
+  });
+  const paletteHTML = renderFlowWorkbenchToHTML({
+    flow: genericQueryFlow,
+    selectedNodeId: '',
+    prompt: '',
+    resultHTML: '',
+    logs: [],
+    paletteOpen: true,
+    resultOpen: false,
+    pan: { x: 0, y: 0 },
+    zoom: 1
+  }, {
+    locale: 'zh-CN',
+    nodeTypes
+  });
+  const inspectorHTML = renderFlowWorkbenchToHTML({
+    flow: genericQueryFlow,
+    selectedNodeId: 'query-data',
+    helpNodeId: 'query-data',
+    prompt: '',
+    resultHTML: '',
+    logs: [],
+    paletteOpen: true,
+    resultOpen: false,
+    pan: { x: 0, y: 0 },
+    zoom: 1
+  }, {
+    locale: 'zh-CN',
+    nodeTypes
+  });
+
+  assert.match(paletteHTML, /业务模板/);
+  assert.match(paletteHTML, /data-node-template="his\.user\.query"/);
+  assert.match(inspectorHTML, /从业务资源查询记录/);
+  assert.doesNotMatch(inspectorHTML, /Query HIS users by configured filters\.<\/p>/);
 });
 
 test('maps PLAN5 capability backed nodes to plan semantics', () => {

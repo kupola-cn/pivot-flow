@@ -106,6 +106,19 @@ const DEFAULT_NODE_PARAMS_SCHEMAS = Object.freeze({
     operation: { type: 'string', label: 'Operation', options: ['count', 'sum', 'avg', 'min', 'max', 'groupBy'], default: 'count' },
     groupBy: { type: 'array', label: 'Group by' }
   },
+  [FLOW_NODE_TYPES.DATA_CREATE]: {
+    resource: { type: 'string', label: 'Resource' },
+    data: { type: 'object', label: 'Data' }
+  },
+  [FLOW_NODE_TYPES.DATA_UPDATE]: {
+    resource: { type: 'string', label: 'Resource' },
+    where: { type: 'object', label: 'Where' },
+    data: { type: 'object', label: 'Data' }
+  },
+  [FLOW_NODE_TYPES.DATA_DELETE]: {
+    resource: { type: 'string', label: 'Resource' },
+    where: { type: 'object', label: 'Where' }
+  },
   [FLOW_NODE_TYPES.DATA_FILTER]: {
     source: { type: 'string', label: 'Source', default: '{{previous.data.records}}' },
     where: { type: 'object', label: 'Where' }

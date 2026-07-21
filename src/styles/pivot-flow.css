@@ -3801,6 +3801,10 @@
   --flow-workbench-palette-accent: #f97316;
 }
 
+.flow-workbench__palette-item--template {
+  --flow-workbench-palette-accent: #0891b2;
+}
+
 .flow-workbench__palette-item--custom {
   --flow-workbench-palette-accent: var(--border-brand);
 }

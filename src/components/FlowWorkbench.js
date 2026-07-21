@@ -9,7 +9,7 @@ const DEFAULT_NODE_WIDTH = 238;
 const DEFAULT_NODE_HEIGHT = 132;
 const DEFAULT_BOARD_WIDTH = 2200;
 const DEFAULT_BOARD_HEIGHT = 1400;
-const PALETTE_GROUP_ORDER = ['extension', 'workflow', 'business', 'input-output', 'database', 'output', 'custom'];
+const PALETTE_GROUP_ORDER = ['database', 'business', 'input-output', 'workflow', 'template', 'extension', 'output', 'custom'];
 const PALETTE_GROUP_KEY_MAP = Object.freeze({
   capability: 'extension',
   custom: 'extension',
@@ -19,7 +19,11 @@ const PALETTE_GROUP_KEY_MAP = Object.freeze({
   input: 'input-output',
   feedback: 'input-output',
   output: 'output',
-  data: 'database'
+  data: 'database',
+  template: 'template',
+  templates: 'template',
+  businessTemplate: 'template',
+  'business-template': 'template'
 });
 const PALETTE_GROUP_LABELS_EN = Object.freeze({
   extension: 'Extensions',
@@ -27,6 +31,7 @@ const PALETTE_GROUP_LABELS_EN = Object.freeze({
   business: 'Business logic',
   'input-output': 'Input & output',
   database: 'Database',
+  template: 'Business templates',
   output: 'Output',
   custom: 'Custom'
 });
@@ -36,6 +41,7 @@ const PALETTE_GROUP_LABELS_ZH = Object.freeze({
   business: '业务逻辑',
   'input-output': '输入&输出',
   database: '数据库',
+  template: '业务模板',
   output: '输出',
   custom: '自定义'
 });
@@ -1124,7 +1130,7 @@ function renderInspector(state, labels, options = {}) {
   return [
     '<form>',
     renderField(labels.nodeName, 'label', node.label || ''),
-    renderField(labels.capability, 'capability', node.capability || ''),
+    renderCapabilityField(labels.capability, node.capability || '', options),
     '<label class="flow-workbench__field">',
     `<span>${escapeHTML(labels.risk)}</span>`,
     `<select class="ds-select ds-select--sm" data-flow-workbench-field="risk">${['low', 'medium', 'high', 'critical'].map((risk) => `<option value="${risk}"${risk === (node.risk || 'low') ? ' selected' : ''}>${risk}</option>`).join('')}</select>`,
@@ -1191,14 +1197,37 @@ function renderParamSchemaField(name, schema = {}, value) {
   ].join('');
 }
 
+function renderCapabilityField(label, value, options = {}) {
+  const capabilities = listWorkbenchCapabilities(options);
+  const listId = capabilities.length ? 'flowWorkbenchCapabilityOptions' : '';
+  return [
+    '<label class="flow-workbench__field">',
+    `<span>${escapeHTML(label)}</span>`,
+    `<input class="ds-input ds-input--sm" data-flow-workbench-field="capability"${listId ? ` list="${listId}"` : ''} value="${escapeAttr(value)}">`,
+    capabilities.length ? [
+      `<datalist id="${listId}">`,
+      capabilities.map((capability) => {
+        const name = capability?.name || '';
+        const text = [
+          capability?.title || capability?.description || '',
+          capability?.resource || '',
+          capability?.action || ''
+        ].filter(Boolean).join(' · ');
+        return `<option value="${escapeAttr(name)}" label="${escapeAttr(text)}"></option>`;
+      }).join(''),
+      '</datalist>'
+    ].join('') : '',
+    '</label>'
+  ].join('');
+}
+
 function getNodeParamsSchema(node, options = {}) {
   const capability = getWorkbenchCapability(options, node.capability || defaultCapability(node.type));
   if (isPlainObject(capability?.paramsSchema)) {
     return capability.paramsSchema;
   }
 
-  const definition = getWorkbenchNodeTypes(options)
-    .find((item) => (item.id || item.key || item.type || item[0]) === node.type || (item.type || item[0]) === node.type);
+  const definition = getWorkbenchNodeDefinition(options, node);
   if (isPlainObject(definition?.paramsSchema)) {
     return definition.paramsSchema;
   }
@@ -1210,13 +1239,17 @@ function getWorkbenchCapability(options, capabilityName) {
   if (!name) {
     return null;
   }
+  const capabilities = listWorkbenchCapabilities(options);
+  return capabilities.find((capability) => capability?.name === name) ?? null;
+}
+
+function listWorkbenchCapabilities(options = {}) {
   const source = options.capabilities;
-  const capabilities = Array.isArray(source)
+  return Array.isArray(source)
     ? source
     : typeof source?.list === 'function'
       ? source.list()
       : [];
-  return capabilities.find((capability) => capability?.name === name) ?? null;
 }
 
 function formatParamSchemaValue(value, type) {
@@ -1259,6 +1292,7 @@ function addNode(state, options, type) {
     .find((item) => (item.id || item.key || item.type || item[0]) === type || (item.type || item[0]) === type)
     || {};
   const nodeType = definition.type || definition[0] || type;
+  const templateId = definition.id || definition.key || definition.type || definition[0] || type;
   const node = createFlowNode({
     type: nodeType,
     label: definition.nodeLabel || definition.label || renderNodeType(options, nodeType),
@@ -1273,6 +1307,10 @@ function addNode(state, options, type) {
     inputSchema: clonePlain(definition.inputSchema || {}),
     outputSchema: clonePlain(definition.outputSchema || {}),
     ports: clonePlain(definition.ports || {}),
+    metadata: {
+      ...(isPlainObject(definition.metadata) ? definition.metadata : {}),
+      templateId
+    },
     ui: { position: nextNodePosition(state) }
   });
   state.flow.nodes = [...state.flow.nodes, node];
@@ -1742,13 +1780,30 @@ function getNodeContentRows(options, node) {
 }
 
 function getWorkbenchNodeDefinition(options, node) {
-  return getWorkbenchNodeTypes(options).find((item) => {
-    const type = item.type || item[0];
-    const capability = item.capability || '';
-    if (capability && node.capability && capability === node.capability) {
-      return true;
+  const definitions = getWorkbenchNodeTypes(options);
+  const templateId = node?.metadata?.templateId || node?.metadata?.template || '';
+  if (templateId) {
+    const byTemplate = definitions.find((item) => (item.id || item.key || item.type || item[0]) === templateId);
+    if (byTemplate) {
+      return byTemplate;
     }
-    return type === node.type;
+  }
+
+  const byCapability = definitions.find((item) => {
+    const capability = item.capability || '';
+    return capability && node.capability && capability === node.capability;
+  });
+  if (byCapability) {
+    return byCapability;
+  }
+
+  return definitions.find((item) => {
+    const type = item.type || item[0];
+    const id = item.id || item.key || item.type || item[0];
+    return type === node.type && id === node.type;
+  }) || definitions.find((item) => {
+    const type = item.type || item[0];
+    return type === node.type && !item.capability;
   }) || null;
 }
 
