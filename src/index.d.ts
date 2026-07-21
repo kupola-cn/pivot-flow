@@ -1614,6 +1614,7 @@ export interface FlowWorkbenchLabels {
   emptyInspector?: string;
   nodeName?: string;
   capability?: string;
+  capabilityNone?: string;
   risk?: string;
   paramForm?: string;
   params?: string;

@@ -2475,9 +2475,14 @@ test('workbench renders schema-driven params form from capabilities', () => {
     zoom: 1,
     logs: []
   }, {
+    locale: 'zh-CN',
     capabilities: [
       {
         name: 'users.query',
+        title: '查询用户',
+        resource: 'users',
+        action: 'query',
+        risk: 'low',
         paramsSchema: {
           keyword: { type: 'string', required: true },
           limit: { type: 'number' },
@@ -2492,6 +2497,10 @@ test('workbench renders schema-driven params form from capabilities', () => {
 
   assert.match(html, /flow-workbench__param-form/);
   assert.match(html, /参数表单/);
+  assert.match(html, /<select class="ds-select ds-select--sm" data-flow-workbench-field="capability">/);
+  assert.match(html, /不绑定能力/);
+  assert.match(html, /users\.query - 查询用户/);
+  assert.match(html, /资源:users · 动作:query · 风险:low/);
   assert.match(html, /data-flow-workbench-param-field="keyword"/);
   assert.match(html, /data-flow-workbench-param-field="limit"/);
   assert.match(html, /data-flow-workbench-param-field="includeDisabled"/);

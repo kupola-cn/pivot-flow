@@ -1130,7 +1130,7 @@ function renderInspector(state, labels, options = {}) {
   return [
     '<form>',
     renderField(labels.nodeName, 'label', node.label || ''),
-    renderCapabilityField(labels.capability, node.capability || '', options),
+    renderCapabilityField(labels.capability, node.capability || '', options, labels),
     '<label class="flow-workbench__field">',
     `<span>${escapeHTML(labels.risk)}</span>`,
     `<select class="ds-select ds-select--sm" data-flow-workbench-field="risk">${['low', 'medium', 'high', 'critical'].map((risk) => `<option value="${risk}"${risk === (node.risk || 'low') ? ' selected' : ''}>${risk}</option>`).join('')}</select>`,
@@ -1197,28 +1197,51 @@ function renderParamSchemaField(name, schema = {}, value) {
   ].join('');
 }
 
-function renderCapabilityField(label, value, options = {}) {
+function renderCapabilityField(label, value, options = {}, labels = {}) {
   const capabilities = listWorkbenchCapabilities(options);
-  const listId = capabilities.length ? 'flowWorkbenchCapabilityOptions' : '';
+  const selectedValue = String(value || '');
+  const hasSelectedCapability = capabilities.some((capability) => capability?.name === selectedValue);
+  const unlistedSelected = selectedValue && !hasSelectedCapability ? [{ name: selectedValue, title: selectedValue }] : [];
+  const choices = [...unlistedSelected, ...capabilities];
   return [
     '<label class="flow-workbench__field">',
     `<span>${escapeHTML(label)}</span>`,
-    `<input class="ds-input ds-input--sm" data-flow-workbench-field="capability"${listId ? ` list="${listId}"` : ''} value="${escapeAttr(value)}">`,
-    capabilities.length ? [
-      `<datalist id="${listId}">`,
-      capabilities.map((capability) => {
-        const name = capability?.name || '';
-        const text = [
-          capability?.title || capability?.description || '',
-          capability?.resource || '',
-          capability?.action || ''
-        ].filter(Boolean).join(' · ');
-        return `<option value="${escapeAttr(name)}" label="${escapeAttr(text)}"></option>`;
-      }).join(''),
-      '</datalist>'
-    ].join('') : '',
+    '<select class="ds-select ds-select--sm" data-flow-workbench-field="capability">',
+    `<option value=""${selectedValue ? '' : ' selected'}>${escapeHTML(labels.capabilityNone || getCapabilityNoneText(options.locale))}</option>`,
+    choices.map((capability) => renderCapabilityOption(capability, selectedValue)).join(''),
+    '</select>',
     '</label>'
   ].join('');
+}
+
+function renderCapabilityOption(capability = {}, selectedValue = '') {
+  const name = String(capability.name || '');
+  if (!name) {
+    return '';
+  }
+  return [
+    `<option value="${escapeAttr(name)}"${name === selectedValue ? ' selected' : ''}>`,
+    escapeHTML(formatCapabilityOptionText(capability)),
+    '</option>'
+  ].join('');
+}
+
+function formatCapabilityOptionText(capability = {}) {
+  const name = String(capability.name || '');
+  const title = String(capability.title || capability.description || '').trim();
+  const meta = [
+    capability.resource ? `资源:${capability.resource}` : '',
+    capability.action ? `动作:${capability.action}` : '',
+    capability.risk ? `风险:${capability.risk}` : ''
+  ].filter(Boolean).join(' · ');
+  return [
+    title && title !== name ? `${name} - ${title}` : name,
+    meta ? `（${meta}）` : ''
+  ].join('');
+}
+
+function getCapabilityNoneText(locale) {
+  return isChineseLocale(locale) ? '不绑定能力（通用节点）' : 'No capability binding';
 }
 
 function getNodeParamsSchema(node, options = {}) {
