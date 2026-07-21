@@ -444,12 +444,22 @@ GET /api/pivot-resources
   - 已支持 `org.query`、`user.query`、`user.create`、`human.select`、`ui.display`、`message.show`、`table.refresh`、`flow.subflow.run`、`custom.capability` 和输出节点的第一版执行。
   - 运行记录写入 `pivot_flow_runs`，并保存脱敏后的 input/result/trace。
   - HIS 前端运行按钮已优先调用后端正式运行接口，并兼容显示后端错误 trace。
+- 第三阶段第二批已完成：
+  - HIS 后端 executor 已扩展到用户、组织、角色、权限、物资的核心能力。
+  - 已支持 `user.resolve`、`user.assignRoles`、`user.updateStatus`。
+  - 已支持 `role.list`、`role.resolve`、`role.create`、`role.assignPermissions`。
+  - 已支持 `permission.resolve`。
+  - 已支持 `org.create`、`org.updateStatus`。
+  - 已支持 `material.query`、`material.resolve`、`material.create`、`material.update`、`material.delete`。
+  - HIS 后端已新增 `GET /api/pivot-resources` 和 `GET /api/pivot-resources/:name`。
+  - 资源目录已覆盖 `users`、`organization`、`roles`、`permissions`、`materials` 的字段、关系、可查字段、可写字段、展示字段和敏感字段。
+  - HIS 前端已加载 resource metadata，并在节点属性能力说明中展示资源字段信息。
 
 ### 待继续
 
-- 为更多 HIS 业务能力补后端 executor，例如角色分配、组织新增、物资 CRUD。
-- 增加 `GET /api/pivot-resources`，暴露资源字段、关系、可查字段、可写字段和敏感字段。
 - 区分编排器调试运行和普通用户正式运行入口，避免草稿调试误触发生产写操作。
+- 基于 resource metadata 把属性面板从纯 JSON 输入逐步升级为 schema-driven 表单。
+- 为 executor 增加更细粒度的事务、幂等键和高风险二次确认记录。
 
 ## 风险与决策
 
