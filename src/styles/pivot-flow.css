@@ -3969,7 +3969,8 @@
   bottom: calc(var(--flow-workbench-bottom-reserve) + var(--spacer-12));
   display: inline-flex;
   gap: var(--spacer-8);
-  max-width: calc(100% - var(--spacer-24));
+  justify-content: flex-end;
+  left: var(--spacer-12);
   right: var(--spacer-12);
 }
 
@@ -3986,14 +3987,22 @@
   font-weight: 700;
   gap: var(--spacer-6);
   min-height: 32px;
+  min-width: 0;
   overflow: hidden;
-  padding: 0 var(--spacer-10);
+  padding: 0 var(--spacer-12);
   position: static;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.flow-workbench__status > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .flow-workbench__flow-status {
+  flex: 0 1 auto;
   color: var(--status-warning-default);
   max-width: min(360px, calc(100vw - 180px));
 }
