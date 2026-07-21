@@ -434,12 +434,22 @@ GET /api/pivot-resources
   - capability metadata 已包含 `name/title/resource/action/risk/description/permissions/paramsSchema/resultSchema/requiresConfirmation/groupOnly/canUse`。
   - HIS 前端设计器已接入后端 capability metadata 加载。
   - `FlowWorkbench` 已通过 `capabilities` 接收后端能力元数据。
+- 第二阶段已完成：
+  - 后端发布流程时已按 capability metadata 做参数 schema 校验。
+  - 前端属性面板已展示后端 capability 标题、说明、权限、风险、确认要求和可用状态。
+- 第三阶段第一批已完成：
+  - HIS 后端已新增 `POST /api/pivot-flows/:id/run`。
+  - 正式运行只读取已发布 Flow 和不可变发布版本。
+  - 运行时校验 capability allowlist、运行用户权限和集团专属能力约束。
+  - 已支持 `org.query`、`user.query`、`user.create`、`human.select`、`ui.display`、`message.show`、`table.refresh`、`flow.subflow.run`、`custom.capability` 和输出节点的第一版执行。
+  - 运行记录写入 `pivot_flow_runs`，并保存脱敏后的 input/result/trace。
+  - HIS 前端运行按钮已优先调用后端正式运行接口，并兼容显示后端错误 trace。
 
 ### 待继续
 
-- 后端发布流程时进一步使用 capability metadata 做 schema 级参数校验。
-- 前端属性面板进一步显示后端 capability 说明、权限、风险和可用状态。
-- 普通用户正式运行流程改为调用后端 `POST /api/pivot-flows/:id/run`。
+- 为更多 HIS 业务能力补后端 executor，例如角色分配、组织新增、物资 CRUD。
+- 增加 `GET /api/pivot-resources`，暴露资源字段、关系、可查字段、可写字段和敏感字段。
+- 区分编排器调试运行和普通用户正式运行入口，避免草稿调试误触发生产写操作。
 
 ## 风险与决策
 
