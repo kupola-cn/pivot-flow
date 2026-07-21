@@ -2091,7 +2091,7 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
     ]
   });
   assert.match(helpHTML, /ds-modal-container/);
-  assert.match(helpHTML, /ds-modal-mask is-visible/);
+  assert.match(helpHTML, /ds-modal-mask[^"]*is-visible/);
   assert.match(helpHTML, /Query records\./);
 
   designer.destroy();
@@ -2717,6 +2717,7 @@ test('workbench renders new flow confirmation without icon markup', async () => 
     await Promise.resolve();
 
     assert.match(target.innerHTML, /flow-workbench__confirm-container/);
+    assert.match(target.innerHTML, /flow-workbench__confirm-mask is-visible"><section class="ds-modal flow-workbench__confirm-modal/);
     assert.match(target.innerHTML, /新建策略/);
     assert.match(target.innerHTML, /当前画布内容将被清空/);
     assert.doesNotMatch(target.innerHTML, /<svg width=/);

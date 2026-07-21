@@ -729,7 +729,7 @@ function renderFlowListModal(state, options, labels) {
   const flows = getFilteredFlowListItems(state);
   return [
     '<div class="ds-modal-container flow-workbench__flow-list-container is-open" role="presentation">',
-    '<button type="button" class="ds-modal-mask is-visible" data-flow-workbench-action="close-flow-list" aria-label="Close flow list"></button>',
+    '<div class="ds-modal-mask flow-workbench__flow-list-mask is-visible">',
     '<section class="ds-modal flow-workbench__flow-list-dialog" role="dialog" aria-modal="true" aria-labelledby="flowWorkbenchFlowListTitle">',
     '<header class="ds-modal__header">',
     `<h3 id="flowWorkbenchFlowListTitle" class="ds-modal__title">${escapeHTML(labels.flows)}</h3>`,
@@ -748,6 +748,7 @@ function renderFlowListModal(state, options, labels) {
     '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-workbench-action="close-flow-list">Close</button>',
     '</footer>',
     '</section>',
+    '</div>',
     '</div>'
   ].join('');
 }
@@ -760,7 +761,7 @@ function renderNewFlowConfirmModal(state, labels) {
 
   return [
     '<div class="ds-modal-container flow-workbench__confirm-container is-open" role="presentation">',
-    '<button type="button" class="ds-modal-mask is-visible" data-flow-workbench-action="cancel-new-flow" aria-label="Cancel new flow"></button>',
+    '<div class="ds-modal-mask flow-workbench__confirm-mask is-visible">',
     '<section class="ds-modal flow-workbench__confirm-modal" role="dialog" aria-modal="true" aria-labelledby="flowWorkbenchNewFlowConfirmTitle">',
     '<header class="ds-modal__header">',
     `<h3 id="flowWorkbenchNewFlowConfirmTitle" class="ds-modal__title">${escapeHTML(dialog.title || labels.newFlowConfirmTitle)}</h3>`,
@@ -772,6 +773,7 @@ function renderNewFlowConfirmModal(state, labels) {
     `<button type="button" class="ds-btn ds-btn--primary ds-btn--sm" data-flow-workbench-action="confirm-new-flow">${escapeHTML(dialog.confirmText || labels.newFlowConfirmText)}</button>`,
     '</footer>',
     '</section>',
+    '</div>',
     '</div>'
   ].join('');
 }
@@ -1220,7 +1222,7 @@ function renderNodeHelpModal(state, options, labels) {
 
   return [
     '<div class="ds-modal-container flow-workbench__help-modal-container is-open" role="presentation">',
-    '<button type="button" class="ds-modal-mask is-visible" data-flow-workbench-action="close-node-help" aria-label="Close node help"></button>',
+    '<div class="ds-modal-mask flow-workbench__help-modal-mask is-visible">',
     '<section class="ds-modal flow-workbench__help-modal" role="dialog" aria-modal="true" aria-labelledby="flowWorkbenchNodeHelpTitle">',
     '<header class="ds-modal__header">',
     `<h3 id="flowWorkbenchNodeHelpTitle" class="ds-modal__title">${escapeHTML(title)}</h3>`,
@@ -1239,6 +1241,7 @@ function renderNodeHelpModal(state, options, labels) {
     '<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-workbench-action="close-node-help">Close</button>',
     '</footer>',
     '</section>',
+    '</div>',
     '</div>'
   ].join('');
 }
