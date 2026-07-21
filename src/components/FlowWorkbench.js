@@ -1081,7 +1081,7 @@ function resolveNewFlowConfirm(state, confirmed) {
 async function saveWorkbenchFlow(state, options, api, saveOptions = {}) {
   const flowStore = getWorkbenchFlowStore(options);
   if (!flowStore) {
-    api.writeLog('flow.save.fail', 'flowStore is required.');
+    showWorkbenchFailure(state, options, api, 'flow.save.fail', 'flowStore is required.');
     return null;
   }
 
@@ -1116,7 +1116,7 @@ async function saveWorkbenchFlow(state, options, api, saveOptions = {}) {
     return state.flow;
   } catch (error) {
     const message = error?.message || 'Failed to save flow.';
-    api.writeLog('flow.save.fail', message);
+    showWorkbenchFailure(state, options, api, 'flow.save.fail', message, error);
     state.flowListError = message;
     return null;
   }
@@ -1125,7 +1125,7 @@ async function saveWorkbenchFlow(state, options, api, saveOptions = {}) {
 async function publishWorkbenchFlow(state, options, api) {
   const flowStore = getWorkbenchFlowStore(options);
   if (!flowStore || typeof flowStore.publish !== 'function') {
-    api.writeLog('flow.publish.fail', 'flowStore.publish is required.');
+    showWorkbenchFailure(state, options, api, 'flow.publish.fail', 'flowStore.publish is required.');
     return null;
   }
 
@@ -1148,7 +1148,7 @@ async function publishWorkbenchFlow(state, options, api) {
     return state.flow;
   } catch (error) {
     const message = error?.message || 'Failed to publish flow.';
-    api.writeLog('flow.publish.fail', message);
+    showWorkbenchFailure(state, options, api, 'flow.publish.fail', message, error);
     state.flowListError = message;
     return null;
   }
@@ -1785,30 +1785,39 @@ function syncParamsTextarea(target, node) {
 }
 
 async function runFlow(state, options, api, { execute }) {
-  const context = typeof options.contextProvider === 'function'
-    ? await options.contextProvider()
-    : options.context || {};
-  const slots = typeof options.extractSlots === 'function'
-    ? options.extractSlots(state.prompt, state.flow)
-    : {};
-  const plan = flowToPlan(state.flow, { prompt: state.prompt, slots }, context);
+  try {
+    const context = typeof options.contextProvider === 'function'
+      ? await options.contextProvider()
+      : options.context || {};
+    const slots = typeof options.extractSlots === 'function'
+      ? options.extractSlots(state.prompt, state.flow)
+      : {};
+    const plan = flowToPlan(state.flow, { prompt: state.prompt, slots }, context);
 
-  if (execute) {
-    if (typeof options.runtimeFactory !== 'function') {
-      api.writeLog('runtime.missing', 'runtimeFactory is required.');
-      return;
+    if (execute) {
+      if (typeof options.runtimeFactory !== 'function') {
+        showWorkbenchFailure(state, options, api, 'runtime.missing', 'runtimeFactory is required.');
+        return;
+      }
+      const runtime = await options.runtimeFactory(api);
+      state.resultOpen = true;
+      const result = await runtime.executePlan(plan, context);
+      api.writeLog(result.ok ? 'execute.ok' : 'execute.fail', result.message || 'Flow executed.');
+    } else {
+      api.writeLog('preview.ok', 'Runtime plan generated.');
+      state.previewDialog = {
+        plan,
+        formatted: true,
+        copied: false
+      };
     }
-    const runtime = await options.runtimeFactory(api);
-    state.resultOpen = true;
-    const result = await runtime.executePlan(plan, context);
-    api.writeLog(result.ok ? 'execute.ok' : 'execute.fail', result.message || 'Flow executed.');
-  } else {
-    api.writeLog('preview.ok', 'Runtime plan generated.');
-    state.previewDialog = {
-      plan,
-      formatted: true,
-      copied: false
-    };
+  } catch (error) {
+    const message = error?.message || (execute ? 'Failed to run flow.' : 'Failed to preview flow.');
+    if (execute) {
+      showWorkbenchFailure(state, options, api, 'execute.fail', message, error);
+    } else {
+      showPreviewFailure(state, api, message, error);
+    }
   }
 }
 
@@ -1830,6 +1839,50 @@ async function copyPreviewJSON(state, api) {
     state.previewDialog.copied = false;
     api.writeLog('preview.copy.fail', error?.message || 'Failed to copy preview JSON.');
   }
+}
+
+function showWorkbenchFailure(state, options, api, type, message, error) {
+  const labels = createLabels(options.labels);
+  api.writeLog(type, message);
+  state.previewDialog = null;
+  state.resultOpen = true;
+  state.resultHTML = renderWorkbenchFailureHTML(labels.operationFailed, message, error);
+}
+
+function showPreviewFailure(state, api, message, error) {
+  api.writeLog('preview.fail', message);
+  state.previewDialog = {
+    plan: createWorkbenchFailureObject(message, error),
+    formatted: true,
+    copied: false
+  };
+}
+
+function renderWorkbenchFailureHTML(title, message, error) {
+  const details = getWorkbenchFailureDetails(error);
+  return [
+    '<section class="flow-workbench__failure">',
+    `<strong>${escapeHTML(title)}</strong>`,
+    `<p>${escapeHTML(message)}</p>`,
+    details ? `<pre class="flow-workbench__failure-detail">${escapeHTML(details)}</pre>` : '',
+    '</section>'
+  ].join('');
+}
+
+function createWorkbenchFailureObject(message, error) {
+  return {
+    ok: false,
+    message,
+    errors: Array.isArray(error?.validation?.errors) ? error.validation.errors : undefined,
+    source: 'flow-workbench'
+  };
+}
+
+function getWorkbenchFailureDetails(error) {
+  if (Array.isArray(error?.validation?.errors) && error.validation.errors.length) {
+    return error.validation.errors.join('\n');
+  }
+  return '';
 }
 
 function startCanvasPan(event, state, render, canvasEl) {
@@ -2225,6 +2278,7 @@ function createLabels(labels = {}) {
     previewCompact: 'Raw JSON',
     previewCopy: 'Copy',
     previewCopied: 'Copied',
+    operationFailed: 'Operation failed',
     execute: 'Run',
     flows: 'Flows',
     save: 'Save',

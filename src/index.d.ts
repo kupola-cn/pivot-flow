@@ -1612,6 +1612,7 @@ export interface FlowWorkbenchLabels {
   previewCompact?: string;
   previewCopy?: string;
   previewCopied?: string;
+  operationFailed?: string;
   execute?: string;
   flows?: string;
   save?: string;

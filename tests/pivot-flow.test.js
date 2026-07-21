@@ -2436,6 +2436,67 @@ test('workbench preview opens formatted JSON modal without run result', async ()
   }
 });
 
+test('workbench surfaces invalid draft actions instead of failing silently', async () => {
+  let clickHandler = null;
+  const target = {
+    innerHTML: '',
+    addEventListener(type, handler) {
+      if (type === 'click') {
+        clickHandler = handler;
+      }
+    },
+    removeEventListener() {},
+    contains() {
+      return true;
+    },
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    }
+  };
+  const eventForAction = (action) => ({
+    preventDefault() {},
+    target: {
+      closest(selector) {
+        if (selector === 'button' || selector === '[data-flow-workbench-action]') {
+          return { dataset: { flowWorkbenchAction: action } };
+        }
+        return null;
+      }
+    }
+  });
+  const workbench = FlowWorkbench({
+    target,
+    flowStore: createMemoryFlowStore(),
+    labels: { operationFailed: '操作失败' },
+    flow: createFlow({
+      id: 'invalid-draft-flow',
+      name: 'Invalid draft flow',
+      nodes: [
+        { id: 'query-a', type: 'data.query' },
+        { id: 'query-b', type: 'data.query' }
+      ],
+      edges: []
+    })
+  });
+
+  await clickHandler(eventForAction('preview'));
+  assert.match(target.innerHTML, /flow-workbench__preview-container/);
+  assert.match(target.innerHTML, /<span class="flow-workbench__json-key">ok<\/span>/);
+  assert.match(target.innerHTML, /flow-workbench/);
+  assert.match(target.innerHTML, /Flow node capability is required: query-a/);
+
+  await clickHandler(eventForAction('save-flow'));
+  assert.match(target.innerHTML, /<section class="flow-workbench__result">/);
+  assert.match(target.innerHTML, /flow-workbench__failure/);
+  assert.match(target.innerHTML, /操作失败/);
+  assert.match(target.innerHTML, /Flow node capability is required: query-b/);
+
+  workbench.destroy();
+});
+
 test('workbench syncs inspector edits to node preview and measured edge ports', () => {
   let inputHandler = null;
   const edgesEl = { innerHTML: '' };

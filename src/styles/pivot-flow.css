@@ -551,6 +551,37 @@
   font-size: var(--body-xs-font-size);
 }
 
+.flow-workbench__failure {
+  background: var(--status-error-surface-l1, var(--bg-overlay-l1));
+  border: 1px solid var(--status-error-default);
+  border-radius: var(--radius-4);
+  color: var(--text-default);
+  display: grid;
+  gap: var(--spacer-8);
+  padding: var(--spacer-12);
+}
+
+.flow-workbench__failure strong {
+  color: var(--status-error-default);
+}
+
+.flow-workbench__failure p {
+  margin: 0;
+}
+
+.flow-workbench__failure-detail {
+  background: var(--bg-base-default);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  color: var(--text-secondary);
+  font-family: var(--code-editor-font-family);
+  font-size: var(--body-xs-font-size);
+  margin: 0;
+  overflow: auto;
+  padding: var(--spacer-8);
+  white-space: pre-wrap;
+}
+
 .flow-workbench__help-modal-container {
   z-index: 60;
 }
