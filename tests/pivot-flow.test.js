@@ -2524,8 +2524,13 @@ test('workbench generic query nodes stay unbound and parameter nodes provide pre
     locale: 'zh-CN',
     nodeTypes: zhNodes
   });
-  assert.match(paramInspectorHTML, /data-flow-workbench-param-field="name"/);
-  assert.match(paramInspectorHTML, /data-flow-workbench-param-field="defaultValue"/);
+  assert.match(paramInspectorHTML, /参数名/);
+  assert.match(paramInspectorHTML, /参数类型/);
+  assert.match(paramInspectorHTML, /参数值/);
+  assert.match(paramInspectorHTML, /data-flow-workbench-param-entry-field="name"/);
+  assert.match(paramInspectorHTML, /data-flow-workbench-action="add-param-entry"/);
+  assert.doesNotMatch(paramInspectorHTML, /data-flow-workbench-connect-to/);
+  assert.doesNotMatch(paramInspectorHTML, /data-flow-workbench-action="remove-node"/);
 
   let clickHandler = null;
   const target = {
@@ -2616,6 +2621,38 @@ test('workbench generic query nodes stay unbound and parameter nodes provide pre
     assert.match(target.innerHTML, /keyword/);
     assert.match(target.innerHTML, /&quot;纱布&quot;/);
     assert.doesNotMatch(target.innerHTML, /Flow field is required: name/);
+
+    workbench.update(createFlow({
+      id: 'multi-param-material-query',
+      name: '',
+      nodes: [
+        {
+          id: 'input-name',
+          type: 'intent.input',
+          label: '参数',
+          params: {
+            entries: [
+              { name: 'name', type: 'string', value: '纱布' },
+              { name: 'limit', type: 'number', value: 5 }
+            ]
+          }
+        },
+        {
+          id: 'query-material',
+          type: 'data.query',
+          label: '查询耗材',
+          capability: 'material.query',
+          params: { keyword: '{{intent.name}}', limit: '{{intent.limit}}' }
+        }
+      ],
+      edges: [{ id: 'edge:input-name:query-material', from: 'input-name', to: 'query-material' }]
+    }));
+
+    await clickHandler(eventForAction('preview'));
+    assert.match(target.innerHTML, /&quot;查询耗材&quot;/);
+    assert.match(target.innerHTML, /flow-workbench__json-key">limit<\/span>/);
+    assert.match(target.innerHTML, /flow-workbench__json-value--number">5<\/span>/);
+    assert.match(target.innerHTML, /flow-workbench__json-key">flowNodeLabel<\/span>/);
   } finally {
     workbench?.destroy();
   }

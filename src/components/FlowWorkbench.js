@@ -9,6 +9,7 @@ const DEFAULT_NODE_WIDTH = 238;
 const DEFAULT_NODE_HEIGHT = 132;
 const DEFAULT_BOARD_WIDTH = 2200;
 const DEFAULT_BOARD_HEIGHT = 1400;
+const INPUT_PARAMETER_TYPES = Object.freeze(['string', 'number', 'boolean', 'object', 'array']);
 const PALETTE_GROUP_ORDER = ['database', 'business', 'input-output', 'workflow', 'template', 'extension', 'output', 'custom'];
 const PALETTE_GROUP_KEY_MAP = Object.freeze({
   capability: 'extension',
@@ -223,6 +224,20 @@ export function FlowWorkbench(options = {}) {
       }
     } else if (action === 'copy-preview') {
       await copyPreviewJSON(state, api);
+    } else if (action === 'add-param-entry') {
+      const node = addSelectedNodeParamEntry(state);
+      if (node) {
+        syncParamsTextarea(target, node);
+        refreshNodePreview(target, state, options, node);
+        refreshCanvasEdges(target, state);
+      }
+    } else if (action === 'remove-param-entry') {
+      const node = removeSelectedNodeParamEntry(state, actionEl.dataset.paramEntryIndex);
+      if (node) {
+        syncParamsTextarea(target, node);
+        refreshNodePreview(target, state, options, node);
+        refreshCanvasEdges(target, state);
+      }
     }
 
     render();
@@ -242,6 +257,13 @@ export function FlowWorkbench(options = {}) {
       state.prompt = input.value;
     } else if (input.dataset.flowWorkbenchSaveField) {
       updateSaveFlowMetadata(state, input.dataset.flowWorkbenchSaveField, input.value);
+    } else if (input.dataset.flowWorkbenchParamEntryField) {
+      const node = updateSelectedNodeParamEntry(state, input.dataset.paramEntryIndex, input.dataset.flowWorkbenchParamEntryField, input);
+      if (node) {
+        syncParamsTextarea(target, node);
+        refreshNodePreview(target, state, options, node);
+        refreshCanvasEdges(target, state);
+      }
     } else if (input.dataset.flowWorkbenchParamField) {
       const node = updateSelectedNodeParam(state, input.dataset.flowWorkbenchParamField, input.dataset.flowWorkbenchParamType, input);
       if (node) {
@@ -269,6 +291,13 @@ export function FlowWorkbench(options = {}) {
     } else if (input.dataset.flowWorkbenchZoom !== undefined) {
       updateZoom(state, input.value);
       render();
+    } else if (input.dataset.flowWorkbenchParamEntryField) {
+      const node = updateSelectedNodeParamEntry(state, input.dataset.paramEntryIndex, input.dataset.flowWorkbenchParamEntryField, input);
+      if (node) {
+        syncParamsTextarea(target, node);
+        refreshNodePreview(target, state, options, node);
+        refreshCanvasEdges(target, state);
+      }
     } else if (input.dataset.flowWorkbenchParamField) {
       const node = updateSelectedNodeParam(state, input.dataset.flowWorkbenchParamField, input.dataset.flowWorkbenchParamType, input);
       if (node) {
@@ -1496,10 +1525,6 @@ function renderInspector(state, labels, options = {}) {
   if (!node) {
     return `<div class="flow-workbench__empty">${escapeHTML(labels.emptyInspector)}</div>`;
   }
-  const connectOptions = state.flow.nodes
-    .filter((item) => item.id !== node.id)
-    .map((item) => `<option value="${escapeAttr(item.id)}">${escapeHTML(item.label || item.id)}</option>`)
-    .join('');
 
   return [
     '<form>',
@@ -1514,19 +1539,15 @@ function renderInspector(state, labels, options = {}) {
     `<span>${escapeHTML(labels.params)}</span>`,
     `<textarea class="ds-textarea" data-flow-workbench-field="params">${escapeHTML(JSON.stringify(node.params || {}, null, 2))}</textarea>`,
     '</label>',
-    '<label class="flow-workbench__field">',
-    `<span>${escapeHTML(labels.connectTo)}</span>`,
-    `<select class="ds-select ds-select--sm" data-flow-workbench-connect-to><option value="">${escapeHTML(labels.selectTarget)}</option>${connectOptions}</select>`,
-    '</label>',
-    '<button type="button" class="ds-btn ds-btn--ghost ds-btn--sm" data-flow-workbench-action="remove-node">',
-    escapeHTML(labels.deleteNode),
-    '</button>',
-    `<p class="flow-workbench__hint">${escapeHTML(labels.summary(state.flow.nodes.length, state.flow.edges.length))}</p>`,
     '</form>'
   ].join('');
 }
 
 function renderParamSchemaForm(node, labels, options = {}) {
+  if (isInputParameterNode(node)) {
+    return renderInputParameterForm(node, labels, options);
+  }
+
   const paramsSchema = getNodeParamsSchema(node, options);
   const fields = Object.entries(paramsSchema || {});
   if (fields.length === 0) {
@@ -1543,6 +1564,47 @@ function renderParamSchemaForm(node, labels, options = {}) {
     fields.map(([name, schema]) => renderParamSchemaField(name, schema, node.params?.[name])).join(''),
     '</div>',
     '</section>'
+  ].join('');
+}
+
+function renderInputParameterForm(node, labels, options = {}) {
+  const entries = normalizeInputParameterEntries(node);
+  const entryLabels = getInputParameterEntryLabels(labels, options);
+
+  return [
+    '<section class="flow-workbench__param-form flow-workbench__param-form--entries">',
+    '<div class="flow-workbench__param-form-head">',
+    `<strong>${escapeHTML(labels.paramForm || 'Params form')}</strong>`,
+    `<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm flow-workbench__param-add" data-flow-workbench-action="add-param-entry" aria-label="${escapeAttr(entryLabels.add)}">+</button>`,
+    '</div>',
+    '<div class="flow-workbench__param-entry-head" aria-hidden="true">',
+    `<span>${escapeHTML(entryLabels.name)}</span>`,
+    `<span>${escapeHTML(entryLabels.type)}</span>`,
+    `<span>${escapeHTML(entryLabels.value)}</span>`,
+    '<span></span>',
+    '</div>',
+    '<div class="flow-workbench__param-entry-list">',
+    entries.map((entry, index) => renderInputParameterEntry(entry, index, entryLabels)).join(''),
+    '</div>',
+    '</section>'
+  ].join('');
+}
+
+function renderInputParameterEntry(entry, index, labels) {
+  const type = normalizeInputParameterType(entry.type);
+  const value = formatInputParameterEntryValue(entry.value, type);
+  const canRemove = index > 0;
+  return [
+    '<div class="flow-workbench__param-entry-row">',
+    `<input class="ds-input ds-input--sm" value="${escapeAttr(entry.name)}" data-param-entry-index="${index}" data-flow-workbench-param-entry-field="name" aria-label="${escapeAttr(labels.name)}">`,
+    `<select class="ds-select ds-select--sm" data-param-entry-index="${index}" data-flow-workbench-param-entry-field="type" aria-label="${escapeAttr(labels.type)}">`,
+    INPUT_PARAMETER_TYPES.map((option) => `<option value="${escapeAttr(option)}"${option === type ? ' selected' : ''}>${escapeHTML(option)}</option>`).join(''),
+    '</select>',
+    `<input class="ds-input ds-input--sm" value="${escapeAttr(value)}" data-param-entry-index="${index}" data-flow-workbench-param-entry-field="value" aria-label="${escapeAttr(labels.value)}">`,
+    canRemove
+      ? `<button type="button" class="ds-btn ds-btn--ghost ds-btn--sm flow-workbench__param-remove" data-flow-workbench-action="remove-param-entry" data-param-entry-index="${index}" aria-label="${escapeAttr(labels.remove)}">-</button>`
+      : '<span class="flow-workbench__param-remove-placeholder" aria-hidden="true"></span>',
+    '</div>'
   ].join('');
 }
 
@@ -1876,6 +1938,62 @@ function updateSelectedNodeParam(state, name, type, input) {
   return node;
 }
 
+function addSelectedNodeParamEntry(state) {
+  const node = getNode(state, state.selectedNodeId);
+  if (!isInputParameterNode(node)) {
+    return null;
+  }
+  node.params = {
+    entries: [
+      ...normalizeInputParameterEntries(node),
+      createEmptyInputParameterEntry()
+    ]
+  };
+  return node;
+}
+
+function removeSelectedNodeParamEntry(state, indexValue) {
+  const node = getNode(state, state.selectedNodeId);
+  const index = Number(indexValue);
+  if (!isInputParameterNode(node) || !Number.isInteger(index)) {
+    return null;
+  }
+  const entries = normalizeInputParameterEntries(node);
+  if (entries.length <= 1 || index < 0 || index >= entries.length) {
+    return node;
+  }
+  node.params = {
+    entries: entries.filter((_, itemIndex) => itemIndex !== index)
+  };
+  return node;
+}
+
+function updateSelectedNodeParamEntry(state, indexValue, field, input) {
+  const node = getNode(state, state.selectedNodeId);
+  const index = Number(indexValue);
+  if (!isInputParameterNode(node) || !Number.isInteger(index) || !['name', 'type', 'value'].includes(field)) {
+    return null;
+  }
+
+  const entries = normalizeInputParameterEntries(node);
+  while (entries.length <= index) {
+    entries.push(createEmptyInputParameterEntry());
+  }
+
+  const entry = { ...entries[index] };
+  if (field === 'type') {
+    entry.type = normalizeInputParameterType(input.value);
+  } else if (field === 'value') {
+    entry.value = parseInputParameterEntryValue(input.value, entry.type);
+  } else {
+    entry.name = String(input.value || '').trim();
+  }
+
+  entries[index] = entry;
+  node.params = { entries };
+  return node;
+}
+
 function parseParamSchemaInput(input, type = 'string') {
   if (type === 'boolean') {
     return Boolean(input.checked);
@@ -1897,6 +2015,89 @@ function parseParamSchemaInput(input, type = 'string') {
     }
   }
   return value;
+}
+
+function isInputParameterNode(node) {
+  return node?.type === FLOW_NODE_TYPES.INTENT_INPUT;
+}
+
+function normalizeInputParameterEntries(node) {
+  const params = isPlainObject(node?.params) ? node.params : {};
+  const rawEntries = Array.isArray(params.entries) ? params.entries : [];
+  const entries = rawEntries.length > 0
+    ? rawEntries.map((entry) => normalizeInputParameterEntry(entry))
+    : [normalizeInputParameterEntry({
+      name: params.name || '',
+      type: params.type || 'string',
+      value: params.value ?? params.defaultValue ?? params.fallback ?? ''
+    })];
+
+  return entries.length > 0 ? entries : [createEmptyInputParameterEntry()];
+}
+
+function normalizeInputParameterEntry(entry = {}) {
+  return {
+    name: String(entry?.name || '').trim(),
+    type: normalizeInputParameterType(entry?.type),
+    value: entry?.value ?? entry?.defaultValue ?? entry?.fallback ?? ''
+  };
+}
+
+function createEmptyInputParameterEntry() {
+  return { name: '', type: 'string', value: '' };
+}
+
+function normalizeInputParameterType(type) {
+  const value = String(type || 'string').trim().toLowerCase();
+  return INPUT_PARAMETER_TYPES.includes(value) ? value : 'string';
+}
+
+function formatInputParameterEntryValue(value, type) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+  if (type === 'object' || type === 'array') {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '';
+    }
+  }
+  return String(value);
+}
+
+function parseInputParameterEntryValue(value, type = 'string') {
+  const normalizedType = normalizeInputParameterType(type);
+  const text = String(value ?? '');
+  if (text.trim().startsWith('{{')) {
+    return text.trim();
+  }
+  if (normalizedType === 'number') {
+    const parsed = Number(text);
+    return Number.isFinite(parsed) ? parsed : text;
+  }
+  if (normalizedType === 'boolean') {
+    return text === true || ['true', '1', 'yes', '是'].includes(text.trim().toLowerCase());
+  }
+  if (normalizedType === 'object' || normalizedType === 'array') {
+    try {
+      return JSON.parse(text || (normalizedType === 'array' ? '[]' : '{}'));
+    } catch {
+      return text;
+    }
+  }
+  return text;
+}
+
+function getInputParameterEntryLabels(labels = {}, options = {}) {
+  const zh = isChineseLocale(options.locale);
+  return {
+    name: labels.paramName || (zh ? '参数名' : 'Param name'),
+    type: labels.paramType || (zh ? '参数类型' : 'Param type'),
+    value: labels.paramValue || (zh ? '参数值' : 'Param value'),
+    add: labels.addParam || (zh ? '增加参数' : 'Add parameter'),
+    remove: labels.removeParam || (zh ? '移除参数' : 'Remove parameter')
+  };
 }
 
 function syncParamsTextarea(target, node) {
@@ -1958,14 +2159,30 @@ function prepareWorkbenchFlow(state, options = {}, overrides = {}) {
 function collectInputParameterSlots(flow) {
   return (Array.isArray(flow?.nodes) ? flow.nodes : [])
     .filter((node) => node?.type === FLOW_NODE_TYPES.INTENT_INPUT)
-    .map((node) => normalizeInputParameterSlot(node))
+    .flatMap((node) => normalizeInputParameterSlots(node))
     .filter((slot) => slot.name);
 }
 
-function normalizeInputParameterSlot(node) {
+function normalizeInputParameterSlots(node) {
   const params = isPlainObject(node?.params) ? node.params : {};
+  if (Array.isArray(params.entries) && params.entries.length > 0) {
+    return params.entries.map((entry) => {
+      const normalized = normalizeInputParameterEntry(entry);
+      return {
+        name: normalized.name,
+        label: normalized.name,
+        type: normalized.type,
+        required: false,
+        source: 'intent',
+        pattern: '',
+        fallback: normalized.value,
+        inputType: ''
+      };
+    });
+  }
+
   const name = String(params.name || node?.name || node?.id || '').trim();
-  return {
+  return [{
     name,
     label: params.label || node?.label || name,
     type: params.type || 'string',
@@ -1974,7 +2191,7 @@ function normalizeInputParameterSlot(node) {
     pattern: params.pattern || '',
     fallback: params.defaultValue ?? params.value ?? params.fallback ?? '',
     inputType: params.inputType || ''
-  };
+  }];
 }
 
 function mergeFlowIntentSlots(intent = {}, inputSlots = []) {

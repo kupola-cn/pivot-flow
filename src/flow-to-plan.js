@@ -80,7 +80,8 @@ export function flowNodeToPlanNode(node, flow, input = {}, context = {}) {
       },
       metadata: {
         ...(node.metadata ?? {}),
-        flowNodeType: node.type
+        flowNodeType: node.type,
+        flowNodeLabel: node.label || node.id
       }
     };
   }
@@ -131,6 +132,7 @@ function createCapabilityPlanNode(node, flow, input, context, params) {
     metadata: {
       ...(node.metadata ?? {}),
       flowNodeType: node.type,
+      flowNodeLabel: node.label || node.id,
       flowId: flow.id
     }
   };
@@ -149,6 +151,7 @@ function normalizeCustomPlanNode(planNode, sourceNode, flow, input, context) {
       ...(sourceNode.metadata ?? {}),
       ...(planNode.metadata ?? {}),
       flowNodeType: sourceNode.type,
+      flowNodeLabel: sourceNode.label || sourceNode.id,
       flowId: flow.id,
       customNodeType: sourceNode.type
     }

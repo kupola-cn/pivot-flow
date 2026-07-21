@@ -469,6 +469,52 @@
   gap: var(--spacer-8);
 }
 
+.flow-workbench__param-form--entries {
+  gap: var(--spacer-8);
+}
+
+.flow-workbench__param-add,
+.flow-workbench__param-remove {
+  align-items: center;
+  display: inline-flex;
+  height: 28px;
+  justify-content: center;
+  min-width: 28px;
+  padding: 0;
+}
+
+.flow-workbench__param-entry-head,
+.flow-workbench__param-entry-row {
+  align-items: center;
+  display: grid;
+  gap: var(--spacer-6);
+  grid-template-columns: minmax(0, 1fr) 92px minmax(0, 1fr) 28px;
+}
+
+.flow-workbench__param-entry-head span {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.flow-workbench__param-entry-list {
+  display: grid;
+  gap: var(--spacer-6);
+}
+
+.flow-workbench__param-entry-row input,
+.flow-workbench__param-entry-row select {
+  min-width: 0;
+  width: 100%;
+}
+
+.flow-workbench__param-remove-placeholder {
+  display: block;
+  height: 28px;
+  width: 28px;
+}
+
 .flow-workbench__param-field {
   display: grid;
   gap: var(--spacer-4);
