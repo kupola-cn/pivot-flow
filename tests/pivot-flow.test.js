@@ -1852,6 +1852,8 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   assert.match(defaultWorkbenchHTML, /data-flow-workbench-palette-description="Query records from a business resource\."/);
   assert.doesNotMatch(defaultWorkbenchHTML, /flow-workbench__palette-tooltip/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__canvas-toolbar/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__status-strip/);
+  assert.match(defaultWorkbenchHTML, /Draft（Default workbench flow）/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__status flow-workbench__status--ready/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__status-dot/);
   assert.doesNotMatch(defaultWorkbenchHTML, /ds-badge ds-badge--success/);
@@ -1859,6 +1861,8 @@ test('exports one-call UI app helpers from the main and UI entries', async () =>
   assert.match(defaultWorkbenchHTML, /flow-workbench__component-controls/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__zoom-trigger/);
   assert.match(defaultWorkbenchHTML, /data-flow-workbench-action="toggle-zoom-menu"/);
+  assert.match(defaultWorkbenchHTML, /data-flow-workbench-action="new-flow"/);
+  assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--new/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--components/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--reset/);
   assert.match(defaultWorkbenchHTML, /flow-workbench__button-icon--preview/);
@@ -2588,6 +2592,68 @@ test('workbench scopes capability controls by node type', () => {
   assert.match(capabilityCallHTML, /users\.query - 查询用户/);
   assert.match(capabilityCallHTML, /users\.create - 新增用户/);
   assert.match(capabilityCallHTML, /message\.show - 显示消息/);
+});
+
+test('workbench starts a new unnamed draft flow', async () => {
+  let clickHandler = null;
+  let newFlow = null;
+  const originalConfirm = globalThis.confirm;
+  globalThis.confirm = () => true;
+  const target = {
+    innerHTML: '',
+    addEventListener(type, handler) {
+      if (type === 'click') {
+        clickHandler = handler;
+      }
+    },
+    removeEventListener() {},
+    contains() {
+      return true;
+    },
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    }
+  };
+  let workbench = null;
+  try {
+    workbench = FlowWorkbench({
+      target,
+      flow: createFlow({
+        id: 'existing-flow',
+        name: 'Existing flow',
+        status: 'published',
+        nodes: [{ id: 'query-users', type: 'data.query', capability: 'users.query' }],
+        edges: []
+      }),
+      onNewFlow(flow) {
+        newFlow = flow;
+      }
+    });
+
+    await clickHandler({
+      preventDefault() {},
+      target: {
+        closest(selector) {
+          if (selector === 'button' || selector === '[data-flow-workbench-action]') {
+            return { dataset: { flowWorkbenchAction: 'new-flow' } };
+          }
+          return null;
+        }
+      }
+    });
+
+    assert.equal(workbench.getFlow().status, 'draft');
+    assert.equal(workbench.getFlow().name, '');
+    assert.equal(workbench.getFlow().nodes.length, 0);
+    assert.equal(newFlow.status, 'draft');
+    assert.match(target.innerHTML, /Draft（Untitled）/);
+  } finally {
+    workbench?.destroy();
+    globalThis.confirm = originalConfirm;
+  }
 });
 
 test('renders editable node inspector controls', () => {

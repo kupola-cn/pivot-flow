@@ -1,5 +1,5 @@
 import { Tooltip } from '@kupola/kupola/components/tooltip';
-import { cloneFlow, createFlowNode } from '../flow-schema.js';
+import { cloneFlow, createFlow, createFlowNode } from '../flow-schema.js';
 import { flowToPlan } from '../flow-to-plan.js';
 import { canConnectFlowNodes, getFlowNodePorts, validateFlow } from '../flow-validation.js';
 import { createDefaultFlowWorkbenchNodeTypes, getDefaultCapabilityForNodeType } from '../node-types.js';
@@ -168,6 +168,8 @@ export function FlowWorkbench(options = {}) {
       await loadWorkbenchFlowList(state, options, api);
     } else if (action === 'load-flow') {
       await loadWorkbenchFlow(state, options, api, actionEl.dataset.flowId);
+    } else if (action === 'new-flow') {
+      await newWorkbenchFlow(state, options, api);
     } else if (action === 'save-flow') {
       await saveWorkbenchFlow(state, options, api);
     } else if (action === 'publish-flow') {
@@ -351,6 +353,7 @@ export function FlowWorkbench(options = {}) {
 export function renderFlowWorkbenchToHTML(state, options = {}) {
   const labels = createLabels(options.labels);
   const showHeaderText = options.showHeaderText !== false;
+  const showFlowStatus = options.showFlowStatus ?? showHeaderText;
   return [
     `<section class="flow-workbench${state.resultOpen ? ' is-result-open' : ''}">`,
     renderCanvas(state, options),
@@ -362,6 +365,7 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
       '</div>'
     ].join('') : '',
     '<div class="flow-workbench__actions">',
+    renderToolbarButton('new-flow', labels.newFlow, 'secondary', { icon: 'new' }),
     renderToolbarButton('reset', labels.reset, 'secondary', { icon: 'reset' }),
     options.flowStore ? renderToolbarButton('toggle-flow-list', labels.flows, 'secondary', { icon: 'flows' }) : '',
     options.flowStore ? renderToolbarButton('save-flow', labels.save, 'secondary', { icon: 'save' }) : '',
@@ -371,7 +375,7 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
     '</div>',
     '</header>',
     renderCanvasToolbar(state, options, labels),
-    renderWorkbenchStatus(state, labels),
+    renderWorkbenchStatusStrip(state, labels, { showFlowStatus }),
     state.paletteOpen && !state.selectedNodeId ? [
       '<aside class="flow-workbench__palette">',
     renderPalette(state, options, labels),
@@ -606,6 +610,27 @@ function renderCanvasToolbar(state, options, labels) {
   ].join('');
 }
 
+function renderWorkbenchStatusStrip(state, labels, options = {}) {
+  return [
+    '<div class="flow-workbench__status-strip">',
+    options.showFlowStatus ? renderFlowStatus(state, labels) : '',
+    renderWorkbenchStatus(state, labels),
+    '</div>'
+  ].join('');
+}
+
+function renderFlowStatus(state, labels) {
+  const status = String(state.flow?.status || 'draft');
+  const label = getFlowStatusLabel(status, labels);
+  const name = state.flow?.name || labels.untitledFlow;
+  return [
+    `<div class="flow-workbench__status flow-workbench__flow-status flow-workbench__flow-status--${escapeAttr(status)}" role="status">`,
+    '<span class="flow-workbench__status-dot" aria-hidden="true"></span>',
+    `<span>${escapeHTML(`${label}（${name}）`)}</span>`,
+    '</div>'
+  ].join('');
+}
+
 function renderWorkbenchStatus(state, labels) {
   const status = state.connectionDraft ? 'connecting' : 'ready';
   const label = state.connectionDraft ? labels.connecting : labels.ready;
@@ -615,6 +640,15 @@ function renderWorkbenchStatus(state, labels) {
     `<span>${escapeHTML(label)}</span>`,
     '</div>'
   ].join('');
+}
+
+function getFlowStatusLabel(status, labels) {
+  return {
+    draft: labels.draft,
+    published: labels.published,
+    disabled: labels.disabled,
+    archived: labels.archived
+  }[status] || status || labels.draft;
 }
 
 function renderZoomOptions(currentZoom) {
@@ -823,6 +857,47 @@ async function loadWorkbenchFlow(state, options, api, id) {
     state.flowListError = error?.message || 'Failed to load flow.';
     api.writeLog('flow.load.fail', state.flowListError);
   }
+}
+
+async function newWorkbenchFlow(state, options, api) {
+  if (!confirmNewWorkbenchFlow(state, options)) {
+    return null;
+  }
+
+  const flow = createFlow({
+    name: '',
+    description: '',
+    status: 'draft',
+    metadata: options.newFlowMetadata || {}
+  });
+  state.flow = flow;
+  state.selectedNodeId = '';
+  state.connectionDraft = null;
+  state.draggingNodeId = '';
+  state.helpNodeId = '';
+  state.paletteOpen = false;
+  state.flowListOpen = false;
+  state.prompt = '';
+  state.resultHTML = options.emptyResultHTML || '<div class="flow-workbench__empty">Run the flow to show output.</div>';
+  state.logs = [];
+  api.writeLog('flow.new', options.newFlowMessage || 'New draft flow started.');
+  await options.onNewFlow?.(cloneFlow(state.flow), api);
+  return state.flow;
+}
+
+function confirmNewWorkbenchFlow(state, options) {
+  if (typeof options.confirmNewFlow === 'function') {
+    return options.confirmNewFlow(cloneFlow(state.flow)) !== false;
+  }
+
+  const hasContent = (state.flow?.nodes?.length || 0) > 0 || (state.flow?.edges?.length || 0) > 0;
+  if (!hasContent || typeof globalThis.confirm !== 'function') {
+    return true;
+  }
+  const message = isChineseLocale(options.locale)
+    ? '当前画布内容将被清空，确认新建策略？'
+    : 'The current canvas will be cleared. Create a new flow?';
+  return globalThis.confirm(message);
 }
 
 async function saveWorkbenchFlow(state, options, api, saveOptions = {}) {
@@ -1933,6 +2008,7 @@ function isChineseLocale(locale) {
 function createLabels(labels = {}) {
   return {
     title: 'Flow workbench',
+    newFlow: 'New',
     components: 'Components',
     reset: 'Reset',
     fit: 'Fit',
@@ -1965,6 +2041,7 @@ function createLabels(labels = {}) {
     archived: 'Archived',
     loadingFlows: 'Loading flows...',
     emptyFlows: 'No flows found.',
+    untitledFlow: 'Untitled',
     paletteSearch: '',
     paletteEmpty: '',
     defaultHelpDescription: 'Configure this node with its capability, risk level, and JSON params, then connect its output port to the next node input port.',

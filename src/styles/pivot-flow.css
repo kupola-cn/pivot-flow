@@ -3543,6 +3543,7 @@
 .flow-workbench__palette,
 .flow-workbench__inspector,
 .flow-workbench__result,
+.flow-workbench__status-strip,
 .flow-workbench__status,
 .flow-workbench__result-toggle {
   position: absolute;
@@ -3595,6 +3596,10 @@
 
 .flow-workbench__button-icon--components {
   --flow-workbench-button-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z'/%3E%3C/svg%3E");
+}
+
+.flow-workbench__button-icon--new {
+  --flow-workbench-button-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M11 4h2v7h7v2h-7v7h-2v-7H4v-2h7V4Z'/%3E%3C/svg%3E");
 }
 
 .flow-workbench__button-icon--flows {
@@ -3945,12 +3950,20 @@
   left: var(--spacer-12);
 }
 
+.flow-workbench__status-strip {
+  align-items: center;
+  bottom: calc(var(--flow-workbench-bottom-reserve) + var(--spacer-12));
+  display: inline-flex;
+  gap: var(--spacer-8);
+  max-width: calc(100% - var(--spacer-24));
+  right: var(--spacer-12);
+}
+
 .flow-workbench__status {
   align-items: center;
   background: var(--bg-base-default);
   border: 1px solid var(--border-neutral-l1);
   border-radius: var(--radius-4);
-  bottom: calc(var(--flow-workbench-bottom-reserve) + var(--spacer-12));
   box-shadow: var(--shadow-sm);
   box-sizing: border-box;
   color: var(--status-success-default);
@@ -3959,9 +3972,25 @@
   font-weight: 700;
   gap: var(--spacer-6);
   min-height: 32px;
+  overflow: hidden;
   padding: 0 var(--spacer-10);
-  right: var(--spacer-12);
+  position: static;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.flow-workbench__flow-status {
+  color: var(--status-warning-default);
+  max-width: min(360px, calc(100vw - 180px));
+}
+
+.flow-workbench__flow-status--published {
+  color: var(--status-success-default);
+}
+
+.flow-workbench__flow-status--disabled,
+.flow-workbench__flow-status--archived {
+  color: var(--text-muted);
 }
 
 .flow-workbench__status--connecting {
@@ -3994,7 +4023,7 @@
   bottom: calc(var(--flow-workbench-bottom-reserve) + var(--flow-workbench-result-height) + var(--spacer-24));
 }
 
-.flow-workbench.is-result-open .flow-workbench__status {
+.flow-workbench.is-result-open .flow-workbench__status-strip {
   bottom: calc(var(--flow-workbench-bottom-reserve) + var(--flow-workbench-result-height) + var(--spacer-24));
 }
 

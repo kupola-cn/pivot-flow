@@ -1597,6 +1597,7 @@ export interface FlowWorkbenchNodeType {
 
 export interface FlowWorkbenchLabels {
   title?: string;
+  newFlow?: string;
   components?: string;
   reset?: string;
   fit?: string;
@@ -1631,6 +1632,7 @@ export interface FlowWorkbenchLabels {
   archived?: string;
   loadingFlows?: string;
   emptyFlows?: string;
+  untitledFlow?: string;
   paletteSearch?: string;
   paletteEmpty?: string;
   defaultHelpDescription?: string;
@@ -1643,6 +1645,7 @@ export interface FlowWorkbenchOptions {
   title?: string;
   description?: string;
   showHeaderText?: boolean;
+  showFlowStatus?: boolean;
   prompt?: string;
   quickPrompts?: Array<string | { label: string; value: string }>;
   nodeTypes?: Array<FlowWorkbenchNodeType | [string, string, string?]>;
@@ -1660,6 +1663,9 @@ export interface FlowWorkbenchOptions {
   emptyResultHTML?: string;
   readyMessage?: string;
   resetMessage?: string;
+  newFlowMessage?: string;
+  newFlowMetadata?: Record<string, unknown>;
+  confirmNewFlow?: (flow: FlowDefinition) => boolean;
   locale?: string;
   maxLogs?: number;
   flowStore?: FlowStore;
@@ -1680,6 +1686,7 @@ export interface FlowWorkbenchOptions {
     escapeHTML(value: unknown): string;
   }) => PivotRuntime | Promise<PivotRuntime>;
   onLoadFlow?: (flow: FlowDefinition, api: Record<string, unknown>) => void | Promise<void>;
+  onNewFlow?: (flow: FlowDefinition, api: Record<string, unknown>) => void | Promise<void>;
   onSaveFlow?: (flow: FlowDefinition, api: Record<string, unknown>) => void | Promise<void>;
   onPublishFlow?: (flow: FlowDefinition, api: Record<string, unknown>) => void | Promise<void>;
 }
