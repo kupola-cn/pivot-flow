@@ -1130,7 +1130,7 @@ function renderInspector(state, labels, options = {}) {
   return [
     '<form>',
     renderField(labels.nodeName, 'label', node.label || ''),
-    renderCapabilityField(labels.capability, node.capability || '', options, labels),
+    renderCapabilityField(labels.capability, node.capability || '', node, options, labels),
     '<label class="flow-workbench__field">',
     `<span>${escapeHTML(labels.risk)}</span>`,
     `<select class="ds-select ds-select--sm" data-flow-workbench-field="risk">${['low', 'medium', 'high', 'critical'].map((risk) => `<option value="${risk}"${risk === (node.risk || 'low') ? ' selected' : ''}>${risk}</option>`).join('')}</select>`,
@@ -1197,8 +1197,8 @@ function renderParamSchemaField(name, schema = {}, value) {
   ].join('');
 }
 
-function renderCapabilityField(label, value, options = {}, labels = {}) {
-  const capabilities = listWorkbenchCapabilities(options);
+function renderCapabilityField(label, value, node, options = {}, labels = {}) {
+  const capabilities = listWorkbenchCapabilities(options, node);
   const selectedValue = String(value || '');
   const hasSelectedCapability = capabilities.some((capability) => capability?.name === selectedValue);
   const unlistedSelected = selectedValue && !hasSelectedCapability ? [{ name: selectedValue, title: selectedValue }] : [];
@@ -1258,13 +1258,37 @@ function getWorkbenchCapability(options, capabilityName) {
   return capabilities.find((capability) => capability?.name === name) ?? null;
 }
 
-function listWorkbenchCapabilities(options = {}) {
+function listWorkbenchCapabilities(options = {}, node = null) {
   const source = options.capabilities;
-  return Array.isArray(source)
+  const capabilities = Array.isArray(source)
     ? source
     : typeof source?.list === 'function'
       ? source.list()
       : [];
+  return filterCapabilitiesForNode(capabilities, node);
+}
+
+function filterCapabilitiesForNode(capabilities, node) {
+  const action = getCapabilityActionForNode(node);
+  if (!action) {
+    return capabilities;
+  }
+  return capabilities.filter((capability) => String(capability?.action || '').toLowerCase() === action);
+}
+
+function getCapabilityActionForNode(node) {
+  const explicitAction = String(node?.action || '').trim().toLowerCase();
+  if (explicitAction) {
+    return explicitAction;
+  }
+  return {
+    'data.query': 'query',
+    'data.get': 'get',
+    'data.aggregate': 'aggregate',
+    'data.create': 'create',
+    'data.update': 'update',
+    'data.delete': 'delete'
+  }[node?.type] || '';
 }
 
 function formatParamSchemaValue(value, type) {

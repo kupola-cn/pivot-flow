@@ -2488,6 +2488,20 @@ test('workbench renders schema-driven params form from capabilities', () => {
           limit: { type: 'number' },
           includeDisabled: { type: 'boolean' }
         }
+      },
+      {
+        name: 'users.create',
+        title: '新增用户',
+        resource: 'users',
+        action: 'create',
+        risk: 'medium'
+      },
+      {
+        name: 'users.delete',
+        title: '删除用户',
+        resource: 'users',
+        action: 'delete',
+        risk: 'high'
       }
     ],
     labels: {
@@ -2500,6 +2514,8 @@ test('workbench renders schema-driven params form from capabilities', () => {
   assert.match(html, /<select class="ds-select ds-select--sm" data-flow-workbench-field="capability">/);
   assert.match(html, /不绑定能力/);
   assert.match(html, /users\.query - 查询用户/);
+  assert.doesNotMatch(html, /users\.create - 新增用户/);
+  assert.doesNotMatch(html, /users\.delete - 删除用户/);
   assert.doesNotMatch(html, /资源:users · 动作:query · 风险:low/);
   assert.match(html, /data-flow-workbench-param-field="keyword"/);
   assert.match(html, /data-flow-workbench-param-field="limit"/);
