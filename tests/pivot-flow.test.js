@@ -2523,6 +2523,73 @@ test('workbench renders schema-driven params form from capabilities', () => {
   assert.match(html, /张三/);
 });
 
+test('workbench scopes capability controls by node type', () => {
+  const capabilities = [
+    { name: 'users.query', title: '查询用户', action: 'query' },
+    { name: 'users.create', title: '新增用户', action: 'create' },
+    { name: 'message.show', title: '显示消息', action: 'execute' }
+  ];
+  const fixedOutputHTML = renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'fixed-output-capability-flow',
+      name: 'Fixed output capability flow',
+      nodes: [{ id: 'table-output', type: 'output.table', label: '表格输出' }],
+      edges: []
+    }),
+    selectedNodeId: 'table-output',
+    paletteOpen: false,
+    resultOpen: false,
+    pan: { x: 0, y: 0 },
+    zoom: 1,
+    logs: []
+  }, {
+    locale: 'zh-CN',
+    capabilities
+  });
+  const hiddenCapabilityHTML = renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'hidden-capability-flow',
+      name: 'Hidden capability flow',
+      nodes: [{ id: 'transform-data', type: 'transform', label: '转换数据' }],
+      edges: []
+    }),
+    selectedNodeId: 'transform-data',
+    paletteOpen: false,
+    resultOpen: false,
+    pan: { x: 0, y: 0 },
+    zoom: 1,
+    logs: []
+  }, {
+    locale: 'zh-CN',
+    capabilities
+  });
+  const capabilityCallHTML = renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'capability-call-flow',
+      name: 'Capability call flow',
+      nodes: [{ id: 'call-capability', type: 'capability.call', label: '能力调用' }],
+      edges: []
+    }),
+    selectedNodeId: 'call-capability',
+    paletteOpen: false,
+    resultOpen: false,
+    pan: { x: 0, y: 0 },
+    zoom: 1,
+    logs: []
+  }, {
+    locale: 'zh-CN',
+    capabilities
+  });
+
+  assert.match(fixedOutputHTML, /value="output\.table" readonly/);
+  assert.doesNotMatch(fixedOutputHTML, /data-flow-workbench-field="capability"/);
+  assert.doesNotMatch(hiddenCapabilityHTML, /<span>Capability<\/span>|<span>能力标识<\/span>/);
+  assert.match(capabilityCallHTML, /data-flow-workbench-field="capability"/);
+  assert.match(capabilityCallHTML, /users\.query - 查询用户/);
+  assert.match(capabilityCallHTML, /users\.create - 新增用户/);
+  assert.match(capabilityCallHTML, /message\.show - 显示消息/);
+});
+
 test('renders editable node inspector controls', () => {
   const html = renderEditableNodeInspectorToHTML({
     id: 'create-user',

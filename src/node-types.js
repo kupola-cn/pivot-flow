@@ -59,8 +59,12 @@ export const FLOW_RISK_LEVELS = Object.freeze({
 export const DEFAULT_NODE_CAPABILITY_MAP = Object.freeze({
   [FLOW_NODE_TYPES.HUMAN_INPUT]: 'human.input',
   [FLOW_NODE_TYPES.HUMAN_SELECT]: 'human.select',
-  [FLOW_NODE_TYPES.CAPABILITY_CALL]: 'capability.call',
   [FLOW_NODE_TYPES.UI_DISPLAY]: 'ui.display',
+  [FLOW_NODE_TYPES.OUTPUT_MESSAGE]: 'output.message',
+  [FLOW_NODE_TYPES.OUTPUT_RESULT]: 'output.result',
+  [FLOW_NODE_TYPES.OUTPUT_TABLE]: 'output.table',
+  [FLOW_NODE_TYPES.OUTPUT_DETAIL]: 'output.detail',
+  [FLOW_NODE_TYPES.OUTPUT_OPTIONS]: 'output.options',
   [FLOW_NODE_TYPES.SUBFLOW_RUN]: 'flow.subflow.run',
   [FLOW_NODE_TYPES.MESSAGE_SHOW]: 'message.show',
   [FLOW_NODE_TYPES.ROUTE_NAVIGATE]: 'route.navigate',
@@ -429,6 +433,17 @@ export function isKnownRiskLevel(risk) {
 }
 
 export function isCapabilityBackedNode(node) {
+  if ([
+    FLOW_NODE_TYPES.OUTPUT_MESSAGE,
+    FLOW_NODE_TYPES.OUTPUT_RESULT,
+    FLOW_NODE_TYPES.OUTPUT_TABLE,
+    FLOW_NODE_TYPES.OUTPUT_DETAIL,
+    FLOW_NODE_TYPES.OUTPUT_OPTIONS,
+    FLOW_NODE_TYPES.OUTPUT_RETURN
+  ].includes(node?.type)) {
+    return false;
+  }
+
   return Boolean(getFlowNodeCapability(node)) || [
     FLOW_NODE_TYPES.CAPABILITY_RUN,
     FLOW_NODE_TYPES.CAPABILITY_CALL,

@@ -62,11 +62,13 @@ export function validateFlow(flow, options = {}) {
 
     const capability = getFlowNodeCapability(node);
 
-    if (isCapabilityBackedNode(node) && node.type !== FLOW_NODE_TYPES.CONFIRM && !capability) {
+    const capabilityBacked = isCapabilityBackedNode(node);
+
+    if (capabilityBacked && node.type !== FLOW_NODE_TYPES.CONFIRM && !capability) {
       errors.push(`Flow node capability is required: ${node.id}`);
     }
 
-    if (knownCapabilities && capability && !knownCapabilities.has(capability)) {
+    if (knownCapabilities && capabilityBacked && capability && !knownCapabilities.has(capability)) {
       errors.push(`Flow node capability is not registered: ${capability}`);
     }
 

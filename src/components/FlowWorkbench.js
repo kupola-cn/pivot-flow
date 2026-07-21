@@ -1198,6 +1198,21 @@ function renderParamSchemaField(name, schema = {}, value) {
 }
 
 function renderCapabilityField(label, value, node, options = {}, labels = {}) {
+  const mode = getCapabilityControlMode(node);
+  if (mode === 'hidden') {
+    return '';
+  }
+
+  if (mode === 'fixed') {
+    const fixedValue = value || defaultCapability(node?.type);
+    return [
+      '<label class="flow-workbench__field">',
+      `<span>${escapeHTML(label)}</span>`,
+      `<input class="ds-input ds-input--sm" value="${escapeAttr(fixedValue || '-')}" readonly aria-readonly="true">`,
+      '</label>'
+    ].join('');
+  }
+
   const capabilities = listWorkbenchCapabilities(options, node);
   const selectedValue = String(value || '');
   const hasSelectedCapability = capabilities.some((capability) => capability?.name === selectedValue);
@@ -1212,6 +1227,38 @@ function renderCapabilityField(label, value, node, options = {}, labels = {}) {
     '</select>',
     '</label>'
   ].join('');
+}
+
+function getCapabilityControlMode(node) {
+  if (!node || typeof node !== 'object') {
+    return 'hidden';
+  }
+  if (isFixedCapabilityNode(node)) {
+    return 'fixed';
+  }
+  if (isActionFilteredCapabilityNode(node) || node.type === 'capability.run' || node.type === 'capability.call') {
+    return 'select';
+  }
+  return 'hidden';
+}
+
+function isFixedCapabilityNode(node) {
+  return [
+    'human.input',
+    'human.select',
+    'ui.display',
+    'subflow.run',
+    'message.show',
+    'output.message',
+    'output.table',
+    'output.detail',
+    'output.options',
+    'output.result'
+  ].includes(node?.type);
+}
+
+function isActionFilteredCapabilityNode(node) {
+  return Boolean(getCapabilityActionForNode(node));
 }
 
 function renderCapabilityOption(capability = {}, selectedValue = '') {
