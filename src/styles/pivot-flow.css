@@ -559,6 +559,46 @@
   z-index: 70;
 }
 
+.flow-workbench__preview-container {
+  z-index: 70;
+}
+
+.flow-workbench__preview-modal {
+  display: flex;
+  flex-direction: column;
+  max-height: min(82vh, 760px);
+  max-width: min(880px, calc(100vw - 48px));
+}
+
+.flow-workbench__preview-body {
+  display: grid;
+  gap: var(--spacer-12);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.flow-workbench__preview-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacer-8);
+  justify-content: flex-end;
+}
+
+.flow-workbench__preview-json {
+  background: var(--bg-base-default);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  color: var(--text-default);
+  font-family: var(--code-editor-font-family);
+  font-size: var(--body-xs-font-size);
+  line-height: 1.55;
+  margin: 0;
+  max-height: min(58vh, 560px);
+  overflow: auto;
+  padding: var(--spacer-12);
+  white-space: pre;
+}
+
 .flow-workbench__confirm-modal {
   max-width: min(420px, calc(100vw - 48px));
 }

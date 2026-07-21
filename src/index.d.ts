@@ -1602,10 +1602,16 @@ export interface FlowWorkbenchLabels {
   newFlowConfirmContent?: string;
   newFlowConfirmText?: string;
   newFlowCancelText?: string;
+  close?: string;
   components?: string;
   reset?: string;
   fit?: string;
   preview?: string;
+  previewTitle?: string;
+  previewFormatted?: string;
+  previewCompact?: string;
+  previewCopy?: string;
+  previewCopied?: string;
   execute?: string;
   flows?: string;
   save?: string;

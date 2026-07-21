@@ -2352,6 +2352,86 @@ test('workbench node title actions copy, remove, and open help', () => {
   workbench.destroy();
 });
 
+test('workbench preview opens formatted JSON modal without run result', async () => {
+  let clickHandler = null;
+  let copiedText = '';
+  const originalNavigator = globalThis.navigator;
+  Object.defineProperty(globalThis, 'navigator', {
+    configurable: true,
+    value: {
+      clipboard: {
+        async writeText(text) {
+          copiedText = text;
+        }
+      }
+    }
+  });
+  const target = {
+    innerHTML: '',
+    addEventListener(type, handler) {
+      if (type === 'click') {
+        clickHandler = handler;
+      }
+    },
+    removeEventListener() {},
+    contains() {
+      return true;
+    },
+    querySelector() {
+      return null;
+    },
+    querySelectorAll() {
+      return [];
+    }
+  };
+  const eventForAction = (action) => ({
+    preventDefault() {},
+    target: {
+      closest(selector) {
+        if (selector === 'button' || selector === '[data-flow-workbench-action]') {
+          return { dataset: { flowWorkbenchAction: action } };
+        }
+        return null;
+      }
+    }
+  });
+  let workbench = null;
+  try {
+    workbench = FlowWorkbench({
+      target,
+      flow: createFlow({
+        id: 'preview-flow',
+        name: 'Preview flow',
+        nodes: [
+          { id: 'query-users', type: 'data.query', capability: 'users.query', params: { limit: 5 } }
+        ],
+        edges: []
+      })
+    });
+
+    await clickHandler(eventForAction('preview'));
+    assert.match(target.innerHTML, /flow-workbench__preview-container/);
+    assert.match(target.innerHTML, /flow-workbench__preview-json/);
+    assert.match(target.innerHTML, /&quot;id&quot;: &quot;query-users&quot;/);
+    assert.doesNotMatch(target.innerHTML, /<section class="flow-workbench__result">/);
+
+    await clickHandler(eventForAction('toggle-preview-format'));
+    assert.match(target.innerHTML, /{&quot;id&quot;:&quot;flow-plan:preview-flow:/);
+    assert.match(target.innerHTML, /&quot;flowId&quot;:&quot;preview-flow&quot;/);
+
+    await clickHandler(eventForAction('copy-preview'));
+    assert.match(copiedText, /"id":"flow-plan:preview-flow:/);
+    assert.match(copiedText, /"flowId":"preview-flow"/);
+    assert.match(target.innerHTML, /Copied/);
+  } finally {
+    workbench?.destroy();
+    Object.defineProperty(globalThis, 'navigator', {
+      configurable: true,
+      value: originalNavigator
+    });
+  }
+});
+
 test('workbench syncs inspector edits to node preview and measured edge ports', () => {
   let inputHandler = null;
   const edgesEl = { innerHTML: '' };

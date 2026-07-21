@@ -107,6 +107,7 @@ export function FlowWorkbench(options = {}) {
       state.selectedNodeId = '';
       state.connectionDraft = null;
       state.draggingNodeId = '';
+      state.previewDialog = null;
     }
     render();
   };
@@ -210,6 +211,14 @@ export function FlowWorkbench(options = {}) {
       await runFlow(state, options, api, { execute: false });
     } else if (action === 'execute') {
       await runFlow(state, options, api, { execute: true });
+    } else if (action === 'close-preview') {
+      state.previewDialog = null;
+    } else if (action === 'toggle-preview-format') {
+      if (state.previewDialog) {
+        state.previewDialog.formatted = !state.previewDialog.formatted;
+      }
+    } else if (action === 'copy-preview') {
+      await copyPreviewJSON(state, api);
     }
 
     render();
@@ -394,6 +403,7 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
     '</section>',
     ].join('') : '',
     state.flowListOpen ? renderFlowListModal(state, options, labels) : '',
+    renderPreviewModal(state, labels),
     renderNewFlowConfirmModal(state, labels),
     renderNodeHelpModal(state, options, labels),
     '</section>'
@@ -427,7 +437,8 @@ function createWorkbenchState(options) {
     flowListError: '',
     flowListQuery: options.flowListQuery || '',
     flowListStatus: options.flowListStatus || '',
-    newFlowConfirm: null
+    newFlowConfirm: null,
+    previewDialog: null
   };
 }
 
@@ -766,6 +777,43 @@ function renderNewFlowConfirmModal(state, labels) {
   ].join('');
 }
 
+function renderPreviewModal(state, labels) {
+  const dialog = state.previewDialog;
+  if (!dialog) {
+    return '';
+  }
+  const json = getPreviewJSON(dialog);
+  const formatLabel = dialog.formatted ? labels.previewCompact : labels.previewFormatted;
+  const copyLabel = dialog.copied ? labels.previewCopied : labels.previewCopy;
+
+  return [
+    '<div class="ds-modal-container flow-workbench__preview-container is-open" role="presentation">',
+    '<div class="ds-modal-mask flow-workbench__preview-mask is-visible">',
+    '<section class="ds-modal flow-workbench__preview-modal" role="dialog" aria-modal="true" aria-labelledby="flowWorkbenchPreviewTitle">',
+    '<header class="ds-modal__header">',
+    `<h3 id="flowWorkbenchPreviewTitle" class="ds-modal__title">${escapeHTML(labels.previewTitle)}</h3>`,
+    '<button type="button" class="ds-modal__close" data-flow-workbench-action="close-preview" aria-label="Close">×</button>',
+    '</header>',
+    '<div class="ds-modal__body flow-workbench__preview-body">',
+    '<div class="flow-workbench__preview-toolbar">',
+    `<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-workbench-action="toggle-preview-format">${escapeHTML(formatLabel)}</button>`,
+    `<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-workbench-action="copy-preview">${escapeHTML(copyLabel)}</button>`,
+    '</div>',
+    `<pre class="flow-workbench__preview-json">${escapeHTML(json)}</pre>`,
+    '</div>',
+    '<footer class="ds-modal__footer">',
+    `<button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" data-flow-workbench-action="close-preview">${escapeHTML(labels.close)}</button>`,
+    '</footer>',
+    '</section>',
+    '</div>',
+    '</div>'
+  ].join('');
+}
+
+function getPreviewJSON(dialog) {
+  return JSON.stringify(dialog.plan || {}, null, dialog.formatted ? 2 : 0);
+}
+
 function renderFlowStatusOptions(currentStatus, labels) {
   return [
     ['', labels.allFlows],
@@ -871,6 +919,7 @@ async function loadWorkbenchFlow(state, options, api, id) {
     state.draggingNodeId = '';
     state.paletteOpen = false;
     state.flowListOpen = false;
+    state.previewDialog = null;
     state.prompt = state.flow.intent?.examples?.[0] || state.flow.name || state.prompt || '';
     api.writeLog('flow.load', `Loaded flow: ${state.flow.name || state.flow.id}`);
     await options.onLoadFlow?.(cloneFlow(state.flow), api);
@@ -898,6 +947,7 @@ async function newWorkbenchFlow(state, options, api, render) {
   state.helpNodeId = '';
   state.paletteOpen = false;
   state.flowListOpen = false;
+  state.previewDialog = null;
   state.prompt = '';
   state.resultHTML = options.emptyResultHTML || '<div class="flow-workbench__empty">Run the flow to show output.</div>';
   state.logs = [];
@@ -1648,11 +1698,6 @@ function syncParamsTextarea(target, node) {
 }
 
 async function runFlow(state, options, api, { execute }) {
-  if (typeof options.runtimeFactory !== 'function') {
-    api.writeLog('runtime.missing', 'runtimeFactory is required.');
-    return;
-  }
-  const runtime = await options.runtimeFactory(api);
   const context = typeof options.contextProvider === 'function'
     ? await options.contextProvider()
     : options.context || {};
@@ -1662,13 +1707,41 @@ async function runFlow(state, options, api, { execute }) {
   const plan = flowToPlan(state.flow, { prompt: state.prompt, slots }, context);
 
   if (execute) {
+    if (typeof options.runtimeFactory !== 'function') {
+      api.writeLog('runtime.missing', 'runtimeFactory is required.');
+      return;
+    }
+    const runtime = await options.runtimeFactory(api);
     state.resultOpen = true;
     const result = await runtime.executePlan(plan, context);
     api.writeLog(result.ok ? 'execute.ok' : 'execute.fail', result.message || 'Flow executed.');
   } else {
-    state.resultOpen = true;
     api.writeLog('preview.ok', 'Runtime plan generated.');
-    api.setResultHTML(`<pre class="flow-workbench__json">${escapeHTML(JSON.stringify(plan, null, 2))}</pre>`);
+    state.previewDialog = {
+      plan,
+      formatted: true,
+      copied: false
+    };
+  }
+}
+
+async function copyPreviewJSON(state, api) {
+  if (!state.previewDialog) {
+    return;
+  }
+  const text = getPreviewJSON(state.previewDialog);
+  try {
+    if (globalThis.navigator?.clipboard?.writeText) {
+      await globalThis.navigator.clipboard.writeText(text);
+      state.previewDialog.copied = true;
+      api.writeLog('preview.copy', 'Preview JSON copied.');
+    } else {
+      state.previewDialog.copied = false;
+      api.writeLog('preview.copy.fail', 'Clipboard API is unavailable.');
+    }
+  } catch (error) {
+    state.previewDialog.copied = false;
+    api.writeLog('preview.copy.fail', error?.message || 'Failed to copy preview JSON.');
   }
 }
 
@@ -2055,10 +2128,16 @@ function createLabels(labels = {}) {
     newFlowConfirmContent: 'The current canvas will be cleared. Create a new flow?',
     newFlowConfirmText: 'Create',
     newFlowCancelText: 'Cancel',
+    close: 'Close',
     components: 'Components',
     reset: 'Reset',
     fit: 'Fit',
     preview: 'Preview',
+    previewTitle: 'Preview plan JSON',
+    previewFormatted: 'Formatted',
+    previewCompact: 'Compact',
+    previewCopy: 'Copy',
+    previewCopied: 'Copied',
     execute: 'Run',
     flows: 'Flows',
     save: 'Save',
