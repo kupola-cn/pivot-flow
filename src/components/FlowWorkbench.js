@@ -226,6 +226,13 @@ export function FlowWorkbench(options = {}) {
       restoreFlowSearchFocus(target, state.flowListQuery);
     } else if (input.dataset.flowWorkbenchPromptInput !== undefined) {
       state.prompt = input.value;
+    } else if (input.dataset.flowWorkbenchParamField) {
+      const node = updateSelectedNodeParam(state, input.dataset.flowWorkbenchParamField, input.dataset.flowWorkbenchParamType, input);
+      if (node) {
+        syncParamsTextarea(target, node);
+        refreshNodePreview(target, state, options, node);
+        refreshCanvasEdges(target, state);
+      }
     } else if (input.dataset.flowWorkbenchField) {
       const node = updateSelectedNode(state, input.dataset.flowWorkbenchField, input.value);
       if (node) {
@@ -246,11 +253,21 @@ export function FlowWorkbench(options = {}) {
     } else if (input.dataset.flowWorkbenchZoom !== undefined) {
       updateZoom(state, input.value);
       render();
+    } else if (input.dataset.flowWorkbenchParamField) {
+      const node = updateSelectedNodeParam(state, input.dataset.flowWorkbenchParamField, input.dataset.flowWorkbenchParamType, input);
+      if (node) {
+        syncParamsTextarea(target, node);
+        refreshNodePreview(target, state, options, node);
+        refreshCanvasEdges(target, state);
+      }
     } else if (input.dataset.flowWorkbenchField) {
       const node = updateSelectedNode(state, input.dataset.flowWorkbenchField, input.value);
       if (node) {
         refreshNodePreview(target, state, options, node);
         refreshCanvasEdges(target, state);
+        if (input.dataset.flowWorkbenchField === 'capability') {
+          render();
+        }
       }
     }
   };
@@ -359,7 +376,7 @@ export function renderFlowWorkbenchToHTML(state, options = {}) {
     `<div class="flow-workbench__panel-title">${escapeHTML(labels.inspector)}</div>`,
     '<button type="button" class="flow-workbench__panel-close" data-flow-workbench-action="close-inspector" aria-label="Close inspector">×</button>',
     '<div class="flow-workbench__inspector-body">',
-    renderInspector(state, labels),
+    renderInspector(state, labels, options),
     '</div>',
     '</aside>',
     ].join('') : '',
@@ -1094,7 +1111,7 @@ function renderNodeHelpModal(state, options, labels) {
   ].join('');
 }
 
-function renderInspector(state, labels) {
+function renderInspector(state, labels, options = {}) {
   const node = getNode(state, state.selectedNodeId);
   if (!node) {
     return `<div class="flow-workbench__empty">${escapeHTML(labels.emptyInspector)}</div>`;
@@ -1112,6 +1129,7 @@ function renderInspector(state, labels) {
     `<span>${escapeHTML(labels.risk)}</span>`,
     `<select class="ds-select ds-select--sm" data-flow-workbench-field="risk">${['low', 'medium', 'high', 'critical'].map((risk) => `<option value="${risk}"${risk === (node.risk || 'low') ? ' selected' : ''}>${risk}</option>`).join('')}</select>`,
     '</label>',
+    renderParamSchemaForm(node, labels, options),
     '<label class="flow-workbench__field">',
     `<span>${escapeHTML(labels.params)}</span>`,
     `<textarea class="ds-textarea" data-flow-workbench-field="params">${escapeHTML(JSON.stringify(node.params || {}, null, 2))}</textarea>`,
@@ -1126,6 +1144,93 @@ function renderInspector(state, labels) {
     `<p class="flow-workbench__hint">${escapeHTML(labels.summary(state.flow.nodes.length, state.flow.edges.length))}</p>`,
     '</form>'
   ].join('');
+}
+
+function renderParamSchemaForm(node, labels, options = {}) {
+  const paramsSchema = getNodeParamsSchema(node, options);
+  const fields = Object.entries(paramsSchema || {});
+  if (fields.length === 0) {
+    return '';
+  }
+
+  return [
+    '<section class="flow-workbench__param-form">',
+    '<div class="flow-workbench__param-form-head">',
+    `<strong>${escapeHTML(labels.paramForm || 'Params form')}</strong>`,
+    `<small>${escapeHTML(node.capability || defaultCapability(node.type) || node.type)}</small>`,
+    '</div>',
+    '<div class="flow-workbench__param-form-grid">',
+    fields.map(([name, schema]) => renderParamSchemaField(name, schema, node.params?.[name])).join(''),
+    '</div>',
+    '</section>'
+  ].join('');
+}
+
+function renderParamSchemaField(name, schema = {}, value) {
+  const type = String(schema.type || 'string');
+  const label = `${schema.label || name}${schema.required ? ' *' : ''}`;
+  if (type === 'boolean') {
+    return [
+      '<label class="flow-workbench__param-field flow-workbench__param-field--checkbox">',
+      `<input type="checkbox" data-flow-workbench-param-field="${escapeAttr(name)}" data-flow-workbench-param-type="${escapeAttr(type)}"${value ? ' checked' : ''}>`,
+      `<span>${escapeHTML(label)}</span>`,
+      '</label>'
+    ].join('');
+  }
+
+  const inputValue = formatParamSchemaValue(value, type);
+  const multiline = type === 'array' || type === 'object';
+  return [
+    '<label class="flow-workbench__param-field">',
+    `<span>${escapeHTML(label)}</span>`,
+    multiline
+      ? `<textarea class="ds-textarea" rows="2" data-flow-workbench-param-field="${escapeAttr(name)}" data-flow-workbench-param-type="${escapeAttr(type)}">${escapeHTML(inputValue)}</textarea>`
+      : `<input class="ds-input ds-input--sm" type="${schema.sensitive ? 'password' : 'text'}" data-flow-workbench-param-field="${escapeAttr(name)}" data-flow-workbench-param-type="${escapeAttr(type)}" value="${escapeAttr(inputValue)}">`,
+    schema.description ? `<small>${escapeHTML(schema.description)}</small>` : '',
+    '</label>'
+  ].join('');
+}
+
+function getNodeParamsSchema(node, options = {}) {
+  const capability = getWorkbenchCapability(options, node.capability || defaultCapability(node.type));
+  if (isPlainObject(capability?.paramsSchema)) {
+    return capability.paramsSchema;
+  }
+
+  const definition = getWorkbenchNodeTypes(options)
+    .find((item) => (item.id || item.key || item.type || item[0]) === node.type || (item.type || item[0]) === node.type);
+  if (isPlainObject(definition?.paramsSchema)) {
+    return definition.paramsSchema;
+  }
+  return {};
+}
+
+function getWorkbenchCapability(options, capabilityName) {
+  const name = String(capabilityName || '').trim();
+  if (!name) {
+    return null;
+  }
+  const source = options.capabilities;
+  const capabilities = Array.isArray(source)
+    ? source
+    : typeof source?.list === 'function'
+      ? source.list()
+      : [];
+  return capabilities.find((capability) => capability?.name === name) ?? null;
+}
+
+function formatParamSchemaValue(value, type) {
+  if (value === undefined || value === null) {
+    return type === 'array' ? '[]' : type === 'object' ? '{}' : '';
+  }
+  if (type === 'array' || type === 'object') {
+    try {
+      return JSON.stringify(value);
+    } catch {
+      return '';
+    }
+  }
+  return String(value);
 }
 
 function renderField(label, field, value) {
@@ -1185,6 +1290,10 @@ function clonePlain(value) {
     return value;
   }
   return JSON.parse(JSON.stringify(value));
+}
+
+function isPlainObject(value) {
+  return Object.prototype.toString.call(value) === '[object Object]';
 }
 
 function removeSelectedNode(state, api) {
@@ -1253,6 +1362,48 @@ function updateSelectedNode(state, field, value) {
     node[field] = value;
   }
   return node;
+}
+
+function updateSelectedNodeParam(state, name, type, input) {
+  const node = getNode(state, state.selectedNodeId);
+  if (!node || !name) {
+    return null;
+  }
+  node.params = {
+    ...(isPlainObject(node.params) ? node.params : {}),
+    [name]: parseParamSchemaInput(input, type)
+  };
+  return node;
+}
+
+function parseParamSchemaInput(input, type = 'string') {
+  if (type === 'boolean') {
+    return Boolean(input.checked);
+  }
+
+  const value = input.value;
+  if (String(value).trim().startsWith('{{')) {
+    return String(value).trim();
+  }
+  if (type === 'number') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : value;
+  }
+  if (type === 'array' || type === 'object') {
+    try {
+      return JSON.parse(value || (type === 'array' ? '[]' : '{}'));
+    } catch {
+      return value;
+    }
+  }
+  return value;
+}
+
+function syncParamsTextarea(target, node) {
+  const textarea = target.querySelector('[data-flow-workbench-field="params"]');
+  if (textarea && document.activeElement !== textarea) {
+    textarea.value = JSON.stringify(node.params || {}, null, 2);
+  }
 }
 
 async function runFlow(state, options, api, { execute }) {
@@ -1659,6 +1810,7 @@ function createLabels(labels = {}) {
     nodeName: 'Node name',
     capability: 'Capability',
     risk: 'Risk',
+    paramForm: 'Params form',
     params: 'Params JSON',
     connectTo: 'Connect to',
     selectTarget: 'Select target',

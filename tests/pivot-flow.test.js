@@ -2380,6 +2380,53 @@ test('workbench syncs inspector edits to node preview and measured edge ports', 
   workbench.destroy();
 });
 
+test('workbench renders schema-driven params form from capabilities', () => {
+  const html = renderFlowWorkbenchToHTML({
+    flow: createFlow({
+      id: 'workbench-param-schema-flow',
+      name: 'Workbench param schema flow',
+      nodes: [
+        {
+          id: 'query-users',
+          type: 'data.query',
+          label: 'Query users',
+          capability: 'users.query',
+          params: { keyword: '张三', limit: 20, includeDisabled: false }
+        }
+      ],
+      edges: []
+    }),
+    selectedNodeId: 'query-users',
+    paletteOpen: false,
+    flowListOpen: false,
+    resultOpen: false,
+    pan: { x: 0, y: 0 },
+    zoom: 1,
+    logs: []
+  }, {
+    capabilities: [
+      {
+        name: 'users.query',
+        paramsSchema: {
+          keyword: { type: 'string', required: true },
+          limit: { type: 'number' },
+          includeDisabled: { type: 'boolean' }
+        }
+      }
+    ],
+    labels: {
+      paramForm: '参数表单'
+    }
+  });
+
+  assert.match(html, /flow-workbench__param-form/);
+  assert.match(html, /参数表单/);
+  assert.match(html, /data-flow-workbench-param-field="keyword"/);
+  assert.match(html, /data-flow-workbench-param-field="limit"/);
+  assert.match(html, /data-flow-workbench-param-field="includeDisabled"/);
+  assert.match(html, /张三/);
+});
+
 test('renders editable node inspector controls', () => {
   const html = renderEditableNodeInspectorToHTML({
     id: 'create-user',

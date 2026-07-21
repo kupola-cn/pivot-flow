@@ -433,6 +433,64 @@
   min-height: 118px;
 }
 
+.flow-workbench__param-form {
+  background: var(--bg-overlay-l1);
+  border: 1px solid var(--border-neutral-l1);
+  border-radius: var(--radius-4);
+  display: grid;
+  gap: var(--spacer-10);
+  padding: var(--spacer-10) var(--spacer-12);
+}
+
+.flow-workbench__param-form-head {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-8);
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.flow-workbench__param-form-head strong {
+  color: var(--text-default);
+  font-size: var(--body-sm-font-size);
+}
+
+.flow-workbench__param-form-head small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flow-workbench__param-form-grid {
+  display: grid;
+  gap: var(--spacer-8);
+}
+
+.flow-workbench__param-field {
+  display: grid;
+  gap: var(--spacer-4);
+}
+
+.flow-workbench__param-field span,
+.flow-workbench__param-field small {
+  color: var(--text-secondary);
+  font-size: var(--body-xs-font-size);
+  line-height: 1.4;
+}
+
+.flow-workbench__param-field--checkbox {
+  align-items: center;
+  display: flex;
+  gap: var(--spacer-8);
+}
+
+.flow-workbench__param-field--checkbox input {
+  margin: 0;
+}
+
 .flow-workbench__result {
   grid-column: 1 / -1;
   grid-template-columns: minmax(0, 1fr) 360px;

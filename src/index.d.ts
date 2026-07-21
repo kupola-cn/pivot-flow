@@ -1615,6 +1615,7 @@ export interface FlowWorkbenchLabels {
   nodeName?: string;
   capability?: string;
   risk?: string;
+  paramForm?: string;
   params?: string;
   connectTo?: string;
   selectTarget?: string;

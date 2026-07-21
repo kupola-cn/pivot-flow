@@ -454,12 +454,18 @@ GET /api/pivot-resources
   - HIS 后端已新增 `GET /api/pivot-resources` 和 `GET /api/pivot-resources/:name`。
   - 资源目录已覆盖 `users`、`organization`、`roles`、`permissions`、`materials` 的字段、关系、可查字段、可写字段、展示字段和敏感字段。
   - HIS 前端已加载 resource metadata，并在节点属性能力说明中展示资源字段信息。
+- 第三阶段收口已完成：
+  - HIS 前端已区分草稿调试与正式运行：未保存、未发布或无发布版本的策略不允许走正式后端执行，草稿调试使用预览。
+  - `@kupola/pivot-flow` 的 `FlowWorkbench` 已支持基于 capability `paramsSchema` 的通用参数表单，并保留 JSON 参数文本框作为高级编辑入口。
+  - HIS 已更新到 `@kupola/pivot-flow@0.3.5` 使用通用参数表单能力。
+  - HIS 正式运行请求已包含 `mode`、`idempotencyKey` 和 `confirmations`。
+  - HIS 后端正式执行已对写操作和高风险节点校验二次确认。
+  - HIS 后端写操作流程已使用事务包裹，失败时回滚业务写入。
+  - `pivot_flow_runs` 已扩展记录运行模式、幂等键和确认数据。
 
 ### 待继续
 
-- 区分编排器调试运行和普通用户正式运行入口，避免草稿调试误触发生产写操作。
-- 基于 resource metadata 把属性面板从纯 JSON 输入逐步升级为 schema-driven 表单。
-- 为 executor 增加更细粒度的事务、幂等键和高风险二次确认记录。
+- PLAN7 主体已完成。后续新业务只需要按 capability registry 继续补资源 schema、能力 metadata 和后端 executor。
 
 ## 风险与决策
 
